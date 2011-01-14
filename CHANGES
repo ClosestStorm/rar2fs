@@ -1,0 +1,28 @@
+    CHANGE LOG
+
+    1.07 beta   o Fixed permissions to now be properly handled by kernel
+                o Added limited support for "rar inside rar".
+                  Main archive or encapsulated RAR file must not be a volume
+                  (i.e. must be monolithic).
+                  Only one (1) level of depth is supported (--seek-depth > 0).
+                  Extracted file can be of any shape or form except for password
+                  protection which is currently not supported (inherits main
+                  archive password).
+                o Use of external unrar program no longer required.
+                  Can still be choosen instead of internal routines using the
+                  --unrar-path option.
+                o Minor memory leak fixed when parsing folders inside archives.
+                o Built against unrarlib v3.93
+                o Added support for password protected archives
+                  (raw read mode not yet supported).
+                o Some stability issues corrected.
+                o Fixed an off-by-one bug (!?) in date/time hour calculation.
+                o Changed 'blocks' calculation as returned by stat()
+                o Fixed some memory leaks in cache collision chain
+    1.06 beta   o Replaced the "Unique RAR File Library" (by Christian Scheurer)
+                  with the more complete "Unrar C++ Library" (by Alexander Roshal)
+                  and some extensions to it.
+                o Minor source code clean up. Still lots left to do.
+    <1.06       o First draft version(s) only published at opentvix.org and
+                  xtreamer.net
+
