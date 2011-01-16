@@ -1,3 +1,20 @@
+/*
+
+   extractext.cpp
+
+   This is an extension of the freeware Unrar C++ library (libunrar).
+   It requires the complete unrar source package in order to compile.
+
+   Unrar source may be used in any software to handle RAR archives
+   without limitations free of charge, but cannot be used to re-create
+   the RAR compression algorithm, which is proprietary. Distribution
+   of modified Unrar source in separate form or as a part of other
+   software is permitted, provided that it is clearly stated in
+   the documentation and source comments that the code may not be used
+   to develop a RAR (WinRAR) compatible archiver.
+
+ */
+
 #include "rar.hpp"
 #include "extractext.hpp"
 #include "fileext.hpp"
