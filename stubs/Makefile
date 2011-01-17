@@ -10,7 +10,7 @@ LIBS=
 AR=ar
 
 # Cross-compile
-# Linux using mipsel-linux-?
+# Linux using mipsel-linux-
 #CC=mipsel-linux-gcc
 #CFLAGS=-O2
 #DEFINES=
