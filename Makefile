@@ -2,7 +2,7 @@
 
 UNRAR_SRC=./unrar
 UNRAR_LIB=./unrar
-FUSE_SRC=/opt/include/fuse
+FUSE_SRC=/usr/include/fuse
 FUSE_LIB=
 
 # Linux using GCC
@@ -10,7 +10,7 @@ CC=gcc
 CXX=g++
 CCFLAGS=-O2 -g -rdynamic -fno-omit-frame-pointer  
 CXXFLAGS=-O2 -g -rdynamic -fno-omit-frame-pointer 
-DEFINES=-D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=26 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -DRARDLL
+DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -DFUSE_USE_VERSION=26
 STRIP=strip
 LDFLAGS=
 
@@ -18,9 +18,9 @@ LDFLAGS=
 # Linux using mipsel-linux-?
 #CC=mipsel-linux-gcc
 #CXX=mipsel-linux-g++
-#CFLAGS=-O2
-#CXXFLAGS=-O2 -I
-#DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
+#CFLAGS=-O2 -g
+#CXXFLAGS=-O2 -g
+#DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -DFUSE_USE_VERSION=26
 #STRIP=mipsel-linux-strip
 #LDFLAGS=
 
@@ -31,8 +31,8 @@ LIBS=-lfuse -lunrar -lfmemopen -pthread
 else
 LIBS=-lfuse -lunrar -pthread
 endif
-C_COMPILE=$(CC) $(CCFLAGS) $(DEFINES)
-CXX_COMPILE=$(CXX) $(CXXFLAGS) $(DEFINES)
+C_COMPILE=$(CC) $(CCFLAGS) $(DEFINES) -DRARDLL
+CXX_COMPILE=$(CXX) $(CXXFLAGS) $(DEFINES) -DRARDLL
 LINK=$(CC)
 ifneq ("$(FUSE_LIB)", "")
 LIB_DIR=-L$(UNRAR_LIB) -L$(FUSE_LIB)
