@@ -157,10 +157,10 @@ int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N)
                IntToExt(Arc.NewLhd.FileName,Arc.NewLhd.FileName);
                strncpyz(N->FileName,Arc.NewLhd.FileName,ASIZE(N->FileName));
                if (*Arc.NewLhd.FileNameW)
-                  strncpyw(N->FileNameW,Arc.NewLhd.FileNameW,sizeof(N->FileNameW));
+                  wcsncpy(N->FileNameW,Arc.NewLhd.FileNameW,sizeof(N->FileNameW));
                else
                {
-#ifdef _WIN_32
+#ifdef _WIN_ALL
                   char AnsiName[NM];
                   OemToChar(Arc.NewLhd.FileName,AnsiName);
                   CharToWide(AnsiName,N->FileNameW);
@@ -226,7 +226,8 @@ void PASCAL RARExtractToStdout(const char* ArcName, const char* FileName, const 
    CommandData Cmd;
    Cmd.AddArcName((char*)ArcName, NULL);
    Cmd.FileArgs->AddString(FileName);
-   strncpyz(Cmd.Password,Password?Password:(char*)"-",ASIZE(Cmd.Password));
+
+   GetWideName(Password,NULL,Cmd.Password,ASIZE(Cmd.Password));
 
    // P
    Cmd.Command[0]='P';
