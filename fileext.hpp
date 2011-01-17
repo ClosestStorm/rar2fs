@@ -19,7 +19,7 @@
 #define _RAR_FILEEXT__
 
 #ifndef __cplusplus
-#ifdef _WIN_32
+#ifdef _WIN_ALL
 typedef HANDLE FileHandle;
 #define BAD_HANDLE INVALID_HANDLE_VALUE
 #else
@@ -40,7 +40,7 @@ class FileExt
     bool NewFile;
     bool AllowDelete;
     bool AllowExceptions;
-#ifdef _WIN_32
+#ifdef _WIN_ALL
     bool NoSequentialRead;
 #endif
   protected:
