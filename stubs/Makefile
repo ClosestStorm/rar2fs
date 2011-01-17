@@ -2,7 +2,7 @@
 
 # Linux using GCC
 CC=gcc
-CCFLAGS=-O2 
+CFLAGS=-O2 
 DEFINES=
 STRIP=
 LDFLAGS=
@@ -12,16 +12,16 @@ AR=ar
 # Cross-compile
 # Linux using mipsel-linux-?
 #CC=mipsel-linux-gcc
-#CXX=mipsel-linux-g++
 #CFLAGS=-O2
-#CXXFLAGS=-O2 -I
-#DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
-#STRIP=mipsel-linux-strip
+#DEFINES=
+#STRIP=
 #LDFLAGS=
+#LIBS=
+#AR=mipsel-linux-ar
 
 ##########################
 
-C_COMPILE=$(CC) $(CCFLAGS) $(DEFINES)
+C_COMPILE=$(CC) $(CFLAGS) $(DEFINES)
 LINK=
 
 OBJECTS=_stdio.o fmemopen.o fopencookie.o
@@ -32,7 +32,7 @@ OBJECTS=_stdio.o fmemopen.o fopencookie.o
 all:	stubs
 
 clean:
-	rm -f *.o *.bak *~
+	rm -f *.o *.bak *~ *.a
 
 stubs:	$(OBJECTS) $(UNRAR_OBJ)
 	$(AR) r fmemopen.a $(OBJECTS) 
