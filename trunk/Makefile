@@ -10,7 +10,7 @@ CC=gcc
 CXX=g++
 CCFLAGS=-O2 -g -rdynamic -fno-omit-frame-pointer  
 CXXFLAGS=-O2 -g -rdynamic -fno-omit-frame-pointer 
-DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -DFUSE_USE_VERSION=26
+DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 STRIP=strip
 LDFLAGS=
 
@@ -18,9 +18,9 @@ LDFLAGS=
 # Linux using mipsel-linux-?
 #CC=mipsel-linux-gcc
 #CXX=mipsel-linux-g++
-#CFLAGS=-O2 -g
-#CXXFLAGS=-O2 -g
-#DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -DFUSE_USE_VERSION=26
+#CFLAGS=-O2 
+#CXXFLAGS=-O2 
+#DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 #STRIP=mipsel-linux-strip
 #LDFLAGS=
 
@@ -31,7 +31,7 @@ LIBS=-lfuse -lunrar -lfmemopen -pthread
 else
 LIBS=-lfuse -lunrar -pthread
 endif
-C_COMPILE=$(CC) $(CCFLAGS) $(DEFINES) -DRARDLL
+C_COMPILE=$(CC) $(CFLAGS) $(DEFINES) -DRARDLL -DFUSE_USE_VERSION=26
 CXX_COMPILE=$(CXX) $(CXXFLAGS) $(DEFINES) -DRARDLL
 LINK=$(CC)
 ifneq ("$(FUSE_LIB)", "")
@@ -45,7 +45,7 @@ OBJECTS=dllext.o extractext.o rar2fs.o
 .c.o:
 	$(C_COMPILE) -I$(UNRAR_SRC) -I$(FUSE_SRC) -c $<
 .cpp.o:
-	$(CXX_COMPILE) -I$(UNRAR_SRC) -I$(FUSE_SRC) -c $<
+	$(CXX_COMPILE) -I$(UNRAR_SRC) -c $<
 
 all:	rar2fs
 
