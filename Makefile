@@ -5,24 +5,26 @@ UNRAR_LIB=./unrar
 FUSE_SRC=/usr/include/fuse
 FUSE_LIB=
 
+ifeq ("$(CROSS)", "")
 # Linux using GCC
 CC=gcc
 CXX=g++
-CCFLAGS=-O2 -g -rdynamic -fno-omit-frame-pointer  
+CFLAGS=-O2 -g -rdynamic -fno-omit-frame-pointer  
 CXXFLAGS=-O2 -g -rdynamic -fno-omit-frame-pointer 
 DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 STRIP=strip
 LDFLAGS=
-
+else
 # Cross-compile
 # Linux using mipsel-linux-?
-#CC=mipsel-linux-gcc
-#CXX=mipsel-linux-g++
-#CFLAGS=-O2 
-#CXXFLAGS=-O2 
-#DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
-#STRIP=mipsel-linux-strip
-#LDFLAGS=
+CC=mipsel-linux-gcc
+CXX=mipsel-linux-g++
+CFLAGS=-O2 
+CXXFLAGS=-O2 
+DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
+STRIP=mipsel-linux-strip
+LDFLAGS=
+endif
 
 ##########################
 
