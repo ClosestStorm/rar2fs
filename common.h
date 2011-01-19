@@ -1,5 +1,5 @@
 /*
-    iobuffer.h
+    filecache.h
 
     Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
 
@@ -28,67 +28,15 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef IOBUFFER_H
-#define IOBUFFER_H
+#ifndef COMMON_H
+#define COMMON_H 
 
-#include <stdlib.h>
-#include <stddef.h>
-#include <stdio.h>
+#ifdef DEBUG_
+#define     tprintf(f, ...)  fprintf(stderr, f, ##__VA_ARGS__)
+#else /* DEBUG_ */
+#define     tprintf(f, ...)
+#endif /* DEBUG_ */
 
-
-#define FHD_SZ                   (512*1024)
-#define IOB_SZ                   (4*1024*1024)
-#define IOB_HIST_SZ              (IOB_SZ/2)
-
-#define IOB_NO_HIST 0
-#define IOB_SAVE_HIST 1
-
-#define IOB_RST(b)  (memset((b), 0, sizeof(IoBuf)))
-
-typedef struct
-{
-   unsigned int magic;
-   unsigned short version;
-   unsigned short spare;
-   off_t offset;
-   size_t size;
-} IdxHead;
-
-typedef struct
-{
-   IdxHead head;
-   char bytes[0]; /* start of data bytes */
-} IdxData;
-
-typedef struct
-{
-  int fd;
-  int mmap;
-  IdxData* data_p;
-} IdxInfo;
-
-typedef struct
-{
-   off_t offset;
-   char data_p[IOB_SZ];
-#ifdef USE_STATIC_WINDOW
-   char sbuf_p[FHD_SZ];
-#endif
-   IdxInfo idx;
-   volatile size_t ri;
-   volatile size_t wi;
-   size_t used;
-} IoBuf;
-
-
-size_t
-readTo(IoBuf* dest, FILE* fp, int hist);
-
-size_t
-readFrom(char* dest, IoBuf* src, size_t size, int off);
-
-size_t
-copyFrom(char* dest, IoBuf* src, size_t size, size_t pos);
+#define no_warn_result_ void*ignore_result_=(void*)
 
 #endif
-
