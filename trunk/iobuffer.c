@@ -107,7 +107,6 @@ size_t
 copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
 {
    size_t used = src->used;
-   dprintf("copyFrom(): size=%u, pos=%u, used=%u\n", size, pos, used);
 
    size_t tot = 0;
    size = size > used ? used : size;    /* can not read more than used */

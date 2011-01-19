@@ -29,6 +29,7 @@
 */
 
 #include <memory.h>
+#include "common.h"
 #include "filecache.h"
 
 #define PATH_CACHE_SZ  (1024)
@@ -106,14 +107,14 @@ cache_path(const char* path, struct stat *stbuf)
    }
    else
    {
-      dprintf("CACHE MISS %s (collision %s) rar=%s\n", path, e_p->name_p ? e_p->name_p : "n/a", e_p->rar_p ? e_p->rar_p : "n/a");
+      tprintf("CACHE MISS %s (collision %s) rar=%s\n", path, e_p->name_p ? e_p->name_p : "n/a", e_p->rar_p ? e_p->rar_p : "n/a");
       FREE_CACHE_MEM(e_p);
       memset(e_p, 0, sizeof(dir_elem_t));
       char* root;
       ABS_ROOT(root, path);
       if(!stat(root, &e_p->stat))
       {
-         dprintf("STAT retrieved for %s\n", root);
+         tprintf("STAT retrieved for %s\n", root);
          e_p->name_p = strdup(path);
          e_p->file_p = strdup(path);
          if (stbuf)
@@ -168,7 +169,7 @@ inval_cache_path(const char* path)
    if (path)
    {
       int hash = get_hash(path);
-      dprintf("Invalidating cache path %s\n", path);
+      tprintf("Invalidating cache path %s\n", path);
       dir_elem_t* e_p = &path_cache[hash];
       dir_elem_t* p = e_p;
       /* Search collision chain */
@@ -190,7 +191,7 @@ inval_cache_path(const char* path)
    /* Invalidate entire cache */
    else
    {
-      dprintf("Invalidating all cache entries\n");
+      tprintf("Invalidating all cache entries\n");
       for (i = 0; i < PATH_CACHE_SZ;i++)
       {
          dir_elem_t* e_p = &path_cache[i];

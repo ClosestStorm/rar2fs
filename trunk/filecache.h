@@ -28,6 +28,9 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
+#ifndef FILECACHE_H
+#define FILECACHE_H
+
 #include <stdlib.h>
 #include <sys/stat.h>
 
@@ -94,3 +97,5 @@ inval_cache_path(const char* path);
 
 void
 init_cache();
+
+#endif
