@@ -1,8 +1,13 @@
     CHANGE LOG
 
     1.07        o First official release (with source)
-                o Built against unrarlib v4.0 beta 4
-    1.07 beta   o Fixed permissions to now be properly handled by kernel
+    1.07 beta   o Built against unrarlib v4.0 beta 4
+                o Added a sliding window to the IO buffer to allow for at least
+                  some sort of backward read support.
+                  The window is currently hardcoded to half the I/O buffer size
+                  (4/2 = 2MiB) and for that reason the I/O buffer size had to be
+                  increased from 2MiB to 4MiB.
+                o Fixed permissions to now be handled by kernel instead
                 o Added limited support for "rar inside rar".
                   Main archive or encapsulated RAR file must not be a volume
                   (i.e. must be monolithic).
