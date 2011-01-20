@@ -1,4 +1,5 @@
-#
+# Change below to match current configuration
+##########################
 
 UNRAR_SRC=./unrar
 UNRAR_LIB=./unrar
@@ -26,6 +27,7 @@ STRIP=mipsel-linux-strip
 LDFLAGS=
 endif
 
+# Do not change anything below this line
 ##########################
 
 ifneq ("$(UCLIBC_STUBS)", "")
@@ -33,7 +35,7 @@ LIBS=-lfuse -lunrar -lfmemopen -pthread
 else
 LIBS=-lfuse -lunrar -pthread
 endif
-C_COMPILE=$(CC) $(CFLAGS) $(DEFINES) -DRARDLL -DFUSE_USE_VERSION=26
+C_COMPILE=$(CC) $(CFLAGS) $(DEFINES) -DRARDLL -DFUSE_USE_VERSION=27
 CXX_COMPILE=$(CXX) $(CXXFLAGS) $(DEFINES) -DRARDLL
 LINK=$(CC)
 ifneq ("$(FUSE_LIB)", "")
@@ -42,24 +44,41 @@ else
 LIB_DIR=-L$(UNRAR_LIB)
 endif
 
-OBJECTS=dllext.o extractext.o rar2fs.o
-
-.c.o:
-	$(C_COMPILE) -I$(UNRAR_SRC) -I$(FUSE_SRC) -c $<
-.cpp.o:
-	$(CXX_COMPILE) -I$(UNRAR_SRC) -c $<
+OBJECTS=dllext.o extractext.o  filecache.o iobuffer.o rar2fs.o
+DEPS=.deps
 
 all:	rar2fs
 
 clean:
 	(cd stubs;make clean)
-	rm -f *.o *.bak *~
+	rm -rf *.o *.bak *~ $(DEPS)
 
 ifneq ("$(UCLIBC_STUBS)", "")
-rar2fs:	$(OBJECTS) $(UNRAR_OBJ) 
-	(cd stubs;make)
+rar2fs:	$(OBJECTS) 
+	(cd stubs;make CROSS=$(CROSS))
 else
-rar2fs:	$(OBJECTS) $(UNRAR_OBJ) 
+rar2fs:	$(OBJECTS) 
 endif
 	$(LINK) -o rar2fs $(LDFLAGS) $(OBJECTS) $(LIB_DIR) $(LIBS)	
 	$(STRIP) rar2fs
+
+%.o : %.c
+	@mkdir -p .deps
+	$(C_COMPILE) -MD -I$(UNRAR_SRC) -I$(FUSE_SRC) -c $<
+	@cp $*.d $*.P; \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	-e '/^$$/ d' -e 's/$$/ :/' < $*.d >> $*.P; \
+	mv $*.P $(DEPS); \
+	rm -f $*.d
+
+
+%.o : %.cpp
+	@mkdir -p .deps
+	$(CXX_COMPILE) -MD -I$(UNRAR_SRC) -c $<
+	@cp $*.d $*.P; \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	-e '/^$$/ d' -e 's/$$/ :/' < $*.d >> $*.P; \
+	mv $*.P $(DEPS); \
+	rm -f $*.d
+
+-include $(OBJECTS:%.o=$(DEPS)/%.P)
