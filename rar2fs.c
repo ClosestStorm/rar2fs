@@ -1953,6 +1953,9 @@ main(int argc, char* argv[])
          printf("rar2fs v1.07 (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
             RARGetDllVersion(),
             FUSE_VERSION);
+         printf("This program comes with ABSOLUTELY NO WARRANTY.\n"
+                "This is free software, and you are welcome to redistribute it under\n"
+                "certain conditions; see <http://www.gnu.org/licenses/> for details.\n");
          return 0;
       }
       if(opt=='h'){
