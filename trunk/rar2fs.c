@@ -330,10 +330,10 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
 {
    char* maddr = MAP_FAILED;
    FILE* fp = NULL;
-   int fd = -1;
+#ifdef HAS_FMEMOPEN_
    if (entry_p->flags.mmap)
    {
-       fd  = open(entry_p->rar_p, O_RDONLY, S_IREAD);
+       int fd = open(entry_p->rar_p, O_RDONLY, S_IREAD);
        if (fd != -1)
        {
           if (entry_p->flags.mmap==2)
@@ -364,6 +364,7 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
           return NULL;
        }
    }
+#endif /* HAS_FMEMOPEN_ */
    int status;
    int pfd[2];
    pid_t pid;
@@ -1038,6 +1039,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                ? strdup(Password)
                : entry_p->password_p);
 
+#ifdef HAS_FMEMOPEN_
             /* Check for .rar inside archive */ 
             if (!(MainHeaderFlags & MHD_VOLUME) &&  
                 seek_depth)
@@ -1134,6 +1136,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   continue;
                }
             }
+#endif /* HAS_FMEMOPEN_ */
 
             if (next->Method == 0x30 &&            
                !NEED_PASSWORD())
