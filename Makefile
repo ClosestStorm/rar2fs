@@ -6,6 +6,11 @@ UNRAR_LIB=./unrar
 FUSE_SRC=/opt/include/fuse
 FUSE_LIB=
 
+# Does the host support glibc custom streams?
+# If unsure try 'y' here. If linker fails to find e.g. fmemopen() 
+# your answer was most likely incorrect.
+HAS_GLIBC_CUSTOM_STREAMS=y
+
 ifeq ("$(CROSS)", "")
 # Linux using GCC
 CC=gcc
@@ -30,12 +35,15 @@ endif
 # Do not change anything below this line
 ##########################
 
+ifeq ("$(HAS_GLIBC_CUSTOM_STREAMS)", "y")
+CONF += -DHAS_GLIBC_CUSTOM_STREAMS_
+endif
 ifneq ("$(UCLIBC_STUBS)", "")
 LIBS=-lfuse -lunrar -lfmemopen -pthread
 else
 LIBS=-lfuse -lunrar -pthread
 endif
-C_COMPILE=$(CC) $(CFLAGS) $(DEFINES) -DHAS_FMEMOPEN_ -DRARDLL -DFUSE_USE_VERSION=27
+C_COMPILE=$(CC) $(CFLAGS) $(DEFINES) $(CONF) -DRARDLL -DFUSE_USE_VERSION=27
 CXX_COMPILE=$(CXX) $(CXXFLAGS) $(DEFINES) -DRARDLL
 LINK=$(CC)
 ifneq ("$(FUSE_LIB)", "")

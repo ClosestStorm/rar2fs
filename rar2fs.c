@@ -330,7 +330,7 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
 {
    char* maddr = MAP_FAILED;
    FILE* fp = NULL;
-#ifdef HAS_FMEMOPEN_
+#ifdef HAS_GLIBC_CUSTOM_STREAMS_
    if (entry_p->flags.mmap)
    {
        int fd = open(entry_p->rar_p, O_RDONLY, S_IREAD);
@@ -364,7 +364,7 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
           return NULL;
        }
    }
-#endif /* HAS_FMEMOPEN_ */
+#endif /* HAS_GLIBC_CUSTOM_STREAMS_ */
    int status;
    int pfd[2];
    pid_t pid;
@@ -1039,7 +1039,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                ? strdup(Password)
                : entry_p->password_p);
 
-#ifdef HAS_FMEMOPEN_
+#ifdef HAS_GLIBC_CUSTOM_STREAMS_
             /* Check for .rar inside archive */ 
             if (!(MainHeaderFlags & MHD_VOLUME) &&  
                 seek_depth)
@@ -1136,7 +1136,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   continue;
                }
             }
-#endif /* HAS_FMEMOPEN_ */
+#endif /* HAS_GLIBC_CUSTOM_STREAMS */
 
             if (next->Method == 0x30 &&            
                !NEED_PASSWORD())
