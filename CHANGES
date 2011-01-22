@@ -1,5 +1,7 @@
     CHANGE LOG
-
+ 
+                o Added HAS_FMEMOPEN_ to control the use of this gnu extension
+                  in glibc 
     1.07        o First official release (with source)
     1.07 beta   o Built against unrarlib v4.0 beta 4
                 o Added a sliding window to the IO buffer to allow for at least
