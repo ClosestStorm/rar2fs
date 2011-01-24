@@ -31,6 +31,8 @@
 #ifndef COMMON_H
 #define COMMON_H 
 
+#include <stdio.h>
+
 #ifdef DEBUG_
 #define     tprintf(f, ...)  fprintf(stderr, f, ##__VA_ARGS__)
 #else /* DEBUG_ */
