@@ -35,7 +35,6 @@
 #include <stddef.h>
 #include <stdio.h>
 
-
 #define FHD_SZ                   (512*1024)
 #define IOB_SZ                   (4*1024*1024)
 #define IOB_HIST_SZ              (IOB_SZ/2)

@@ -285,6 +285,7 @@ void* extract_to_mem(const char* file, off_t sz, FILE* fp, const dir_elem_t* ent
   if (pid == 0)
   {
      close(out_pipe[0]);
+     fflush(stdout);
      dup2(out_pipe[1], STDOUT_FILENO);   /* redirect stdout to the pipe */
 
      /* anything sent to stdout should now go down the pipe */
@@ -376,6 +377,7 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
    {
       setpgid(getpid(), 0);
       close(pfd[0]);          /* Close unused read end */
+      fflush(stdout);
       dup2(pfd[1], STDOUT_FILENO);
       /* This is the child process.  Execute the shell command. */
       if (unrar_path && !entry_p->flags.mmap)
@@ -1508,7 +1510,7 @@ reader_task(void* arg)
                if (write(fd, buf, 1) != 1) perror("write"); 
             }
             /* Early termination */
-            if (feof(FH_TOFP(op->fh))) break;
+            /*if (feof(FH_TOFP(op->fh))) break;*/ /* XXX check this! */
          }
       }
       else
