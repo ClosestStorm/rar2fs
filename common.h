@@ -41,4 +41,6 @@
 
 #define no_warn_result_ void*ignore_result_=(void*)
 
+#define MB() asm volatile("" ::: "memory");
+
 #endif

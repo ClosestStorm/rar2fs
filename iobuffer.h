@@ -68,12 +68,12 @@ typedef struct
 
 typedef struct
 {
-   off_t offset;
    char data_p[IOB_SZ];
 #ifdef USE_STATIC_WINDOW
    char sbuf_p[FHD_SZ];
 #endif
    IdxInfo idx;
+   off_t offset;
    volatile size_t ri;
    volatile size_t wi;
    size_t used;

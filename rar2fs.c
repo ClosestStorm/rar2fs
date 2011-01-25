@@ -193,22 +193,21 @@ struct IOContext
 
 #define WAIT_THREAD(pfd) \
 {\
-     int fd = pfd[0];\
-     int nfsd = fd+1;\
-     fd_set rd;\
-     FD_ZERO(&rd);\
-     FD_SET(fd, &rd);\
-     int retval = select(nfsd, &rd, NULL, NULL, NULL); \
-     if (retval == -1)\
-        if (errno!=EINTR) perror("select()");\
-     else if (retval)\
-     {\
-        /* FD_ISSET(0, &rfds) will be true. */\
-        char buf[2];\
-        no_warn_result_ read(fd, buf, 1); /* consume byte */\
-        tprintf("%u thread wakeup (%d, %u)\n",pthread_self(), retval, (int)buf[0]);\
-    }\
-    else perror("select()");\
+    int fd = pfd[0];\
+    int nfsd = fd+1;\
+    fd_set rd;\
+    FD_ZERO(&rd);\
+    FD_SET(fd, &rd);\
+    int retval = select(nfsd, &rd, NULL, NULL, NULL); \
+    if (retval == -1) {\
+       if (errno!=EINTR) perror("select()");\
+    } else if (retval) {\
+       /* FD_ISSET(0, &rfds) will be true. */\
+       char buf[2];\
+       no_warn_result_ read(fd, buf, 1); /* consume byte */\
+       tprintf("%u thread wakeup (%d, %u)\n", pthread_self(), retval, (int)buf[0]);\
+   }\
+   else perror("select()");\
 }
 
 #define WAKE_THREAD(pfd,op) \
@@ -231,6 +230,7 @@ unsigned int seek_depth = 0;
 char* unrar_path = NULL;
 int no_buffer_io = 0;
 int no_password = 0;
+int no_smp = 0;
 
 static int glibc_test = 0;
 static pthread_mutex_t file_access_mutex;
@@ -670,12 +670,13 @@ lread_rar(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
 
       if (!op->terminate) /* make sure thread is running */
       {
-         WAKE_THREAD(op->pfd, 1);
-         WAIT_THREAD(op->pfd2);
-         /* We must clear errno here since it might be set
-          * by WAIT_THREAD when thread wakes up, that is the
-          * select() system call is interrupted. */
-         errno = 0;
+         /* Take control of reader thread */
+         do {
+             errno = 0;
+             WAKE_THREAD(op->pfd, 2);
+             WAIT_THREAD(op->pfd2);
+         } while (errno==EINTR);
+
          while(!feof(FH_TOFP(op->fh)) && (offset+size)>op->buf->offset)
          {
             /* consume buffer */
@@ -685,6 +686,7 @@ lread_rar(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
          }
       }
    }
+
    if (size)
    {
       int off = offset - op->pos;
@@ -692,6 +694,7 @@ lread_rar(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
       op->pos += (off + n);
       if (!op->terminate) WAKE_THREAD(op->pfd, 0);
    }
+   tprintf("RETURN %d\n", errno ? -errno : n);
    return errno ? -errno : n;
 }
 
@@ -1496,7 +1499,7 @@ reader_task(void* arg)
       else if (retval)
       {
          /* FD_ISSET(0, &rfds) will be true. */
-         tprintf("Reader thread wakeup (%d)\n",retval);
+         tprintf("Reader thread wakeup (%d)\n", retval);
          char buf[2];
          ssize_t n;
          no_warn_result_ read(fd, buf, 1); /* consume byte */
@@ -1894,10 +1897,12 @@ rar2_utime(const char * path, const struct timespec tv[2])
       argv[i] = argv[i+1];}\
 }
 
+#include <sched.h>
 int
 main(int argc, char* argv[])
 {
-   char opt,*end;
+   int opt;
+   char *end;
    char *helpargv[2]={NULL,"-h"};
 
    /* mapping of FUSE file system operations */
@@ -1915,15 +1920,18 @@ main(int argc, char* argv[])
    };
 
    struct option longopts[] = {
-      {"show-comp-img", no_argument,       NULL, 99},
-      {"preopen-img",   no_argument,       NULL, 98},
-      {"no-idx-mmap",   no_argument,       NULL, 97},
-      {"fake-iso",      no_argument,       NULL, 96},
-      {"no-filter",     no_argument,       NULL, 95},
-      {"seek-length",   required_argument, NULL, 94},
-      {"unrar-path",    required_argument, NULL, 93},
-      {"no-password",   no_argument,       NULL, 92},
-      {"seek-depth",    required_argument, NULL, 91},
+      {"show-comp-img", no_argument,       NULL, 1099},
+      {"preopen-img",   no_argument,       NULL, 1098},
+      {"no-idx-mmap",   no_argument,       NULL, 1097},
+      {"fake-iso",      no_argument,       NULL, 1096},
+      {"no-filter",     no_argument,       NULL, 1095},
+      {"seek-length",   required_argument, NULL, 1094},
+      {"unrar-path",    required_argument, NULL, 1093},
+      {"no-password",   no_argument,       NULL, 1092},
+      {"seek-depth",    required_argument, NULL, 1091},
+#ifdef __linux
+      {"no-smp",        no_argument,       NULL, 1090},
+#endif
       {"version",       no_argument,       NULL, 'V'},
       {"help",          no_argument,       NULL, 'h'},
       {NULL,0,NULL,0}
@@ -1942,6 +1950,7 @@ main(int argc, char* argv[])
       return -1;
    }
 
+#ifdef HAS_GLIBC_CUSTOM_STREAMS_
    /* Check fmemopen() support */
    {
        char tmp[64];
@@ -1949,6 +1958,7 @@ main(int argc, char* argv[])
        fclose(fmemopen(tmp, 64, "r"));
        glibc_test = 0;
    }
+#endif
 
    //openlog("rarfs2",LOG_CONS|LOG_NDELAY|LOG_PERROR|LOG_PID,LOG_DAEMON);
    opterr=0;
@@ -1976,21 +1986,23 @@ main(int argc, char* argv[])
          printf("    --no-filter\t\t   do not apply .lock file filter\n");
          printf("    --unrar-path=<path>\t   path to external unrar binary (overide unrarlib)\n");
          printf("    --no-password\t   disable password file support\n");
+         printf("    --no-smp\t\t   disable SMP support (bind to CPU #0)\n");
          return 0;
       }
       int consume = 1;
-      switch(opt)
+      switch((unsigned)opt)
       {
-         case 99: show_compressed_img=1;  break;
-         case 98: preopen_img=1;          break;
-         case 97: no_idx_mmap = 1;        break;
-         case 96: fake_iso = 1;           break;
-         case 95: no_filter = 1;          break;
-         case 94: seek_length=strtoul(optarg, NULL, 10); break;
-         case 93: unrar_path=optarg;      break;
-         case 92: no_password = 1;        break;
-         case 91: seek_depth=strtoul(optarg, NULL, 10); break;
-         default: consume = 0;            break;
+         case 1099: show_compressed_img=1;  break;
+         case 1098: preopen_img=1;          break;
+         case 1097: no_idx_mmap = 1;        break;
+         case 1096: fake_iso = 1;           break;
+         case 1095: no_filter = 1;          break;
+         case 1094: seek_length=strtoul(optarg, NULL, 10); break;
+         case 1093: unrar_path=optarg;      break;
+         case 1092: no_password = 1;        break;
+         case 1091: seek_depth=strtoul(optarg, NULL, 10); break;
+         case 1090: no_smp = 1;             break;
+         default: consume = 0;              break;
       }
       if (consume) CONSUME_LONG_ARG();
    }
@@ -2030,6 +2042,19 @@ main(int argc, char* argv[])
    if (ps != -1) page_size = ps;
    else          page_size = 4096;
 
+#ifdef __linux
+   if (no_smp)
+   {
+      cpu_set_t cpu_mask;
+      CPU_ZERO(&cpu_mask);
+      CPU_SET(1, &cpu_mask);
+      if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask)) {
+         perror("sched_setaffinity");
+         exit(-1);
+      }
+   }
+#endif
+
    argv[optind]=argv[optind+1];
    argc-=1;
 
@@ -2037,7 +2062,6 @@ main(int argc, char* argv[])
    fuse_opt_parse(&args, NULL, NULL, NULL);
    fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,default_permissions");
    fuse_opt_add_arg(&args, "-s");
-
 
    return fuse_main(args.argc, args.argv, &rar2_operations, NULL);
 }

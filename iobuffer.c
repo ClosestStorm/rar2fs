@@ -30,6 +30,7 @@
 
 #include <memory.h>
 #include "iobuffer.h"
+#include "common.h"
 
 #define SPACE_LEFT(ri, wi) (IOB_SZ - SPACE_USED((ri), (wi)))
 #define SPACE_USED(ri, wi) (((wi) - (ri)) & (IOB_SZ-1))
@@ -38,7 +39,6 @@ size_t
 readTo(IoBuf* dest, FILE* fp, int hist)
 {
    unsigned tot = 0;
-
    unsigned int lri = dest->ri;  /* read once */
    unsigned int lwi = dest->wi;  /* read once */
    int left = (int)SPACE_LEFT(lri, lwi)-1;   /* -1 to avoid wi = ri */
@@ -63,24 +63,24 @@ readTo(IoBuf* dest, FILE* fp, int hist)
       chunk -= n;
       chunk = !chunk ? left : chunk;
    }
-   dest->wi = lwi;
    dest->offset += tot;
+   dest->wi = lwi;
+   MB();
    dest->used = SPACE_USED(lri, lwi);
+
    return tot;
 }
-
 
 size_t
 readFrom(char* dest, IoBuf* src, size_t size, int off)
 {
    size_t tot = 0;
-
    unsigned int lwi = src->wi; /* read once */
    unsigned int lri = src->ri; /* read once */
-   int used = (int)SPACE_USED(lri, lwi);
+   int used = src->used;
    if (off)
    {
-      /* consume offet */
+      /* consume offset */
       off = off < used ? off : used;
       lri = (lri + off) & (IOB_SZ-1);
       used -= off;
@@ -99,6 +99,7 @@ readFrom(char* dest, IoBuf* src, size_t size, int off)
       chunk = size;
    }
    src->ri = lri;
+   MB();
    src->used = used;
 
    return tot;
