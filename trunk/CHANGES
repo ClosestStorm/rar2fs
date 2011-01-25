@@ -1,7 +1,7 @@
     CHANGE LOG
  
                 o Fixed a bug in handling of WAIT_THREAD() that could result 
-                  in no data being read from subjected file.
+                  in that data was not read properly in SMP mode.
                 o Added the option --no-smp to turn off SMP support and bind
                   process(s) to CPU #0 (Linux only).
                 o Added HAS_GLIBC_CUSTOM_STREAMS_ to control the use of this GNU 
