@@ -331,12 +331,12 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
 {
    char* maddr = MAP_FAILED;
    FILE* fp = NULL;
-#ifdef HAS_GLIBC_CUSTOM_STREAMS_
    if (entry_p->flags.mmap)
    {
        int fd = open(entry_p->rar_p, O_RDONLY, S_IREAD);
        if (fd != -1)
        {
+#ifdef HAS_GLIBC_CUSTOM_STREAMS_
           if (entry_p->flags.mmap==2)
           {
              maddr = extract_to_mem(entry_p->file_p, entry_p->msize, NULL, entry_p);
@@ -344,10 +344,16 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
                 fp = fmemopen(maddr, entry_p->msize, "r");
           }
           else
+#endif
           {
+#ifdef HAS_GLIBC_CUSTOM_STREAMS_
              maddr = mmap(0, P_ALIGN_(entry_p->msize), PROT_READ, MAP_SHARED, fd, 0);
              if (maddr != MAP_FAILED) 
                 fp = fmemopen(maddr+entry_p->offset, entry_p->msize-entry_p->offset, "r");
+#else
+             fp = fopen(entry_p->rar_p, "r");
+             if (fp) fseeko(fp, entry_p->offset, SEEK_SET);
+#endif
           }
        }
        if (fp)
@@ -365,7 +371,6 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
           return NULL;
        }
    }
-#endif /* HAS_GLIBC_CUSTOM_STREAMS_ */
    int status;
    int pfd[2];
    pid_t pid;
@@ -1044,7 +1049,6 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                ? strdup(Password)
                : entry_p->password_p);
 
-#ifdef HAS_GLIBC_CUSTOM_STREAMS_
             /* Check for .rar inside archive */ 
             if (!(MainHeaderFlags & MHD_VOLUME) &&  
                 seek_depth)
@@ -1073,27 +1077,38 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                      {
                         struct stat st;
                         (void)fstat(fd, &st);
+#ifdef HAS_GLIBC_CUSTOM_STREAMS_
                         maddr = mmap(0, P_ALIGN_(st.st_size), PROT_READ, MAP_SHARED, fd, 0);
                         if (maddr != MAP_FAILED)
                            fp = fmemopen(maddr+(next->Offset + next->HeadSize), GET_RAR_PACK_SZ(next), "r");
+#else
+                        fp = fopen(entry_p->rar_p, "r");
+                        if (fp) fseeko(fp, next->Offset + next->HeadSize, SEEK_SET);
+#endif
                         msize = st.st_size;
                         mflags = 1;
                      }
+#ifdef HAS_GLIBC_CUSTOM_STREAMS_
                      else 
                      {
-                         maddr = extract_to_mem(basename(entry_p->name_p), GET_RAR_SZ(next), RARGetFileHandle(hdl), entry_p);
+                         FILE* fp_ = RARGetFileHandle(hdl);
+                         off_t curr_pos = ftello(fp_);
+                         fseeko(fp_, 0, SEEK_SET);
+                         maddr = extract_to_mem(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p);
+                         fseeko(fp_, curr_pos, SEEK_SET);
                          if (maddr != MAP_FAILED)
                             fp = fmemopen(maddr, GET_RAR_SZ(next), "r");
                          msize = GET_RAR_SZ(next);
                          mflags = 2;
                      }
+#endif
                   } 
                   if (fp) hdl2 = RARInitArchive(&d2, fp);
                   if (hdl2)
                   {
                      RARArchiveListEx LL;
                      RARArchiveListEx* next2 = &LL;
-                     if (RARListArchiveEx(&hdl2, next2))
+		     if (RARListArchiveEx(&hdl2, next2))
                      {
                         const unsigned int MHF = RARGetMainHeaderFlags(hdl2);
                         while (next2)
@@ -1136,12 +1151,14 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                      else free(maddr);
 
                   /* We are done with this rar file (.rar will never display!)*/
-                  inval_cache_path(mp);
-                  next = next->next;
-                  continue;
+                  if (hdl2)
+                  {
+                     inval_cache_path(mp);
+                     next = next->next;
+                     continue;
+                  }
                }
             }
-#endif /* HAS_GLIBC_CUSTOM_STREAMS */
 
             if (next->Method == 0x30 &&            
                !NEED_PASSWORD())
@@ -1806,8 +1823,11 @@ rar2_release(const char *path, struct fuse_file_info *fi)
             if (op->entry_p->flags.mmap)
             {
                fclose(op->mmap_fp);
-               if (op->entry_p->flags.mmap==1) munmap(op->mmap_addr, P_ALIGN_(op->entry_p->msize));
-               else free(op->mmap_addr);
+               if (op->mmap_addr != MAP_FAILED)
+               {
+                  if (op->entry_p->flags.mmap==1) munmap(op->mmap_addr, P_ALIGN_(op->entry_p->msize));
+                  else free(op->mmap_addr);
+               }
                close(op->mmap_fd);
             }
          }
