@@ -91,9 +91,6 @@ BUGS
 SEE ALSO
        Project home page <http://code.google.com/p/rar2fs/>
 
-BUGS
-       -
-
 AUTHOR
        Hans Beckérus
        <hans.beckerus@gmail.com>
