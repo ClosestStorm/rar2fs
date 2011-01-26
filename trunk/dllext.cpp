@@ -236,18 +236,8 @@ void PASCAL RARExtractToStdout(const char* ArcName, const char* FileName, const 
    InitConsoleOptions(MSG_NULL,false);
    ErrHandler.SetSilent(true);
 
-   off_t OldPos = 0;
-   if (FH)
-   {
-      OldPos = ftello(FH);
-      rewind(FH);
-   }
    CmdExtractExt Extract;
    Extract.DoExtract(&Cmd, FH);
-   if (OldPos)
-   {
-      fseeko(FH, OldPos, SEEK_SET);
-   }
 }
 
 
