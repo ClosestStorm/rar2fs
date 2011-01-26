@@ -52,4 +52,55 @@ OPTIONS
               open/search/close requests can be reduced.
 
        --seek-depth=n
+              set number of levels down RAR files are parsed inside main archive [0=0ff]
+
+              Currently only a depth of one (1) is supported. Setting seek depth to  anything  greater  than
+              this has no effect.
+
+       --no-idx-mmap
+              use direct file I/O instead of mmap() for .r2i files
+
+       --no-filter
+              do not apply .lock file filter
+
+              When  file  access is requested and the file can not be found on the local file system all RAR
+              archives in target folder are also searched for it. Not until that fails the file  is  consid-
+              ered  missing.  On  some  platforms  .lock  files are always accessed but are usually never to
+              expect within a RAR archive.  Specifying this option will treat .lock  files  differently.  If
+              not  found  on  local file system it will never be searched for in RAR archives. This dramati-
+              cally decrease the folder load/display time during 'ls' like operations on such systems.
+
+
+       --unrar-path=<path>
+              path to external unrar binary (overide unrarlib)
+
+       --no-password
+              disable password file support
+
+              Since rar2fs is non-interactive, passwords that are to be used to decrypt  encrypted  archives
+              should  be stored in a file with the same name as the main archive/volume file but with a .pwd
+              extension. Beware that a password must be stored in clear text format and  is  thus  not  pro-
+              tected in any way from unauhorized access. Specifying this option will disable the support for
+              encrypted archives.
+
+       --no-smp
+              disable SMP support (bind to CPU #0)
+
+BUGS
+       -
+
+SEE ALSO
+       Project home page <http://code.google.com/p/rar2fs/>
+
+BUGS
+       -
+
+AUTHOR
+       Hans Beckérus
+       <hans.beckerus@gmail.com>
+
+
+
+Wed, January 26, 2011                                v                                             RAR2FS(1)
+
 }}}
