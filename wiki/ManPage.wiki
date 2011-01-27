@@ -59,7 +59,9 @@ OPTIONS
        --no-idx-mmap
               use direct file I/O instead of mmap() for .r2i files
 
-       --exclude="<file1>[;<file2>...<fileN>]"
+       --exclude="<file1>[;<file2>;...<fileN>;]"
+
+       --exclude=<path>
               exclude file filter
 
               When  file  access is requested and the file can not be found on the local file system all RAR
@@ -69,12 +71,13 @@ OPTIONS
               treat  the  listed  files  differently.  If  not found on local file system they will never be
               searched for in the local RAR archives. This dramatically  decrease  the  folder  load/display
               time  during  'ls' like operations on such systems.  Each file in the list should be seperated
-              by a semi-colon.
+              by a semi-colon ';' character.
 
               It is also possible to use this option in such a way that it instead points  to  a  file  that
               lists  the  actual  exclude filter. This is done by specifying an absolute file path (starting
               with '/') instead of a semi-colon seperated list of file names. The file pointed to  may  con-
-              tain more than one line but for each line files should be seperated by a semi-colon.
+              tain  more than one line but for each line files should be seperated by a semi-colon ';' char-
+              acter.       
 
        --unrar-path=<path>
               path to external unrar binary (overide unrarlib)
