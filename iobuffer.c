@@ -44,7 +44,7 @@ readTo(IoBuf* dest, FILE* fp, int hist)
    int left = (int)SPACE_LEFT(lri, lwi)-1;   /* -1 to avoid wi = ri */
    if (IOB_HIST_SZ && hist==IOB_SAVE_HIST)
    {
-      left = left > (IOB_SZ-IOB_HIST_SZ) ? left-(IOB_SZ-IOB_HIST_SZ) : 0;
+      left = left > IOB_HIST_SZ ? left-IOB_HIST_SZ : 0;
       if (!left) return 0; /* quick exit */
    }
    unsigned int chunk = IOB_SZ-lwi;     /* assume one large chunk */

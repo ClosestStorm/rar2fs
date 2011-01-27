@@ -224,13 +224,17 @@ int show_compressed_img = 0;
 int preopen_img = 0;
 int no_idx_mmap = 0;
 int fake_iso = 0;
-int no_filter = 0;
 unsigned int seek_length = 0;
 unsigned int seek_depth = 0;
 char* unrar_path = NULL;
 int no_buffer_io = 0;
 int no_password = 0;
 int no_smp = 0;
+
+
+#define MAX_NOF_EXCLUDES (64)
+int nof_excludes = 0;
+char* excludes[MAX_NOF_EXCLUDES];
 
 static int glibc_test = 0;
 static pthread_mutex_t file_access_mutex;
@@ -741,9 +745,18 @@ lopen(const char *path,
    return 0;
 }
 
+static int chk_excludes(char* path)
+{
+   int i = 0;
+   while (i!=nof_excludes)
+      if (!strcmp(basename(path), excludes[i++]))
+         return 1;
+   return 0;
+}
+
 #define CHK_FILTER \
-   if (!no_filter && \
-       !strcmp(basename((char*)path), ".lock")\
+   if (nof_excludes && \
+       chk_excludes((char*)path)\
    ) return -ENOENT 
    
 static int
@@ -1917,6 +1930,66 @@ rar2_utime(const char * path, const struct timespec tv[2])
       argv[i] = argv[i+1];}\
 }
 
+static void collect_excludes(char* s)
+{
+    char* s1 = NULL;
+    if (s && *s == '/')
+    {
+       FILE* fp = fopen(s, "r");
+       if (fp)
+       {
+         struct stat st;
+         (void)fstat(fileno(fp), &st);
+         s1 = malloc(st.st_size*2);
+         if (s1)
+         {
+            s = s1;
+            no_warn_result_ fread(s1, 1, st.st_size, fp);
+            while(*s1)
+            {
+               if(*s1=='\n') *s1=';';
+               s1++;
+            } 
+            s1 = s;
+         }
+       }
+    }
+    else 
+    {
+       s1 = s;
+       s = NULL;
+    }
+    if (!s1) return;
+
+    /* One could easily have used strsep() here but I choose not to:
+     * "This function suffers from the same problems as strtok(). 
+     * In particular, it modifies the original string. Avoid it." */
+    char* s2 = s1;
+    if (strlen(s1))
+    {
+       while ((s2 = strchr(s2, ';')))
+       {
+          *s2++ = 0;
+          if (strlen(s1) > 1 && nof_excludes != MAX_NOF_EXCLUDES)
+             excludes[nof_excludes++] = strdup(s1);
+          s1 = s2;
+       }
+       if(*s1 && nof_excludes != MAX_NOF_EXCLUDES)
+          excludes[nof_excludes++] = strdup(s1);
+    }
+    if (s) free(s);
+
+#ifdef DEBUG_
+    {
+       int i;
+       tprintf("Excluded files: ");
+       for(i = 0; i<nof_excludes;i++)
+         tprintf("\"%s\" ", excludes[i]);
+       tprintf(stderr, "\n");
+    }
+#endif
+}
+
 #include <sched.h>
 int
 main(int argc, char* argv[])
@@ -1944,7 +2017,7 @@ main(int argc, char* argv[])
       {"preopen-img",   no_argument,       NULL, 1098},
       {"no-idx-mmap",   no_argument,       NULL, 1097},
       {"fake-iso",      no_argument,       NULL, 1096},
-      {"no-filter",     no_argument,       NULL, 1095},
+      {"exclude",       required_argument, NULL, 1095},
       {"seek-length",   required_argument, NULL, 1094},
       {"unrar-path",    required_argument, NULL, 1093},
       {"no-password",   no_argument,       NULL, 1092},
@@ -2003,7 +2076,6 @@ main(int argc, char* argv[])
          printf("    --seek-length=n\t   set number of volume files that are traversed in search for headers [0=All]\n");
          printf("    --seek-depth=n\t   set number of levels down RAR files are parsed inside main archive [0=0ff]\n");
          printf("    --no-idx-mmap\t   use direct file I/O instead of mmap() for .r2i files\n");
-         printf("    --no-filter\t\t   do not apply .lock file filter\n");
          printf("    --unrar-path=<path>\t   path to external unrar binary (overide unrarlib)\n");
          printf("    --no-password\t   disable password file support\n");
          printf("    --no-smp\t\t   disable SMP support (bind to CPU #0)\n");
@@ -2016,11 +2088,11 @@ main(int argc, char* argv[])
          case 1098: preopen_img=1;          break;
          case 1097: no_idx_mmap = 1;        break;
          case 1096: fake_iso = 1;           break;
-         case 1095: no_filter = 1;          break;
+         case 1095: collect_excludes(optarg);              break;
          case 1094: seek_length=strtoul(optarg, NULL, 10); break;
          case 1093: unrar_path=optarg;      break;
          case 1092: no_password = 1;        break;
-         case 1091: seek_depth=strtoul(optarg, NULL, 10); break;
+         case 1091: seek_depth=strtoul(optarg, NULL, 10);  break;
          case 1090: no_smp = 1;             break;
          default: consume = 0;              break;
       }

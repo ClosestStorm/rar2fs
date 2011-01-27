@@ -1,5 +1,9 @@
     CHANGE LOG
  
+                o Replaced the --no-filter option with --exclude.
+                  See manual page for details on how to use this new option.
+                  Be aware that due to this change .lock files are no longer
+                  filtered out by default.
                 o Fixed a bug in handling of WAIT_THREAD() that could result 
                   in that data was not read properly in SMP mode.
                 o Added the option --no-smp to turn off SMP support and bind
