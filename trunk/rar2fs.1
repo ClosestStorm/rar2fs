@@ -43,13 +43,16 @@ Currently only a depth of one (1) is supported. Setting seek depth to anything g
 .B --no-idx-mmap
 use direct file I/O instead of mmap() for .r2i files
 .TP
-.B --no-filter
-do not apply .lock file filter
+.B --exclude="<file1>[;<file2>...<fileN>]"
+exclude file filter
 
-When file access is requested and the file can not be found on the local file system all RAR archives in target folder are also searched for it. Not until that fails the file is considered missing. On some platforms .lock files are always accessed but are usually never to expect within a RAR archive.
-Specifying this option will treat .lock files differently. If not found on local file system it will 
+When file access is requested and the file can not be found on the local file system all RAR archives in target folder are also searched for it. Not until that last operation fails the file is considered missing. On some platforms certain files (eg. .lock files) are always accessed but are usually never to expect within a RAR archive.
+Specifying this option will treat the listed files differently. If not found on local file system they will 
 .I never
-be searched for in RAR archives. This dramatically decrease the folder load/display time during 'ls' like operations on such systems.
+be searched for in the local RAR archives. This dramatically decrease the folder load/display time during 'ls' like operations on such systems.
+Each file in the list should be seperated by a semi-colon.
+
+It is also possible to use this option in such a way that it instead points to a file that lists the actual exclude filter. This is done by specifying an absolute file path (starting with '/') instead of a semi-colon seperated list of file names. The file pointed to may contain more than one line but for each line files should be seperated by a semi-colon.
 .TP
 .B --unrar-path=<path>
 path to external unrar binary (overide unrarlib)
