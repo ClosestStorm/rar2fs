@@ -231,10 +231,10 @@ int no_buffer_io = 0;
 int no_password = 0;
 int no_smp = 0;
 
-
-#define MAX_NOF_EXCLUDES (64)
+/* dynamic exclude filter db */
+int max_nof_excludes = 0;
 int nof_excludes = 0;
-char* excludes[MAX_NOF_EXCLUDES];
+char** excludes = NULL;
 
 static int glibc_test = 0;
 static pthread_mutex_t file_access_mutex;
@@ -1930,6 +1930,12 @@ rar2_utime(const char * path, const struct timespec tv[2])
       argv[i] = argv[i+1];}\
 }
 
+#define ADD_EXCLUDE(s1) \
+  {if (nof_excludes == max_nof_excludes) { \
+     max_nof_excludes += 16; \
+     excludes = (char**)realloc((void*)excludes, max_nof_excludes * sizeof(char*)); } \
+  excludes[nof_excludes++] = strdup(s1); }
+
 static void collect_excludes(char* s)
 {
     char* s1 = NULL;
@@ -1952,6 +1958,7 @@ static void collect_excludes(char* s)
             } 
             s1 = s;
          }
+         fclose(fp);
        }
     }
     else 
@@ -1970,12 +1977,10 @@ static void collect_excludes(char* s)
        while ((s2 = strchr(s2, ';')))
        {
           *s2++ = 0;
-          if (strlen(s1) > 1 && nof_excludes != MAX_NOF_EXCLUDES)
-             excludes[nof_excludes++] = strdup(s1);
+          if (strlen(s1) > 1) ADD_EXCLUDE(s1);
           s1 = s2;
        }
-       if(*s1 && nof_excludes != MAX_NOF_EXCLUDES)
-          excludes[nof_excludes++] = strdup(s1);
+       if(*s1) ADD_EXCLUDE(s1);
     }
     if (s) free(s);
 
@@ -1985,10 +1990,12 @@ static void collect_excludes(char* s)
        tprintf("Excluded files: ");
        for(i = 0; i<nof_excludes;i++)
          tprintf("\"%s\" ", excludes[i]);
-       tprintf(stderr, "\n");
+       tprintf("\n");
     }
 #endif
 }
+
+#undef ADD_EXCLUDE
 
 #include <sched.h>
 int
@@ -2073,6 +2080,7 @@ main(int argc, char* argv[])
          printf("    --show-comp-img\t   show image files (.iso;.img;.nrg) also for compressed archives\n");
          printf("    --preopen-img\t   prefetch volume file descriptors for image files (.iso;.img;.nrg)\n");
          printf("    --fake-iso\t\t   fake .iso extension for .img/.nrg files\n");
+         printf("    --exclude=<filter>\t   exclude file filter\n");
          printf("    --seek-length=n\t   set number of volume files that are traversed in search for headers [0=All]\n");
          printf("    --seek-depth=n\t   set number of levels down RAR files are parsed inside main archive [0=0ff]\n");
          printf("    --no-idx-mmap\t   use direct file I/O instead of mmap() for .r2i files\n");
