@@ -24,7 +24,7 @@ DESCRIPTION
 
 
 OPTIONS
-       Besides the standard FUSE options rar2fs accepts the follwing options that can be passed to the program.
+       Besides the standard FUSE options rar2fs accepts the following options that can be passed to the program.
 
        --show-comp-img
               show image files (.iso;.img;.nrg) also for compressed/encrypted archives
@@ -43,8 +43,8 @@ OPTIONS
        --fake-iso
               fake .iso extension for .img/.nrg files
 
-              Some media players does not support diplay of image files other than those with a .iso extension. However, .img files are usually 100% com-
-              patiable  with  .iso and so is .nrg files, even though the .nrg format specification says otherwise. For that reason playback of .nrg might
+              Some media players does not support display of image files other than those with a .iso extension. However, .img  files  are  usually  100%
+              compatible with .iso and so is .nrg files, even though the .nrg format specification says otherwise. For that reason playback of .nrg might
               fail. Specifying this option will remove the need for renaming files to .iso just to make them display properly. If playback works  or  not
               is all about the player software from here.
 
@@ -73,21 +73,21 @@ OPTIONS
               for  it.  Not  until that last operation fails the file is considered missing. On some platforms certain files (eg. .lock files) are always
               accessed but are usually never to expect within a RAR archive.  Specifying this option will treat the  listed  files  differently.  If  not
               found  on  local  file system they will never be searched for in the local RAR archives. This dramatically decrease the folder load/display
-              time during 'ls' like operations on such systems.  Each file in the list should be seperated by a semi-colon ';' character.
+              time during 'ls' like operations on such systems.  Each file in the list should be separated by a semi-colon ';' character.
 
               It is also possible to use this option in such a way that it instead points to a file that lists the actual exclude filter. This is done by
-              specifying  an absolute file path (starting with '/') instead of a semi-colon seperated list of file names. The file pointed to may contain
-              more than one line but for each line files should be seperated by a semi-colon ';' character.
+              specifying  an absolute file path (starting with '/') instead of a semi-colon separated list of file names. The file pointed to may contain
+              more than one line but for each line files should be separated by a semi-colon ';' character.
 
        --unrar-path=<path>
-              path to external unrar binary (overide unrarlib)
+              path to external unrar binary (override unrarlib)
 
        --no-password
               disable password file support
 
               Since rar2fs is non-interactive, passwords that are to be used to decrypt encrypted archives should be stored in a file with the same  name
               as  the main archive/volume file but with a .pwd extension. Beware that a password must be stored in clear text format and is thus not pro-
-              tected in any way from unauhorized access. Specifying this option will disable the support for encrypted archives.
+              tected in any way from unauthorized access. Specifying this option will disable the support for encrypted archives.
 
        --no-smp
               disable SMP support (bind to CPU #0)
@@ -101,6 +101,8 @@ SEE ALSO
 AUTHOR
        Hans Beckérus
        <hans.beckerus@gmail.com>
+
+
 
 
 
