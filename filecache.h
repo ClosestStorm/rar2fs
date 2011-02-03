@@ -1,6 +1,4 @@
 /*
-    filecache.h
-
     Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
@@ -55,7 +53,7 @@ struct dir_elem
    short vtype;
    struct Flags
    {
-      unsigned int iso:1;
+      unsigned int image:1;
       unsigned int vobsub:1;
       unsigned int mmap:2;
       unsigned int :28;
@@ -73,15 +71,11 @@ typedef struct dir_elem dir_elem_t;
 
 #define ABS_MP(s, path, file) \
       int len = strlen(path);\
-      (s) = alloca(len + strlen(file) + 3); \
+      (s) = alloca(len + strlen(file) + 3 + 2); /* add +2 in case of fake .iso */ \
       strcpy((s), path); \
       /*if (len > 1) strcat((s), "/"); */\
       if (len && path[len-1] != '/') strcat((s), "/"); \
       strcat((s), file)
-
-#define IS_IMG(s) (!strcasecmp((s)+(strlen(s)-4), ".img") || IS_ISO(s) || IS_NRG(s))
-#define IS_NRG(s) (!strcasecmp((s)+(strlen(s)-4), ".nrg"))
-#define IS_ISO(s) (!strcasecmp((s)+(strlen(s)-4), ".iso"))
 
 dir_elem_t*
 cache_path_alloc(const char* path);

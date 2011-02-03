@@ -1,6 +1,5 @@
 /*
-
-   dllwrapper.h
+   Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
 
    This is a C/C++ wrapper for the extension of the freeware Unrar C++
    library (libunrar). It is part of the extension itself. The wrapper

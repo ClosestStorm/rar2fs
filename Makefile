@@ -11,7 +11,7 @@ FUSE_LIB=
 # your answer was most likely incorrect.
 HAS_GLIBC_CUSTOM_STREAMS=y
 
-ifeq ("$(CROSS)", "")
+ifndef CROSS
 # Linux using GCC
 CC=gcc
 CXX=g++
@@ -25,8 +25,8 @@ else
 # Linux using mipsel-linux-?
 CC=mipsel-linux-gcc
 CXX=mipsel-linux-g++
-CFLAGS=-O2 
-CXXFLAGS=-O2 
+CFLAGS=-O2 -g
+CXXFLAGS=-O2 -g
 DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 STRIP=mipsel-linux-strip
 LDFLAGS=
@@ -52,7 +52,7 @@ else
 LIB_DIR=-L$(UNRAR_LIB)
 endif
 
-OBJECTS=dllext.o extractext.o  filecache.o iobuffer.o rar2fs.o
+OBJECTS=dllext.o extractext.o configdb.o filecache.o iobuffer.o rar2fs.o
 DEPS=.deps
 
 all:	rar2fs
@@ -68,7 +68,9 @@ else
 rar2fs:	$(OBJECTS) 
 endif
 	$(LINK) -o rar2fs $(LDFLAGS) $(OBJECTS) $(LIB_DIR) $(LIBS)	
+ifneq ("$(STRIP)", "")
 	$(STRIP) rar2fs
+endif
 
 %.o : %.c
 	@mkdir -p .deps

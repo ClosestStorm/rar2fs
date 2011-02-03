@@ -1,6 +1,4 @@
 /*
-    rar2fs.c 
-
     Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
@@ -55,6 +53,7 @@
 #include "dllwrapper.h"
 #include "filecache.h"
 #include "iobuffer.h"
+#include "configdb.h"
 
 #define P_ALIGN_(a) (((a)+page_size)&~(page_size-1))
 
@@ -223,7 +222,6 @@ static long page_size;
 int show_compressed_img = 0;
 int preopen_img = 0;
 int no_idx_mmap = 0;
-int fake_iso = 0;
 unsigned int seek_length = 0;
 unsigned int seek_depth = 0;
 char* unrar_path = NULL;
@@ -231,18 +229,13 @@ int no_buffer_io = 0;
 int no_password = 0;
 int no_smp = 0;
 
-/* dynamic exclude filter db */
-int max_nof_excludes = 0;
-int nof_excludes = 0;
-char** excludes = NULL;
-
 static int glibc_test = 0;
 static pthread_mutex_t file_access_mutex;
 
 static void sync_dir(const char *dir);
 
 #include <sys/wait.h>
-void
+static void
 sig_handler(int signum, siginfo_t *info, void* secret)
 {
    switch(signum)
@@ -277,7 +270,8 @@ sig_handler(int signum, siginfo_t *info, void* secret)
    }
 }
 
-void* extract_to_mem(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p)
+static void*
+extract_to_mem(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p)
 {
   int out_pipe[2];
   if(pipe(out_pipe) != 0 ) {          /* make a pipe */
@@ -745,20 +739,6 @@ lopen(const char *path,
    return 0;
 }
 
-static int chk_excludes(char* path)
-{
-   int i = 0;
-   while (i!=nof_excludes)
-      if (!strcmp(basename(path), excludes[i++]))
-         return 1;
-   return 0;
-}
-
-#define CHK_FILTER \
-   if (nof_excludes && \
-       chk_excludes((char*)path)\
-   ) return -ENOENT 
-   
 static int
 rar2_getattr(const char *path, struct stat *stbuf)
 {
@@ -1009,15 +989,15 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
       {
          BS_TO_UNIX(next->FileName);
 
-         /* Skip compressed .img and .iso files */
+         /* Skip compressed image files */
          if (!show_compressed_img &&
-            next->Method != 0x30 &&
+            next->Method != 0x30 &&   /* Store */
             IS_IMG(next->FileName))
          {
             next = next->next;
             continue;
          }
-         bool isRAR = IS_RAR(next->FileName);
+         //XXXbool isRAR = IS_RAR(next->FileName);
          int display = 0;
          char* rar_name  = strdup(next->FileName);
          char* tmp1 = rar_name;
@@ -1045,10 +1025,14 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
             ABS_MP(mp, path, basename(rar_dir));
             free(tmp1);
          }
-         if (fake_iso && IS_IMG(mp))
+
+         if (!IS_RAR_DIR(next) && OBJ_SET(OBJ_FAKE_ISO))
          {
-            strncpy(mp+(strlen(mp)-3), "iso", 3);
+            int l = OBJ_CNT(OBJ_FAKE_ISO)
+               ? chk_obj(OBJ_FAKE_ISO, mp) : chk_obj(OBJ_IMG_TYPE, mp);
+            if (l) strcpy(mp+(strlen(mp)-l), "iso");
          }
+
          tprintf("Looking up %s in cache\n",mp);
          dir_elem_t* entry_p = cache_path_get(mp);
          if (entry_p == NULL)
@@ -1085,7 +1069,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   int fd = fileno(RARGetFileHandle(hdl));
                   if (fd!=-1)
                   {
-                     if (next->Method == 0x30 &&             /* Store */
+                     if (next->Method == 0x30 &&  /* Store */
                         !NEED_PASSWORD())
                      {
                         struct stat st;
@@ -1173,7 +1157,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                }
             }
 
-            if (next->Method == 0x30 &&            
+            if (next->Method == 0x30 &&  /* Store */
                !NEED_PASSWORD())
             {
                if ((MainHeaderFlags & MHD_VOLUME) &&  /* volume ? */
@@ -1182,7 +1166,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                {
                   int len,pos;
 
-                  entry_p->flags.iso = IS_IMG(next->FileName);
+                  entry_p->flags.image = IS_IMG(next->FileName);
                   entry_p->vtype = MainHeaderFlags & MHD_NEWNUMBERING?1:0;
                   entry_p->vno_base = get_vnfm(entry_p->rar_p,
                      entry_p->vtype,
@@ -1416,12 +1400,19 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
                   pthread_mutex_lock(&file_access_mutex);
                   (void)cache_path(file, NULL);
                   pthread_mutex_unlock(&file_access_mutex);
-                  char* tmp = namelist[i]->d_name;
-                  if (fake_iso && IS_IMG(tmp))
+                  char* tmp = strdup(namelist[i]->d_name);
+                  if (OBJ_SET(OBJ_FAKE_ISO))
                   {
-                     strncpy(tmp+(strlen(tmp)-3), "iso", 3);
+                     int l = OBJ_CNT(OBJ_FAKE_ISO) 
+                        ? chk_obj(OBJ_FAKE_ISO, tmp) : chk_obj(OBJ_IMG_TYPE, tmp);
+                     if (l)
+                     {
+                        if (l < 3) tmp = realloc(tmp, strlen(tmp)+1+(3-l));
+                        strcpy(tmp+(strlen(tmp)-l), "iso");
+                     }
                   }
                   DIR_ENTRY_ADD(next, tmp, NULL);
+                  free(tmp);
                }
                else
                {
@@ -1651,7 +1642,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
             op->pos = 0;
             op->vno = -1; /* force a miss 1st time */
             op->terminate = 1;
-            if (entry_p->vsize && preopen_img && entry_p->flags.iso)
+            if (entry_p->vsize && preopen_img && entry_p->flags.image)
             {
                int i = entry_p->vno_base;
                int j = i - 1;
@@ -1930,73 +1921,6 @@ rar2_utime(const char * path, const struct timespec tv[2])
       argv[i] = argv[i+1];}\
 }
 
-#define ADD_EXCLUDE(s1) \
-  {if (nof_excludes == max_nof_excludes) { \
-     max_nof_excludes += 16; \
-     excludes = (char**)realloc((void*)excludes, max_nof_excludes * sizeof(char*)); } \
-  excludes[nof_excludes++] = strdup(s1); }
-
-static void collect_excludes(char* s)
-{
-    char* s1 = NULL;
-    if (s && *s == '/')
-    {
-       FILE* fp = fopen(s, "r");
-       if (fp)
-       {
-         struct stat st;
-         (void)fstat(fileno(fp), &st);
-         s1 = malloc(st.st_size*2);
-         if (s1)
-         {
-            s = s1;
-            no_warn_result_ fread(s1, 1, st.st_size, fp);
-            while(*s1)
-            {
-               if(*s1=='\n') *s1=';';
-               s1++;
-            } 
-            s1 = s;
-         }
-         fclose(fp);
-       }
-    }
-    else 
-    {
-       s1 = s;
-       s = NULL;
-    }
-    if (!s1) return;
-
-    /* One could easily have used strsep() here but I choose not to:
-     * "This function suffers from the same problems as strtok(). 
-     * In particular, it modifies the original string. Avoid it." */
-    char* s2 = s1;
-    if (strlen(s1))
-    {
-       while ((s2 = strchr(s2, ';')))
-       {
-          *s2++ = 0;
-          if (strlen(s1) > 1) ADD_EXCLUDE(s1);
-          s1 = s2;
-       }
-       if(*s1) ADD_EXCLUDE(s1);
-    }
-    if (s) free(s);
-
-#ifdef DEBUG_
-    {
-       int i;
-       tprintf("Excluded files: ");
-       for(i = 0; i<nof_excludes;i++)
-         tprintf("\"%s\" ", excludes[i]);
-       tprintf("\n");
-    }
-#endif
-}
-
-#undef ADD_EXCLUDE
-
 #include <sched.h>
 int
 main(int argc, char* argv[])
@@ -2023,7 +1947,7 @@ main(int argc, char* argv[])
       {"show-comp-img", no_argument,       NULL, 1099},
       {"preopen-img",   no_argument,       NULL, 1098},
       {"no-idx-mmap",   no_argument,       NULL, 1097},
-      {"fake-iso",      no_argument,       NULL, 1096},
+      {"fake-iso",      optional_argument, NULL, 1096},
       {"exclude",       required_argument, NULL, 1095},
       {"seek-length",   required_argument, NULL, 1094},
       {"unrar-path",    required_argument, NULL, 1093},
@@ -2032,6 +1956,7 @@ main(int argc, char* argv[])
 #ifdef __linux
       {"no-smp",        no_argument,       NULL, 1090},
 #endif
+      {"img-type",      required_argument, NULL, 1089},
       {"version",       no_argument,       NULL, 'V'},
       {"help",          no_argument,       NULL, 'h'},
       {NULL,0,NULL,0}
@@ -2060,6 +1985,8 @@ main(int argc, char* argv[])
    }
 #endif
 
+   configdb_init();
+
    //openlog("rarfs2",LOG_CONS|LOG_NDELAY|LOG_PERROR|LOG_PID,LOG_DAEMON);
    opterr=0;
    while((opt=getopt_long(argc,argv,"Vhfo:",longopts,NULL))!=-1)
@@ -2077,14 +2004,15 @@ main(int argc, char* argv[])
          helpargv[0]=argv[0];
          fuse_main(2,helpargv,NULL,NULL);
          printf("\nrar2fs options:\n");
-         printf("    --show-comp-img\t   show image files (.iso;.img;.nrg) also for compressed archives\n");
-         printf("    --preopen-img\t   prefetch volume file descriptors for image files (.iso;.img;.nrg)\n");
-         printf("    --fake-iso\t\t   fake .iso extension for .img/.nrg files\n");
-         printf("    --exclude=<filter>\t   exclude file filter\n");
+         printf("    --img-type=E1[;E2...]  additional image file type extensions beyond the default (.iso;.img;.nrg)\n");
+         printf("    --show-comp-img\t   show image file types also for compressed archives\n");
+         printf("    --preopen-img\t   prefetch volume file descriptors for image file types\n");
+         printf("    --fake-iso[E1[;E2...]] fake .iso extension for specified image file types\n");
+         printf("    --exclude=F1[;F2...]   exclude file filter\n");
          printf("    --seek-length=n\t   set number of volume files that are traversed in search for headers [0=All]\n");
          printf("    --seek-depth=n\t   set number of levels down RAR files are parsed inside main archive [0=0ff]\n");
          printf("    --no-idx-mmap\t   use direct file I/O instead of mmap() for .r2i files\n");
-         printf("    --unrar-path=<path>\t   path to external unrar binary (overide unrarlib)\n");
+         printf("    --unrar-path=PATH\t   path to external unrar binary (overide unrarlib)\n");
          printf("    --no-password\t   disable password file support\n");
          printf("    --no-smp\t\t   disable SMP support (bind to CPU #0)\n");
          return 0;
@@ -2095,13 +2023,14 @@ main(int argc, char* argv[])
          case 1099: show_compressed_img=1;  break;
          case 1098: preopen_img=1;          break;
          case 1097: no_idx_mmap = 1;        break;
-         case 1096: fake_iso = 1;           break;
-         case 1095: collect_excludes(optarg);              break;
+         case 1096: collect_obj(OBJ_FAKE_ISO, optarg);     break;
+         case 1095: collect_obj(OBJ_EXCLUDE, optarg);      break;
          case 1094: seek_length=strtoul(optarg, NULL, 10); break;
          case 1093: unrar_path=optarg;      break;
          case 1092: no_password = 1;        break;
          case 1091: seek_depth=strtoul(optarg, NULL, 10);  break;
          case 1090: no_smp = 1;             break;
+         case 1089: collect_obj(OBJ_IMG_TYPE, optarg);     break;
          default: consume = 0;              break;
       }
       if (consume) CONSUME_LONG_ARG();

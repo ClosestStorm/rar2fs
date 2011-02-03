@@ -1,6 +1,4 @@
 /*
-    filecache.c
-
     Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
@@ -31,12 +29,12 @@
 #include <memory.h>
 #include "common.h"
 #include "filecache.h"
+#include "configdb.h"
+
+extern char* src_path;
 
 #define PATH_CACHE_SZ  (1024)
 static dir_elem_t path_cache[PATH_CACHE_SZ];
-
-extern int fake_iso;
-extern char* src_path;
 
 /* djb2 xor variant (favored by Bernstein) */
 static unsigned int
@@ -125,33 +123,41 @@ cache_path(const char* path, struct stat *stbuf)
       }
       else
       {
-         if (fake_iso)
+         if (OBJ_SET(OBJ_FAKE_ISO))
          {
-            /* Check if the missing file is a fake .iso file */
+            /* Check if the missing file might be a fake .iso file */
             if(IS_ISO(root))
             {
+               int i;
                int res;
+               int obj = OBJ_CNT(OBJ_FAKE_ISO) ? OBJ_FAKE_ISO : OBJ_IMG_TYPE;
 
-               /* Try the .img file instead */
-               strncpy(root+(strlen(root)-3), "img", 3);
-               res = stat(root, &e_p->stat);
-               if (res)
+               /* Try the image file extensions one by one */
+               for (i = 0; i < OBJ_CNT(obj); i++)
                {
-                  /* Try the .nrg file instead */
-                  strncpy(root+(strlen(root)-3), "nrg", 3);
-                  res = stat(root, &e_p->stat);
-               }
-               if (!res)
-               {
-                  e_p->name_p = strdup(path);
-                  e_p->file_p = strdup(path);
-                  /* back-patch *real* file name */
-                  strncpy(e_p->file_p+(strlen(e_p->file_p)-3), IS_NRG(root) ? "nrg" : "img", 3);
-                  if (stbuf)
+                  int l = strlen(OBJ_VAL(obj,i));
+                  char* root1 = strdup(root);
+                  if (l>4)
+                     root1 = realloc(root1, strlen(root1)+1+(l-4));
+                  strcpy(root1+(strlen(root1)-4), OBJ_VAL(obj, i));
+                  res = stat(root1, &e_p->stat);
+                  if (!res)
                   {
-                     memcpy(stbuf, &e_p->stat, sizeof(struct stat));
+                     e_p->name_p = strdup(path);
+                     e_p->file_p = strdup(path);
+                     if (l>4)
+                        e_p->file_p = realloc(e_p->file_p, strlen(path)+1+(l-4));
+                     /* back-patch *real* file name */
+                     strncpy(e_p->file_p+(strlen(e_p->file_p)-4), OBJ_VAL(obj, i), l);
+                     *(e_p->file_p+(strlen(path)-4+l)) = 0;
+                     if (stbuf)
+                     {
+                        memcpy(stbuf, &e_p->stat, sizeof(struct stat));
+                     }
+                     free(root1);
+                     return e_p;
                   }
-                  return e_p;
+                  free(root1);
                }
             }
          }
