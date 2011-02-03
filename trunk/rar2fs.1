@@ -18,8 +18,19 @@ You should have received a copy of the GNU General Public License along with thi
 .SH OPTIONS
 Besides the standard FUSE options rar2fs accepts the following options that can be passed to the program.
 .TP
+.B --img-type=".<ext>[;.<ext>;...]"
+additional image file type extensions
+
+The default image file types recognized by rar2fs is .img, .nrg and .iso. This option will allow more file extensions to be added. It affects the behavior of the
+.I --show-comp-img
+,
+.I --preopen-img
+and
+.I --fake-iso
+options.
+.TP
 .B --show-comp-img
-show image files (.iso;.img;.nrg) also for compressed/encrypted archives
+show image file types also for compressed/encrypted archives
 
 Image media files in compressed/encrypted archives usually does not playback very well, if at all. This is because imaged media, such as DVD images, is implementing a file access
 pattern that can not be fully supported by a partly buffered decoded data stream with limited history. For that reason the default is to
@@ -27,15 +38,25 @@ pattern that can not be fully supported by a partly buffered decoded data stream
 display these files (hide).
 .TP
 .B --preopen-img
-prefetch volume file descriptors for image files (.iso;.img;.nrg)
+prefetch volume file descriptors for image file types
 
 This option will force all volume files to be opened before playback is started. Specifying this option might help in some
 rare situations to overcome transient playback disturbances at switch of volume files when mounted across a lossy/slow network. Note that this option only affects playback of image file media read in raw mode (not compressed/encrypted).
 .TP
+.B --fake-iso=".<ext>[;.<ext>;...]"
+.TP
 .B --fake-iso
-fake .iso extension for .img/.nrg files
+fake .iso extension for specified image file types
 
-Some media players does not support display of image files other than those with a .iso extension. However, .img files are usually 100% compatible with .iso and so is .nrg files, even though the .nrg format specification says otherwise. For that reason playback of .nrg might fail. Specifying this option will remove the need for renaming files to .iso just to make them display properly. If playback works or not is all about the player software from here.
+Some media players does not support display of image files other than those with a .iso extension. However, .img files are usually 100% compatible with .iso and so is .nrg files, even though the .nrg format specification says otherwise. For that reason playback of .nrg might fail. Specifying this option will remove the need for renaming certain file types to .iso just to make them display properly. If playback works or not is all about the player software from here. Each file extension/type in the list should be separated by a semi-colon
+.B ';'
+character. It is also possible not to provide any image file type extensions for which the default
+.I .img
+and
+.I .nrg
+will be displayed as
+.I .iso
+together with what was specified in --img-type.
 .TP
 .B --seek-length=n
 set number of volume files that are traversed in search for headers [0=All]
@@ -53,7 +74,7 @@ Currently only a depth of one (1) is supported. Setting seek depth to anything g
 .B --no-idx-mmap
 use direct file I/O instead of mmap() for .r2i files
 .TP
-.B --exclude="<file1>[;<file2>;...<fileN>;]"
+.B --exclude="<file>[;<file>;...]"
 .TP
 .B --exclude=<path>
 exclude file filter
@@ -94,8 +115,7 @@ Project home page
 .I <http://code.google.com/p/rar2fs/>
 .SH AUTHOR
 .br
-.B Hans Beckérus
+.B Hans BeckÃ©rus
 .br
 .I \<hans.beckerus@gmail.com\>
-
 

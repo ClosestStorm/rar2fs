@@ -26,19 +26,39 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef COMMON_H
-#define COMMON_H 
+#ifndef CONFIGDB_H
+#define CONFIGDB_H
 
-#include <stdio.h>
+#define IS_IMG(s) \
+   ((OBJ_CNT(OBJ_IMG_TYPE) && chk_obj(OBJ_IMG_TYPE, s)) || \
+   (OBJ_CNT(OBJ_FAKE_ISO) && chk_obj(OBJ_FAKE_ISO, s)))
+#define IS_ISO(s) (!strcasecmp((s)+(strlen(s)-4), ".iso"))
 
-#ifdef DEBUG_
-#define     tprintf(f, ...)  fprintf(stderr, f, ##__VA_ARGS__)
-#else /* DEBUG_ */
-#define     tprintf(f, ...)
-#endif /* DEBUG_ */
+#define OBJ_CNT(o)    (config_objects_[(o)].n_elem)
+#define OBJ_VAL(o, n) ((config_objects_[(o)].v_arr[(n)]))
+#define OBJ_SET(o)    (config_objects_[(o)].is_set)
 
-#define no_warn_result_ void*ignore_result_=(void*)
+#define CHK_FILTER \
+   if (OBJ_CNT(OBJ_EXCLUDE) && \
+       chk_obj(OBJ_EXCLUDE, (char*)path)\
+   ) return -ENOENT
 
-#define MB() asm volatile("" ::: "memory");
+#define OBJ_EXCLUDE      (0)
+#define OBJ_FAKE_ISO     (1)
+#define OBJ_IMG_TYPE   (2)
+typedef struct
+{
+  char** v_arr;
+  int is_set;
+  int n_elem;
+  int n_max;
+  int read_from_file;
+} CfgObj;
+
+extern CfgObj* config_objects_;
+
+void collect_obj(int obj, char*);
+int chk_obj(int obj, char*);
+void configdb_init();
 
 #endif

@@ -1,7 +1,4 @@
 /*
-
-   dllext.cpp
-
    This is an extension of the freeware Unrar C++ library (libunrar).
    It requires the complete unrar source in order to compile.
 

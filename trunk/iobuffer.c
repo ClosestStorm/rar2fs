@@ -1,6 +1,4 @@
 /*
-    iobuffer.c
-
     Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify

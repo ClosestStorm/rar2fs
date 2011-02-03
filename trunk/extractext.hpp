@@ -1,7 +1,4 @@
 /*
-
-   extractext.hpp
-
    This is an extension of the freeware Unrar C++ library (libunrar).
    It requires the complete unrar source package in order to compile.
 
