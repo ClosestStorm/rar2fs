@@ -477,6 +477,7 @@ lread_raw(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
    off_t chunk;
    int tot = 0;
    int force_seek = 0;
+   ++op->seq;
 
    /* Handle the case when a user tries to read outside file size.
     * This is especially important to handle here since last file in a
@@ -512,26 +513,27 @@ lread_raw(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
                }
                else
                {
-                  char* tmp = get_volfn(op->entry_p->vtype, op->entry_p->rar_p, op->vno+op->entry_p->vno_base, op->entry_p->vlen, op->entry_p->vpos);
+                  /* It is advisable to return 0 (read fail) here rather
+                   * than -errno at failure. 
+                   * Some media players tend to react "bettter" on that and 
+                   * terminate playback as expected. */
+                  char* tmp = get_volfn(
+                     op->entry_p->vtype, op->entry_p->rar_p, op->vno+op->entry_p->vno_base, op->entry_p->vlen, op->entry_p->vpos);
                   if (tmp)
                   {
-                     fclose(FH_TOFP(op->fh));
                      tprintf("Opening %s\n", tmp);
                      fp = fopen(tmp, "r");
+                     free(tmp);
                      if (fp == NULL)
                      {
-                        free(tmp);
                         perror("open");
-                        return -errno;
+                        return 0;
                      }
+                     fclose(FH_TOFP(op->fh));
                      FH_SETFH(&op->fh, fp);
-                     free(tmp);
                      force_seek = 1;
-                  } else 
-                  {
-                     free(tmp);
-                     return 0; /* XXX -Eerrno ? */
-                  }
+                  } 
+                  else return 0;
                }
             }
             else {
@@ -575,7 +577,6 @@ lread_raw(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
       op->pos=offset;
       if (vol_p) vol_p->pos+=n;
    }
-   ++op->seq;
    return tot;
 }
 
