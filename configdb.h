@@ -34,26 +34,42 @@
    (OBJ_CNT(OBJ_FAKE_ISO) && chk_obj(OBJ_FAKE_ISO, s)))
 #define IS_ISO(s) (!strcasecmp((s)+(strlen(s)-4), ".iso"))
 
-#define OBJ_CNT(o)    (config_objects_[(o)].n_elem)
-#define OBJ_VAL(o, n) ((config_objects_[(o)].v_arr[(n)]))
-#define OBJ_SET(o)    (config_objects_[(o)].is_set)
-
 #define CHK_FILTER \
    if (OBJ_CNT(OBJ_EXCLUDE) && \
        chk_obj(OBJ_EXCLUDE, (char*)path)\
    ) return -ENOENT
 
-#define OBJ_EXCLUDE      (0)
-#define OBJ_FAKE_ISO     (1)
-#define OBJ_IMG_TYPE   (2)
+#define OBJ_EXCLUDE       (0)
+#define OBJ_FAKE_ISO      (1)
+#define OBJ_IMG_TYPE      (2)
+#define OBJ_PREOPEN_IMG   (3)
+#define OBJ_SHOW_COMP_IMG (4)
+#define OBJ_NO_IDX_MMAP   (5)
+#define OBJ_SEEK_LENGTH   (6)
+#define OBJ_SEEK_DEPTH    (7)
+#define OBJ_NO_PASSWD     (8)
+#define OBJ_NO_SMP        (9)
+#define OBJ_UNRAR_PATH    (10)
+
 typedef struct
 {
-  char** v_arr;
+  union
+  {
+     long* v_arr_int;
+     char** v_arr_str;
+  } u;
   int is_set;
   int n_elem;
   int n_max;
   int read_from_file;
 } CfgObj;
+//#define v_arr_str u.v_arr_str
+//#define v_arr_int u.v_arr
+
+#define OBJ_CNT(o)    (config_objects_[(o)].n_elem)
+#define OBJ_STR(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:NULL)
+#define OBJ_INT(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_int[(n)]:0)
+#define OBJ_SET(o)    (config_objects_[(o)].is_set)
 
 extern CfgObj* config_objects_;
 
