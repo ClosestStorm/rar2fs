@@ -35,22 +35,36 @@
 #include "common.h"
 #include "configdb.h"
 
-#define MAX_NOF_CFG_OBJ (3)
+#define MAX_NOF_CFG_OBJ (11)
 static CfgObj config_objects[MAX_NOF_CFG_OBJ] = 
 {
    {NULL, 0, 0, 0, 1},
    {NULL, 0, 0, 0, 0},
    {NULL, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0}
 };
 
 CfgObj* config_objects_ = &config_objects[0];
 
 #define OBJ_(o) (config_objects_+(o))
-#define ADD_OBJ_(o, s1) \
-  {if ((OBJ_(o))->n_elem == (OBJ_(o))->n_max) { \
+#define OBJ_STR_ u.v_arr_str,char*,0
+#define OBJ_INT_ u.v_arr_int,long,1
+#define ADD_OBJ_(o, s1, mtn) ADD_OBJ__(o, s1, mtn)
+#define ADD_OBJ__(o, s1, m, t, n) { \
+  if ((OBJ_(o))->n_elem == (OBJ_(o))->n_max) { \
      OBJ_(o)->n_max += 16; \
-     OBJ_(o)->v_arr = (char**)realloc((void*)OBJ_(o)->v_arr, OBJ_(o)->n_max * sizeof(char*)); } \
-  OBJ_(o)->v_arr[OBJ_(o)->n_elem++] = strdup(s1); }
+     OBJ_(o)->m = (t*)realloc((t*)OBJ_(o)->m,OBJ_(o)->n_max * sizeof(t*)); \
+  }\
+  if (!n) OBJ_(o)->m[OBJ_(o)->n_elem++] = (t)strdup(s1); \
+  else    OBJ_(o)->m[OBJ_(o)->n_elem++] = (t)strtoul(s1,NULL,10); \
+}
 
 void collect_obj(int obj, char* s)
 {
@@ -84,19 +98,31 @@ void collect_obj(int obj, char* s)
       s = NULL;
    }
    if (!s1) return;
-   /* One could easily have used strsep() here but I choose not to:
-    * "This function suffers from the same problems as strtok().
-    * In particular, it modifies the original string. Avoid it." */
-   char* s2 = s1;
-   if (strlen(s1))
+
+   switch (obj) 
    {
-      while ((s2 = strchr(s2, ';')))
+      case OBJ_SEEK_LENGTH:
+      case OBJ_SEEK_DEPTH:
+         ADD_OBJ_(obj, s1, OBJ_INT_);
+         break; 
+      default:
       {
-         *s2++ = 0;
-         if (strlen(s1) > 1) ADD_OBJ_(obj, s1);
-         s1 = s2;
+         /* One could easily have used strsep() here but I choose not to:
+          * "This function suffers from the same problems as strtok().
+          * In particular, it modifies the original string. Avoid it." */
+         char* s2 = s1;
+         if (strlen(s1))
+         {
+            while ((s2 = strchr(s2, ';')))
+            {
+               *s2++ = 0;
+               if (strlen(s1) > 1) ADD_OBJ_(obj, s1, OBJ_STR_);
+               s1 = s2;
+            }
+            if(*s1) ADD_OBJ_(obj, s1, OBJ_STR_);
+         }
       }
-      if(*s1) ADD_OBJ_(obj, s1);
+      break;
    }
    if (s) free(s);
 #ifdef DEBUG_
@@ -104,7 +130,10 @@ void collect_obj(int obj, char* s)
       int i;
       tprintf("config object %d : ", obj);
       for(i = 0; i<OBJ_(obj)->n_elem;i++)
-        tprintf("\"%s\" ", OBJ_(obj)->v_arr[i]);
+        if (obj!=OBJ_SEEK_DEPTH&&obj!=OBJ_SEEK_LENGTH)
+           tprintf("\"%s\" ", OBJ_(obj)->u.v_arr_str[i]);
+        else
+           tprintf("\"%d\" ", OBJ_(obj)->u.v_arr_int[i]);
       tprintf("\n");
    }
 #endif
@@ -114,13 +143,15 @@ void configdb_init()
 {
     /* Prepare known built-in default image file types */
     OBJ_(OBJ_IMG_TYPE)->is_set = 1;
-    ADD_OBJ_(OBJ_IMG_TYPE, ".iso");
-    ADD_OBJ_(OBJ_IMG_TYPE, ".img");
-    ADD_OBJ_(OBJ_IMG_TYPE, ".nrg");
+    ADD_OBJ_(OBJ_IMG_TYPE, ".iso", OBJ_STR_);
+    ADD_OBJ_(OBJ_IMG_TYPE, ".img", OBJ_STR_);
+    ADD_OBJ_(OBJ_IMG_TYPE, ".nrg", OBJ_STR_);
 }
 
 #undef ADD_OBJ_
 #undef OBJ_
+#undef OBJ_INT_
+#undef OBJ_STR_
 
 static inline int
 get_ext_len(char* s)
@@ -137,7 +168,7 @@ int chk_obj(int obj, char* path)
    {
       while (i!=OBJ_CNT(obj))
       {
-         if (!strcmp(basename(path), OBJ_VAL(OBJ_EXCLUDE, i)))
+         if (!strcmp(basename(path), OBJ_STR(OBJ_EXCLUDE, i)))
             return 1;
          ++i;
       }
@@ -149,7 +180,7 @@ int chk_obj(int obj, char* path)
       {
          while (i!=OBJ_CNT(obj))
          {
-            if (!strcmp((path)+(strlen(path)-l), OBJ_VAL(obj, i)))
+            if (!strcmp((path)+(strlen(path)-l), OBJ_STR(obj, i)))
                return l-1;
             ++i;
          }

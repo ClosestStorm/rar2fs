@@ -219,15 +219,6 @@ struct IOContext
 
 char* src_path = NULL;
 static long page_size;
-int show_compressed_img = 0;
-int preopen_img = 0;
-int no_idx_mmap = 0;
-unsigned int seek_length = 0;
-unsigned int seek_depth = 0;
-char* unrar_path = NULL;
-int no_buffer_io = 0;
-int no_password = 0;
-int no_smp = 0;
 
 static int glibc_test = 0;
 static pthread_mutex_t file_access_mutex;
@@ -329,6 +320,7 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
 {
    char* maddr = MAP_FAILED;
    FILE* fp = NULL;
+   char* unrar_path = OBJ_STR(OBJ_UNRAR_PATH,0);
    if (entry_p->flags.mmap)
    {
        int fd = open(entry_p->rar_p, O_RDONLY, S_IREAD);
@@ -884,7 +876,7 @@ static inline IS_ROOT(const char* s)
 static char*
 getArcPassword(const char* file, char* buf)
 {
-  if (file && !no_password)
+  if (file && !OBJ_SET(OBJ_NO_PASSWD))
   {
      size_t l = strlen(file);
      char* F = alloca(l+1);
@@ -991,7 +983,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
          BS_TO_UNIX(next->FileName);
 
          /* Skip compressed image files */
-         if (!show_compressed_img &&
+         if (!OBJ_SET(OBJ_SHOW_COMP_IMG) &&
             next->Method != 0x30 &&   /* Store */
             IS_IMG(next->FileName))
          {
@@ -1049,7 +1041,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
 
             /* Check for .rar inside archive */ 
             if (!(MainHeaderFlags & MHD_VOLUME) &&  
-                seek_depth)
+                OBJ_INT(OBJ_SEEK_DEPTH, 0))
             {
                /* Check for .rar file */
                if (IS_RAR(entry_p->name_p))
@@ -1306,7 +1298,8 @@ sync_dir(const char *dir)
                else
                {
                   int vno =  get_vnfm(namelist[i]->d_name, !(f-1), NULL, NULL);
-                  if (!seek_length || vno <= seek_length)
+                  if (!OBJ_INT(OBJ_SEEK_LENGTH,0) ||
+                      vno <= OBJ_INT(OBJ_SEEK_LENGTH,0))
                   {
                      char* arch;
                      ABS_MP(arch, root, namelist[i]->d_name);
@@ -1418,7 +1411,8 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
                else
                {
                   int vno =  get_vnfm(namelist[i]->d_name, !(f-1), NULL, NULL);
-                  if (!seek_length || vno <= seek_length)
+                  if (!OBJ_INT(OBJ_SEEK_LENGTH,0) ||
+                      vno <= OBJ_INT(OBJ_SEEK_LENGTH,0))
                   {
                      char* arch;
                      ABS_MP(arch, root, namelist[i]->d_name);
@@ -1559,7 +1553,7 @@ preload_index(IoBuf* buf, const char* path)
    {
       return;
    }
-   if (!no_idx_mmap)
+   if (!OBJ_SET(OBJ_NO_IDX_MMAP))
    {
       /* Map the file into address space (1st pass) */
       IdxHead* h = (IdxHead*)mmap(NULL, sizeof(IdxHead), PROT_READ, MAP_SHARED, fd, 0);
@@ -1643,7 +1637,9 @@ rar2_open(const char *path, struct fuse_file_info *fi)
             op->pos = 0;
             op->vno = -1; /* force a miss 1st time */
             op->terminate = 1;
-            if (entry_p->vsize && preopen_img && entry_p->flags.image)
+            if (entry_p->vsize && 
+                OBJ_SET(OBJ_PREOPEN_IMG) && 
+                entry_p->flags.image)
             {
                int i = entry_p->vno_base;
                int j = i - 1;
@@ -2015,22 +2011,24 @@ main(int argc, char* argv[])
          printf("    --no-idx-mmap\t   use direct file I/O instead of mmap() for .r2i files\n");
          printf("    --unrar-path=PATH\t   path to external unrar binary (overide unrarlib)\n");
          printf("    --no-password\t   disable password file support\n");
+#ifdef __linux
          printf("    --no-smp\t\t   disable SMP support (bind to CPU #0)\n");
+#endif
          return 0;
       }
       int consume = 1;
       switch((unsigned)opt)
       {
-         case 1099: show_compressed_img=1;  break;
-         case 1098: preopen_img=1;          break;
-         case 1097: no_idx_mmap = 1;        break;
+         case 1099: collect_obj(OBJ_SHOW_COMP_IMG, optarg);break;
+         case 1098: collect_obj(OBJ_PREOPEN_IMG, optarg);  break;
+         case 1097: collect_obj(OBJ_NO_IDX_MMAP, optarg);  break;
          case 1096: collect_obj(OBJ_FAKE_ISO, optarg);     break;
          case 1095: collect_obj(OBJ_EXCLUDE, optarg);      break;
-         case 1094: seek_length=strtoul(optarg, NULL, 10); break;
-         case 1093: unrar_path=optarg;      break;
-         case 1092: no_password = 1;        break;
-         case 1091: seek_depth=strtoul(optarg, NULL, 10);  break;
-         case 1090: no_smp = 1;             break;
+         case 1094: collect_obj(OBJ_SEEK_LENGTH, optarg);  break;
+         case 1093: collect_obj(OBJ_UNRAR_PATH, optarg);   break;
+         case 1092: collect_obj(OBJ_NO_PASSWD, optarg);    break;
+         case 1091: collect_obj(OBJ_SEEK_DEPTH, optarg);   break;
+         case 1090: collect_obj(OBJ_NO_SMP, optarg);       break;
          case 1089: collect_obj(OBJ_IMG_TYPE, optarg);     break;
          default: consume = 0;              break;
       }
@@ -2073,7 +2071,7 @@ main(int argc, char* argv[])
    else          page_size = 4096;
 
 #ifdef __linux
-   if (no_smp)
+   if (OBJ_SET(OBJ_NO_SMP))
    {
       cpu_set_t cpu_mask;
       CPU_ZERO(&cpu_mask);

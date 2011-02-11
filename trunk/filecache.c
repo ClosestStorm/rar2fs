@@ -135,11 +135,11 @@ cache_path(const char* path, struct stat *stbuf)
                /* Try the image file extensions one by one */
                for (i = 0; i < OBJ_CNT(obj); i++)
                {
-                  int l = strlen(OBJ_VAL(obj,i));
+                  int l = strlen(OBJ_STR(obj,i));
                   char* root1 = strdup(root);
                   if (l>4)
                      root1 = realloc(root1, strlen(root1)+1+(l-4));
-                  strcpy(root1+(strlen(root1)-4), OBJ_VAL(obj, i));
+                  strcpy(root1+(strlen(root1)-4), OBJ_STR(obj, i));
                   res = stat(root1, &e_p->stat);
                   if (!res)
                   {
@@ -148,7 +148,7 @@ cache_path(const char* path, struct stat *stbuf)
                      if (l>4)
                         e_p->file_p = realloc(e_p->file_p, strlen(path)+1+(l-4));
                      /* back-patch *real* file name */
-                     strncpy(e_p->file_p+(strlen(e_p->file_p)-4), OBJ_VAL(obj, i), l);
+                     strncpy(e_p->file_p+(strlen(e_p->file_p)-4), OBJ_STR(obj, i), l);
                      *(e_p->file_p+(strlen(path)-4+l)) = 0;
                      if (stbuf)
                      {
