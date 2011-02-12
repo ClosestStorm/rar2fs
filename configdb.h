@@ -39,6 +39,9 @@
        chk_obj(OBJ_EXCLUDE, (char*)path)\
    ) return -ENOENT
 
+#define OBJ_ADDR(o) ((o)+1000)
+#define OBJ_BASE(a) ((a)-1000)
+
 #define OBJ_EXCLUDE       (0)
 #define OBJ_FAKE_ISO      (1)
 #define OBJ_IMG_TYPE      (2)
@@ -63,8 +66,6 @@ typedef struct
   int n_max;
   int read_from_file;
 } CfgObj;
-//#define v_arr_str u.v_arr_str
-//#define v_arr_int u.v_arr
 
 #define OBJ_CNT(o)    (config_objects_[(o)].n_elem)
 #define OBJ_STR(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:NULL)
@@ -73,7 +74,7 @@ typedef struct
 
 extern CfgObj* config_objects_;
 
-void collect_obj(int obj, char*);
+int collect_obj(int obj, char*);
 int chk_obj(int obj, char*);
 void configdb_init();
 
