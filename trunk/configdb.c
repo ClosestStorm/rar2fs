@@ -66,8 +66,10 @@ CfgObj* config_objects_ = &config_objects[0];
   else    OBJ_(o)->m[OBJ_(o)->n_elem++] = (t)strtoul(s1,NULL,10); \
 }
 
-void collect_obj(int obj, char* s)
+int collect_obj(int obj, char* s)
 {
+   if (obj < 0 || obj>=MAX_NOF_CFG_OBJ) return 1;
+
    char* s1 = NULL;
    OBJ_(obj)->is_set = 1;
    if (OBJ_(obj)->read_from_file && s && *s == '/')
@@ -97,7 +99,7 @@ void collect_obj(int obj, char* s)
       s1 = s;
       s = NULL;
    }
-   if (!s1) return;
+   if (!s1) return 0;
 
    switch (obj) 
    {
@@ -137,6 +139,7 @@ void collect_obj(int obj, char* s)
       tprintf("\n");
    }
 #endif
+   return 0;
 }
 
 void configdb_init()

@@ -1941,19 +1941,19 @@ main(int argc, char* argv[])
    };
 
    struct option longopts[] = {
-      {"show-comp-img", no_argument,       NULL, 1099},
-      {"preopen-img",   no_argument,       NULL, 1098},
-      {"no-idx-mmap",   no_argument,       NULL, 1097},
-      {"fake-iso",      optional_argument, NULL, 1096},
-      {"exclude",       required_argument, NULL, 1095},
-      {"seek-length",   required_argument, NULL, 1094},
-      {"unrar-path",    required_argument, NULL, 1093},
-      {"no-password",   no_argument,       NULL, 1092},
-      {"seek-depth",    required_argument, NULL, 1091},
+      {"show-comp-img", no_argument,       NULL, OBJ_ADDR(OBJ_SHOW_COMP_IMG)},
+      {"preopen-img",   no_argument,       NULL, OBJ_ADDR(OBJ_PREOPEN_IMG)},
+      {"no-idx-mmap",   no_argument,       NULL, OBJ_ADDR(OBJ_NO_IDX_MMAP)},
+      {"fake-iso",      optional_argument, NULL, OBJ_ADDR(OBJ_FAKE_ISO)},
+      {"exclude",       required_argument, NULL, OBJ_ADDR(OBJ_EXCLUDE)},
+      {"seek-length",   required_argument, NULL, OBJ_ADDR(OBJ_SEEK_LENGTH)},
+      {"unrar-path",    required_argument, NULL, OBJ_ADDR(OBJ_UNRAR_PATH)},
+      {"no-password",   no_argument,       NULL, OBJ_ADDR(OBJ_NO_PASSWD)},
+      {"seek-depth",    required_argument, NULL, OBJ_ADDR(OBJ_SEEK_DEPTH)},
 #ifdef __linux
-      {"no-smp",        no_argument,       NULL, 1090},
+      {"no-smp",        no_argument,       NULL, OBJ_ADDR(OBJ_NO_SMP)},
 #endif
-      {"img-type",      required_argument, NULL, 1089},
+      {"img-type",      required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
       {"version",       no_argument,       NULL, 'V'},
       {"help",          no_argument,       NULL, 'h'},
       {NULL,0,NULL,0}
@@ -2017,21 +2017,8 @@ main(int argc, char* argv[])
          return 0;
       }
       int consume = 1;
-      switch((unsigned)opt)
-      {
-         case 1099: collect_obj(OBJ_SHOW_COMP_IMG, optarg);break;
-         case 1098: collect_obj(OBJ_PREOPEN_IMG, optarg);  break;
-         case 1097: collect_obj(OBJ_NO_IDX_MMAP, optarg);  break;
-         case 1096: collect_obj(OBJ_FAKE_ISO, optarg);     break;
-         case 1095: collect_obj(OBJ_EXCLUDE, optarg);      break;
-         case 1094: collect_obj(OBJ_SEEK_LENGTH, optarg);  break;
-         case 1093: collect_obj(OBJ_UNRAR_PATH, optarg);   break;
-         case 1092: collect_obj(OBJ_NO_PASSWD, optarg);    break;
-         case 1091: collect_obj(OBJ_SEEK_DEPTH, optarg);   break;
-         case 1090: collect_obj(OBJ_NO_SMP, optarg);       break;
-         case 1089: collect_obj(OBJ_IMG_TYPE, optarg);     break;
-         default: consume = 0;              break;
-      }
+      if (collect_obj(OBJ_BASE(opt), optarg))
+         consume = 0;
       if (consume) CONSUME_LONG_ARG();
    }
    if(argc<3 || !argv[optind])
