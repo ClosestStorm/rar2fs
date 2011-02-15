@@ -1,6 +1,7 @@
     CHANGE LOG
 
-                o Fixed a crash (SEGV) issue if some volume files were missing.
+    1.08        o Current stable release
+    1.08 beta   o Fixed a crash (SEGV) issue if some volume files were missing.
                 o Added new option --img-type.
                 o Changed option --fake-iso to now accept a list of file
                   extensions/types as argument instead of having only hardcoded
