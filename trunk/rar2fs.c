@@ -1989,7 +1989,7 @@ main(int argc, char* argv[])
    while((opt=getopt_long(argc,argv,"Vhfo:",longopts,NULL))!=-1)
    {
       if(opt=='V'){
-         printf("rar2fs v1.07 (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
+         printf("rar2fs v1.08 (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
             RARGetDllVersion(),
             FUSE_VERSION);
          printf("This program comes with ABSOLUTELY NO WARRANTY.\n"
