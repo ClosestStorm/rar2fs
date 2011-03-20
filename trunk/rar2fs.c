@@ -626,13 +626,12 @@ lread_rar(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
             return size;
          }
 #endif
-         off_t delta = op->buf->offset - offset;
-         if ((op->pos - offset) <= IOB_HIST_SZ &&
-             delta < IOB_SZ &&
-             delta > op->buf->used)
+         off_t delta = op->pos - offset;
+         if (delta <= IOB_HIST_SZ)
          {
-            size_t pos = (op->buf->wi-delta)&(IOB_SZ-1);
-            size_t chunk = (delta - op->buf->used) >= size ? size : (delta - op->buf->used);
+            size_t pos = (op->buf->ri-delta)&(IOB_SZ-1);
+            size_t chunk = op->pos > IOB_HIST_SZ ? IOB_HIST_SZ : op->pos;
+            chunk = chunk > size ? size : size - chunk;
             n += copyFrom(buf, op->buf, chunk, pos);
             size -= n;
             buf+=n;
@@ -1989,7 +1988,7 @@ main(int argc, char* argv[])
    while((opt=getopt_long(argc,argv,"Vhfo:",longopts,NULL))!=-1)
    {
       if(opt=='V'){
-         printf("rar2fs v1.08 (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
+         printf("rar2fs v1.09 beta (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
             RARGetDllVersion(),
             FUSE_VERSION);
          printf("This program comes with ABSOLUTELY NO WARRANTY.\n"
