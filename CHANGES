@@ -1,5 +1,8 @@
     CHANGE LOG
 
+    1.09 beta   o Built against unrarlib v4.0.7 
+                o Minor modification of backward jump (history) logic for
+                  compressed/encrypted archives.
     1.08        o Current stable release
     1.08 beta   o Fixed a crash (SEGV) issue if some volume files were missing.
                 o Added new option --img-type.
