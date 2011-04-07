@@ -1949,7 +1949,7 @@ main(int argc, char* argv[])
       {"unrar-path",    required_argument, NULL, OBJ_ADDR(OBJ_UNRAR_PATH)},
       {"no-password",   no_argument,       NULL, OBJ_ADDR(OBJ_NO_PASSWD)},
       {"seek-depth",    required_argument, NULL, OBJ_ADDR(OBJ_SEEK_DEPTH)},
-#ifdef __linux
+#if defined ( __linux ) && defined ( __cpu_set_t_defined )
       {"no-smp",        no_argument,       NULL, OBJ_ADDR(OBJ_NO_SMP)},
 #endif
       {"img-type",      required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
@@ -2010,7 +2010,7 @@ main(int argc, char* argv[])
          printf("    --no-idx-mmap\t   use direct file I/O instead of mmap() for .r2i files\n");
          printf("    --unrar-path=PATH\t   path to external unrar binary (overide unrarlib)\n");
          printf("    --no-password\t   disable password file support\n");
-#ifdef __linux
+#if defined ( __linux ) && defined ( __cpu_set_t_defined )
          printf("    --no-smp\t\t   disable SMP support (bind to CPU #0)\n");
 #endif
          return 0;
@@ -2056,7 +2056,7 @@ main(int argc, char* argv[])
    if (ps != -1) page_size = ps;
    else          page_size = 4096;
 
-#ifdef __linux
+#if defined ( __linux ) && defined ( __cpu_set_t_defined )
    if (OBJ_SET(OBJ_NO_SMP))
    {
       cpu_set_t cpu_mask;
