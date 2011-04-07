@@ -1,5 +1,7 @@
     CHANGE LOG
 
+    1.10 beta   o Fixed broken build for platforms not having the cpu_set_t
+                  type in sched.h (GNU extension).
     1.09 beta   o Built against unrarlib v4.0.7 
                 o Minor modification of backward jump (history) logic for
                   compressed/encrypted archives.
