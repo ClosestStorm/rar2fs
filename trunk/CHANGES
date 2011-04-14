@@ -1,12 +1,18 @@
     CHANGE LOG
 
-    1.11 beta   o Minor code/Makefile updates 
+    1.11.1      o New revisioning approach using Major.Minor.PatchLevel instead 
+                  of Major.Minor beta releases.
+                  Stable releases will be denoted by a patch level of 0. 
+                  Each stable release will then be archived using a compressed
+                  tarball and comitted to the project home page download section.
+                  <http://code.google.com/p/rar2fs/downloads/list>
+    1.11 beta   o Minor code/Makefile updates.
     1.10 beta   o Fixed broken build for platforms not having the cpu_set_t
                   type in sched.h (GNU extension).
     1.09 beta   o Built against unrarlib v4.0.7 
                 o Minor modification of backward jump (history) logic for
                   compressed/encrypted archives.
-    1.08        o Current stable release
+    1.08        o Stable release checkpoint.
     1.08 beta   o Fixed a crash (SEGV) issue if some volume files were missing.
                 o Added new option --img-type.
                 o Changed option --fake-iso to now accept a list of file
