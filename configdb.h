@@ -60,11 +60,13 @@ typedef struct
   {
      long* v_arr_int;
      char** v_arr_str;
+     void* p;
   } u;
   int is_set;
   int n_elem;
   int n_max;
   int read_from_file;
+  int type;
 } CfgObj;
 
 #define OBJ_CNT(o)    (config_objects_[(o)].n_elem)
@@ -75,6 +77,7 @@ typedef struct
 extern CfgObj* config_objects_;
 
 int collect_obj(int obj, char*);
+void reset_obj(int obj);
 int chk_obj(int obj, char*);
 void configdb_init();
 
