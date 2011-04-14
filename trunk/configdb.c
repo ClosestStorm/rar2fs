@@ -38,39 +38,52 @@
 #define MAX_NOF_CFG_OBJ (11)
 static CfgObj config_objects[MAX_NOF_CFG_OBJ] = 
 {
-   {NULL, 0, 0, 0, 1},
-   {NULL, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0}
+   {NULL, 0, 0, 0, 1, 0},
+   {NULL, 0, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0, 1},
+   {NULL, 0, 0, 0, 0, 1},
+   {NULL, 0, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0, 0},
+   {NULL, 0, 0, 0, 0, 0}
 };
 
 CfgObj* config_objects_ = &config_objects[0];
 
 #define OBJ_(o) (config_objects_+(o))
-#define OBJ_STR_ u.v_arr_str,char*,0
-#define OBJ_INT_ u.v_arr_int,long,1
-#define ADD_OBJ_(o, s1, mtn) ADD_OBJ__(o, s1, mtn)
-#define ADD_OBJ__(o, s1, m, t, n) { \
+#define OBJ_STR_ u.v_arr_str,char*
+#define OBJ_INT_ u.v_arr_int,long
+#define ADD_OBJ_(o, s1, mt) ADD_OBJ__(o, s1, mt)
+#define ADD_OBJ__(o, s1, m, t) { \
   if ((OBJ_(o))->n_elem == (OBJ_(o))->n_max) { \
      OBJ_(o)->n_max += 16; \
      OBJ_(o)->m = (t*)realloc((t*)OBJ_(o)->m,OBJ_(o)->n_max * sizeof(t*)); \
   }\
-  if (!n) OBJ_(o)->m[OBJ_(o)->n_elem++] = (t)strdup(s1); \
-  else    OBJ_(o)->m[OBJ_(o)->n_elem++] = (t)strtoul(s1,NULL,10); \
+  if (IS_STR_(o)) OBJ_(o)->m[OBJ_(o)->n_elem++] = (t)strdup(s1); \
+  else            OBJ_(o)->m[OBJ_(o)->n_elem++] = (t)strtoul(s1,NULL,10); \
 }
+#define CLR_OBJ_(o) { \
+   OBJ_(obj)->is_set = 0; \
+   if ((OBJ_(o))->n_elem && IS_STR_(o)) { \
+      int i = (OBJ_(o))->n_elem; \
+      while (i--) { \
+         free((void*)OBJ_(o)->u.v_arr_str[i]);\
+      } \
+      OBJ_(o)->n_elem = 0; \
+   }\
+}
+#define IS_INT_(o) (OBJ_(o)->type)
+#define IS_STR_(o) (!OBJ_(o)->type)
 
 int collect_obj(int obj, char* s)
 {
+   char* s1 = NULL;
+
    if (obj < 0 || obj>=MAX_NOF_CFG_OBJ) return 1;
 
-   char* s1 = NULL;
    OBJ_(obj)->is_set = 1;
    if (OBJ_(obj)->read_from_file && s && *s == '/')
    {
@@ -127,6 +140,7 @@ int collect_obj(int obj, char* s)
       break;
    }
    if (s) free(s);
+
 #ifdef DEBUG_
    {
       int i;
@@ -142,13 +156,28 @@ int collect_obj(int obj, char* s)
    return 0;
 }
 
+void reset_obj(int obj)
+{
+   if (obj < 0 || obj>=MAX_NOF_CFG_OBJ) return;
+
+   CLR_OBJ_(obj);
+   switch (obj)
+   {
+      case OBJ_IMG_TYPE:
+         OBJ_(OBJ_IMG_TYPE)->is_set = 1;
+         ADD_OBJ_(OBJ_IMG_TYPE, ".iso", OBJ_STR_);
+         ADD_OBJ_(OBJ_IMG_TYPE, ".img", OBJ_STR_);
+         ADD_OBJ_(OBJ_IMG_TYPE, ".nrg", OBJ_STR_);
+         break;
+      default:
+         break;
+   }
+}
+
 void configdb_init()
 {
-    /* Prepare known built-in default image file types */
-    OBJ_(OBJ_IMG_TYPE)->is_set = 1;
-    ADD_OBJ_(OBJ_IMG_TYPE, ".iso", OBJ_STR_);
-    ADD_OBJ_(OBJ_IMG_TYPE, ".img", OBJ_STR_);
-    ADD_OBJ_(OBJ_IMG_TYPE, ".nrg", OBJ_STR_);
+   int i = MAX_NOF_CFG_OBJ;
+   while (i--) reset_obj(i);
 }
 
 #undef ADD_OBJ_

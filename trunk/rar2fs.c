@@ -2000,18 +2000,18 @@ main(int argc, char* argv[])
          helpargv[0]=argv[0];
          fuse_main(2,helpargv,NULL,NULL);
          printf("\nrar2fs options:\n");
-         printf("    --img-type=E1[;E2...]  additional image file type extensions beyond the default (.iso;.img;.nrg)\n");
-         printf("    --show-comp-img\t   show image file types also for compressed archives\n");
-         printf("    --preopen-img\t   prefetch volume file descriptors for image file types\n");
-         printf("    --fake-iso[E1[;E2...]] fake .iso extension for specified image file types\n");
-         printf("    --exclude=F1[;F2...]   exclude file filter\n");
-         printf("    --seek-length=n\t   set number of volume files that are traversed in search for headers [0=All]\n");
-         printf("    --seek-depth=n\t   set number of levels down RAR files are parsed inside main archive [0=0ff]\n");
-         printf("    --no-idx-mmap\t   use direct file I/O instead of mmap() for .r2i files\n");
-         printf("    --unrar-path=PATH\t   path to external unrar binary (overide unrarlib)\n");
-         printf("    --no-password\t   disable password file support\n");
+         printf("    --img-type=E1[;E2...]   additional image file type extensions beyond the default (.iso;.img;.nrg)\n");
+         printf("    --show-comp-img\t    show image file types also for compressed archives\n");
+         printf("    --preopen-img\t    prefetch volume file descriptors for image file types\n");
+         printf("    --fake-iso[=E1[;E2...]] fake .iso extension for specified image file types\n");
+         printf("    --exclude=F1[;F2...]    exclude file filter\n");
+         printf("    --seek-length=n\t    set number of volume files that are traversed in search for headers [0=All]\n");
+         printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [0=0ff]\n");
+         printf("    --no-idx-mmap\t    use direct file I/O instead of mmap() for .r2i files\n");
+         printf("    --unrar-path=PATH\t    path to external unrar binary (overide unrarlib)\n");
+         printf("    --no-password\t    disable password file support\n");
 #if defined ( __linux ) && defined ( __cpu_set_t_defined )
-         printf("    --no-smp\t\t   disable SMP support (bind to CPU #0)\n");
+         printf("    --no-smp\t\t    disable SMP support (bind to CPU #0)\n");
 #endif
          return 0;
       }
