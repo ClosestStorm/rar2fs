@@ -1,5 +1,6 @@
     CHANGE LOG
 
+    1.11.2      o Added version.h
     1.11.1      o New revisioning approach using Major.Minor.PatchLevel instead 
                   of Major.Minor beta releases.
                   Stable releases will be denoted by a patch level of 0. 
