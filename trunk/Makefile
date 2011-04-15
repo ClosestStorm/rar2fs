@@ -63,7 +63,7 @@ endif
 OBJECTS=dllext.o extractext.o configdb.o filecache.o iobuffer.o rar2fs.o
 DEPS=.deps
 
-all:	rar2fs
+all:	rar2fs mkr2i
 
 clean:
 	(cd stubs;make clean)
@@ -78,6 +78,12 @@ endif
 	$(LINK) -o rar2fs $(LDFLAGS) $(OBJECTS) $(LIB_DIR) $(LIBS)	
 ifneq ("$(STRIP)", "")
 	$(STRIP) rar2fs
+endif
+
+mkr2i:	mkr2i.o 
+	$(LINK) -o mkr2i $(LDFLAGS) mkr2i.o
+ifneq ("$(STRIP)", "")
+	$(STRIP) mkr2i
 endif
 
 %.o : %.c
