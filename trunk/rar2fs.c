@@ -50,6 +50,7 @@
 #include <limits.h>
 #include <assert.h>
 #include "common.h"
+#include "version.h"
 #include "dllwrapper.h"
 #include "filecache.h"
 #include "iobuffer.h"
@@ -1988,7 +1989,10 @@ main(int argc, char* argv[])
    while((opt=getopt_long(argc,argv,"Vhfo:",longopts,NULL))!=-1)
    {
       if(opt=='V'){
-         printf("rar2fs v1.11.1 (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
+         printf("rar2fs v%u.%u.%u (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
+            RAR2FS_MAJOR_VER,
+            RAR2FS_MINOR_VER,
+            RAR2FS_PATCH_LVL,
             RARGetDllVersion(),
             FUSE_VERSION);
          printf("This program comes with ABSOLUTELY NO WARRANTY.\n"
