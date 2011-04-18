@@ -27,7 +27,7 @@
 #include <sys/mman.h>
 #include <arpa/inet.h>
 
-#define MAP_FAILED_ (0x1)
+#define MAP_FAILED_   (0x1)
 #define R2I_MAGIC     (htonl(0x72326900))   /* 'r2i ' */
 
 #define STR_DUP(s, path) \
@@ -51,7 +51,8 @@ typedef struct
    size_t size;
 } Head;
 
-int count_c(char c, char* s)
+static int
+count_c(char c, char* s)
 {
    int cnt = 0;
    while(*s)
@@ -59,7 +60,8 @@ int count_c(char c, char* s)
    return cnt;
 }
 
-void parse_riff(Head* h, FILE* fp, off_t sz)
+static void
+parse_riff(Head* h, FILE* fp, off_t sz)
 {
    char s[256];
    char* needle = NULL;
@@ -100,7 +102,8 @@ void parse_riff(Head* h, FILE* fp, off_t sz)
    }
 }
 
-void parse_ebml(Head* h, FILE* fp, off_t sz)
+static void 
+parse_ebml(Head* h, FILE* fp, off_t sz)
 {
    char s[256];
    char* needle = NULL;
@@ -143,7 +146,6 @@ void parse_ebml(Head* h, FILE* fp, off_t sz)
                  return; /* not supported */
               break;
           }
-          char offset_str[128]; // can be reduced
           /* XXX add error checking + size check sanity */
           h->offset = 0+i4*1000000000ULL+i3*1000000+i2*1000+i1;
           h->offset = h->offset&~4095; /* align offset */
@@ -152,7 +154,8 @@ void parse_ebml(Head* h, FILE* fp, off_t sz)
    }
 };
 
-char* map_file(int fd, size_t size)
+static char*
+map_file(int fd, size_t size)
 {
   if (flock(fd, LOCK_EX|LOCK_NB) == -1) return NULL;
 
@@ -219,6 +222,7 @@ int main(int argn, char* argv[])
    case M_EBML: parse_ebml(&head, fd_dump, stat_src.st_size); break;
    default: break;
    }
+
    if (head.size)
    {
       char* dest;
@@ -246,6 +250,7 @@ int main(int argn, char* argv[])
       munmap(addr, map_size);
       close(fd);
    }
+
    fclose(fd_src);
    fclose(fd_dump);
 }
