@@ -1,3 +1,4 @@
+#labels Featured
 _mkr2i_ is a small command line tool delivered and built together with rar2fs. This tool may be used to generate meta data files that provide experimental support for indexing in .avi and .mkv files contained in compressed/encrypted rar archives.
 
 _mkr2i_ will create a _.r2i_ file that should be placed in the root of the compressed archive and be named exactly as the file inside the archive with an _.r2i_ extension (eg. _foo.avi_ should be named _foo.r2i_). In order to use _mkr2i_ a second tool, AVI-Mux GUI, is also required (only link provided here http://www.alexander-noe.com/video/amg/).
