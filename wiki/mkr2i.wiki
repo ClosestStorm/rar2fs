@@ -1,12 +1,8 @@
 #summary mkr2i tool
 = Introduction =
-
-Add your content here.
-
+mkr2i is a small tool delivered and built together with rar2fs. This tool generates .r2i meta-data files that provide experimental support for indexing in .avi and .mkv files contained in compressed/encrypted rar archives. In order to use this tool some post-processing of the video files are needed.
 
 = Details =
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+mkr2i will create a .r2i file that should be placed in the root of the compressed archive and be named exactly as the file inside the archive with an .r2i extension (eg. foo.avi should be named foo.r2i). In order to use mkr2i a second tool, AVI-Mux GUI, is also required (only link provided here http://www.alexander-noe.com/video/amg/).
+To create the .r2i file, the archive needs to be decompressed once and then opened in AVI-Mux GUI. From the AVI-Mux GUI file window right click and choose EBML tree (for eg. .mkv files) or RIFF tree (for eg. .avi files). Once the tree pops up, select "complete" and wait for the grayed out button to light up again. Then you know the tree has finished expanding. Once this is done, save the tree somewhere and feed it to the mkr2i program together with the uncompressed raw video file. The latter can then be deleted.
