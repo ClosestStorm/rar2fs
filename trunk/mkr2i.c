@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <arpa/inet.h>
+#include "common.h"
 
 #define MAP_FAILED_   (0x1)
 #define R2I_MAGIC     (htonl(0x72326900))   /* 'r2i ' */
@@ -42,15 +43,6 @@ typedef enum
    M_EBML
 } Mode;
 
-typedef struct
-{
-   unsigned int magic;
-   unsigned short version;
-   unsigned short spare;
-   off_t offset;
-   size_t size;
-} Head;
-
 static int
 count_c(char c, char* s)
 {
@@ -61,7 +53,7 @@ count_c(char c, char* s)
 }
 
 static void
-parse_riff(Head* h, FILE* fp, off_t sz)
+parse_riff(IdxHead* h, FILE* fp, off_t sz)
 {
    char s[256];
    char* needle = NULL;
@@ -103,7 +95,7 @@ parse_riff(Head* h, FILE* fp, off_t sz)
 }
 
 static void 
-parse_ebml(Head* h, FILE* fp, off_t sz)
+parse_ebml(IdxHead* h, FILE* fp, off_t sz)
 {
    char s[256];
    char* needle = NULL;
@@ -210,7 +202,7 @@ int main(int argn, char* argv[])
    fstat(fileno(fd_src),&stat_src);
    /* XXX error check */
 
-   Head head;
+   IdxHead head;
    head.size = 0;
    head.magic = R2I_MAGIC;
    head.version = 0;
@@ -232,7 +224,7 @@ int main(int argn, char* argv[])
 
       int fd = open(dest, O_RDWR|O_CREAT, S_IREAD|S_IWRITE);
       if (fd==-1) return;
-      size_t map_size = (head.size+sizeof(Head)+4096)&~4095;
+      size_t map_size = (head.size+sizeof(IdxHead)+4096)&~4095;
 
       char* addr = map_file(fd, map_size);
       if (!addr)
@@ -242,8 +234,8 @@ int main(int argn, char* argv[])
       }
 
       char* tmp = addr;
-      memcpy(tmp, &head, sizeof(Head));
-      tmp+=sizeof(Head);
+      memcpy(tmp, &head, sizeof(IdxHead));
+      tmp+=sizeof(IdxHead);
       size_t n = fread(tmp, 1, head.size, fd_src); 
       /* flush to medium */
       msync(addr, map_size, MS_SYNC); 
