@@ -1,3 +1,4 @@
+#summary rar2fs man page
 #labels Featured
 {{{
 RAR2FS(1)                                                      User Commands                                                      RAR2FS(1)
