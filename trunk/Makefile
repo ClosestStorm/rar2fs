@@ -25,7 +25,11 @@ all:	rar2fs mkr2i
 
 clean:
 	(cd stubs;make clean)
-	rm -rf *.o *.bak *~ $(DEPS)
+	rm -rf *.o *~ $(DEPS)
+
+clobber:
+	(cd stubs;make clobber)
+	rm -rf *.o *.P *.d rar2fs mkr2i *~ $(DEPS)
 
 ifneq ("$(UCLIBC_STUBS)", "")
 rar2fs:	$(OBJECTS) 
