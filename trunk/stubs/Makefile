@@ -1,29 +1,5 @@
-# Change below to match current configuration
-##########################
 
-ifeq ("$(CROSS)", "")
-# Linux using GCC
-CC=gcc
-CFLAGS=-O2 
-DEFINES=
-STRIP=
-LDFLAGS=
-LIBS=
-AR=ar
-else
-# Cross-compile
-# Linux using mipsel-linux-gcc
-CC=mipsel-linux-gcc
-CFLAGS=-O2
-DEFINES=
-STRIP=
-LDFLAGS=
-LIBS=
-AR=mipsel-linux-ar
-endif
-
-# Do not change anything below this line
-##########################
+-include ../config.mk
 
 C_COMPILE=$(CC) $(CFLAGS) $(DEFINES)
 LINK=
