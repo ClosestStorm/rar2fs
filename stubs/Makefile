@@ -10,7 +10,10 @@ DEPS=.deps
 all:	stubs
 
 clean:
-	rm -rf *.o *.bak *~ *.a .deps
+	rm -rf *.o *~ .deps
+
+clobber:
+	rm -rf *.o *.P *.d *~ *.a .deps
 
 stubs:	$(OBJECTS) $(UNRAR_OBJ)
 	$(AR) r fmemopen.a $(OBJECTS) 
