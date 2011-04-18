@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
+#include "common.h"
 
 #define FHD_SZ                   (512*1024)
 #define IOB_SZ                   (4*1024*1024)
@@ -41,21 +42,6 @@
 #define IOB_SAVE_HIST 1
 
 #define IOB_RST(b)  (memset((b), 0, sizeof(IoBuf)))
-
-typedef struct
-{
-   unsigned int magic;
-   unsigned short version;
-   unsigned short spare;
-   off_t offset;
-   size_t size;
-} IdxHead;
-
-typedef struct
-{
-   IdxHead head;
-   char bytes[0]; /* start of data bytes */
-} IdxData;
 
 typedef struct
 {

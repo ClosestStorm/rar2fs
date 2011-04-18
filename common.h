@@ -30,6 +30,7 @@
 #define COMMON_H 
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef DEBUG_
 #define     tprintf(f, ...)  fprintf(stderr, f, ##__VA_ARGS__)
@@ -40,5 +41,20 @@
 #define no_warn_result_ void*ignore_result_=(void*)
 
 #define MB() asm volatile("" ::: "memory");
+
+typedef struct
+{
+   unsigned int magic;
+   unsigned short version;
+   unsigned short spare;
+   off_t offset;
+   size_t size;
+} IdxHead;
+
+typedef struct
+{
+   IdxHead head;
+   char bytes[0]; /* start of data bytes */
+} IdxData;
 
 #endif

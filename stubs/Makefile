@@ -1,5 +1,5 @@
 
--include ../config.mk
+include ../config.mk
 
 C_COMPILE=$(CC) $(CFLAGS) $(DEFINES)
 LINK=
