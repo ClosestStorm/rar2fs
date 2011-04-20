@@ -1,0 +1,40 @@
+#summary Frequently Asked Questions (and Answers)
+#labels Featured
+
+Note that this FAQ is "work in progress". There are many questions and answers to those still not listed here. Just has not been enough spare time to add them yet. If you feel that a question is not answered here or anywhere else on the Wiki, try posting it to the [http://groups.google.com/group/rar2fs rar2fs] group.
+
+==1. Build and Install==
+===Q 1.1. What platforms does rar2fs support?===
+A: Currently rar2fs has only been verified to work on Linux based platforms (for which it was originally written) using the GNU C/C++ compiler. Both glibc and uClibc distributions have been tested on a number of different architectures. The design of rar2fs has attempted to be as portable as possible. Still there might be some target platforms for which it does not work when it in fact should. In those cases please tell us about it in the rar2fs group or issue tracking system. In theory rar2fs should be possible to run on any platform with FUSE support and POSIX threads. There is some work going on to have it run also on OS X (MacFUSE).
+
+===Q 1.2. What is the story behind this stubs folder?===
+A: It is experimental, very experimental. It was an attempt some time back to add a few glibc GNU extensions that many uClibc distributions tend to leave out, such as function _fmemopen()_. For now, just forget about it, it simply does not work as intended. It is left there in the unlikely case that it will be picked up again sometime in the future. 
+
+===Q 1.3. There is no configure script!? Why is that?===
+A: Good question. To be honest, when this project first started there was not even a proper Makefile. It would definitely make sense having also this project support autoconf. There just have not been enough spare time to do so. If someone feel they could contribute in this area please feel free to contact me and maybe we can sort something out. For now the only configurable stuff is in [http://code.google.com/p/rar2fs/source/browse/trunk/config.mk config.mk].
+
+===Q 1.4. Why do I need the complete unrar source to build rar2fs?===
+A: The unrar source tree is needed because rar2fs is adding some features on top of the libunrar API and by doing so also inherits some code from it out of convenience. These extensions are completely built into rar2fs and does not directly affect libunrar itself. However, since rar2fs always targets on the latest libunrar version, it might be necessary also to replace libunrar.so on the target system if compatibility for some reason is broken. The compatibility is defined by RAR_DLL_VERSION and rar2fs automatically detects a mismatch and refuse to run if such is detected.
+
+===Q 1.5. How do I install it?===
+A: Well, there is no install target in the Makefile. Question is if there ever will be. There are only two files that are of interest really, the rar2fs binary and the rar2fs.1 man page. They can be placed anywhere you like.
+
+==2. Usage and Functionality==
+===Q 2.1. Ok, so I built it, now how do I use it?===
+A: There are many options that can be feed to the program. The complete set of options are described in the rar2fs [http://code.google.com/p/rar2fs/wiki/ManPage man page]. But in its simplest form rar2fs is invoked like:
+{{{
+   rar2fs some_source_folder some_target_folder
+}}}
+The source folder (or root folder) is the path to the folder containing some or all of your RAR archives, and normal files/folders too for that matter. The target folder is your "mount point". It works very similar to a bind mount in that sense. When you bring up a folder listing of your target folder, any RAR archives will be hidden and instead the files/folders within the RAR archives are displayed as if they were normal files/folders on your file system.
+
+===Q 2.2. I get the "libunrar.so (???) or compatible library not found" message when I try to run?===
+A: See question 1.4 above. The design of rar2fs was made to be robust. In this case rar2fs has detected that your system library path points out a version of libunrar.so that is not compatible with what rar2fs was built against. Try replacing libunrar.so or force loading of a different version using your LD_LIBRARY_PATH or LD_PRELOAD environment variables. As a last resort you can also try the --no-lib-check option in an attempt to ignore the potential incompatibility. If, for some reason, this option is chosen do not be surprised if cutting corners like that will cause undefined behavior or even crashes. There, now it has been said.
+
+===Q 2.3. I get the "libfuse.so.??? or compatible library not found" message when I try to run?===
+A: This is a similar problem to what is described in question 2.2 for libunrar. This time it is the version of your systems FUSE library that rar2fs does not agree upon. 
+
+===Q 2.4. Can rar2fs be used to write information to RAR archives?===
+A: No. It can not. The RAR archives are internally treated as read only. The RAR compression algorithm (not excluding store mode) is proprietary and as such protected by a copyright license. 
+
+===Q 2.5. Does rar2fs support writing to the underlying file system?===
+A: No, not at the moment. But there are plans of adding that feature. To early to say when it will be ready though.
