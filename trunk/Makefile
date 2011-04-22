@@ -52,7 +52,7 @@ else
 rar2fs:	$(OBJECTS) 
 endif
 	$(LINK) -o rar2fs $(LDFLAGS) $(OBJECTS) $(LIB_DIR) $(LIBS)	
-	echo $X
+
 ifneq ("$(STRIP)", "")
 	$(STRIP) rar2fs
 endif
