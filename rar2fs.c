@@ -2016,23 +2016,11 @@ main(int argc, char* argv[])
       {"no-smp",        no_argument,       NULL, OBJ_ADDR(OBJ_NO_SMP)},
 #endif
       {"img-type",      required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
+      {"no-lib-check",  no_argument,       NULL, OBJ_ADDR(OBJ_NO_LIB_CHECK)},
       {"version",       no_argument,       NULL, 'V'},
       {"help",          no_argument,       NULL, 'h'},
       {NULL,0,NULL,0}
    };
-
-   if (RARGetDllVersion() < RAR_DLL_VERSION)
-   {
-      printf("libunrar.so (v%d.%d%s) or compatible library not found\n",
-         RARVER_MAJOR, RARVER_MINOR, !RARVER_BETA ? "" : " beta");
-      return -1;
-   }
-   if (fuse_version() < FUSE_VERSION)
-   {
-      printf("libfuse.so.%d.%d or compatible library not found\n",
-         FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
-      return -1;
-   }
 
 #ifdef HAS_GLIBC_CUSTOM_STREAMS_
    /* Check fmemopen() support */
@@ -2074,8 +2062,9 @@ main(int argc, char* argv[])
          printf("    --seek-length=n\t    set number of volume files that are traversed in search for headers [0=All]\n");
          printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [0=0ff]\n");
          printf("    --no-idx-mmap\t    use direct file I/O instead of mmap() for .r2i files\n");
-         printf("    --unrar-path=PATH\t    path to external unrar binary (overide unrarlib)\n");
+         printf("    --unrar-path=PATH\t    path to external unrar binary (overide libunrar)\n");
          printf("    --no-password\t    disable password file support\n");
+         printf("    --no-lib-check\t    disable validation of library version(s)\n");
 #if defined ( __linux ) && defined ( __cpu_set_t_defined )
          printf("    --no-smp\t\t    disable SMP support (bind to CPU #0)\n");
 #endif
@@ -2090,6 +2079,22 @@ main(int argc, char* argv[])
    {
       printf("Usage: %s [options] <root dir> <mount point>\n",*argv);
       return -1;
+   }
+
+   if (!OBJ_SET(OBJ_NO_LIB_CHECK))
+   {
+      if (RARGetDllVersion() < RAR_DLL_VERSION)
+      {
+         printf("libunrar.so (v%d.%d%s) or compatible library not found\n",
+            RARVER_MAJOR, RARVER_MINOR, !RARVER_BETA ? "" : " beta");
+         return -1;
+      }
+      if (fuse_version() < FUSE_VERSION)
+      {
+         printf("libfuse.so.%d.%d or compatible library not found\n",
+            FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
+         return -1;
+      }
    }
 
    /* Validate src/dst path */

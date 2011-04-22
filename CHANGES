@@ -1,5 +1,6 @@
     CHANGE LOG
 
+    1.11.4      o Update: Added option --no-lib-check
     1.11.3      o Update: Code updated to support Mac OS X and MacFUSE.
                   Note that this is still very experimental and only tested on
                   one platform. Please report back any issues you find.

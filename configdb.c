@@ -35,7 +35,7 @@
 #include "common.h"
 #include "configdb.h"
 
-#define MAX_NOF_CFG_OBJ (11)
+#define MAX_NOF_CFG_OBJ (12)
 static CfgObj config_objects[MAX_NOF_CFG_OBJ] = 
 {
    {NULL, 0, 0, 0, 1, 0},
@@ -46,6 +46,7 @@ static CfgObj config_objects[MAX_NOF_CFG_OBJ] =
    {NULL, 0, 0, 0, 0, 0},
    {NULL, 0, 0, 0, 0, 1},
    {NULL, 0, 0, 0, 0, 1},
+   {NULL, 0, 0, 0, 0, 0},
    {NULL, 0, 0, 0, 0, 0},
    {NULL, 0, 0, 0, 0, 0},
    {NULL, 0, 0, 0, 0, 0}
