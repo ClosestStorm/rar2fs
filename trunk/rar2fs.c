@@ -29,9 +29,31 @@
 #define _BSD_SOURCE /* or _SVID_SOURCE or _GNU_SOURCE */
 #define _GNU_SOURCE
 #define _XOPEN_SOURCE 500
+#if defined(__FreeBSD__) || defined (__NetBSD__) || defined (__OpenBSD__) || defined(__APPLE__)
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <architecture/byte_order.h>
+#define CONST_DIRENT_
+#define __LITTLE_ENDIAN 1234
+#define __BIG_ENDIAN 4321
+#ifdef __LITTLE_ENDIAN__
+#define __BYTE_ORDER __LITTLE_ENDIAN
+#else
+#ifdef __BIG_ENDIAN__
+#define __BYTE_ORDER __BIG_ENDIAN
+#endif
+#endif
+#else
+#include <endian.h>
+#define CONST_DIRENT_ const
+#endif
+#ifndef __BYTE_ORDER
+#error __BYTE_ORDER not defined 
+#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/select.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -43,7 +65,6 @@
 #include <libgen.h>
 #include <fuse.h>
 #include <fcntl.h>
-#include <endian.h>
 #include <getopt.h>
 #include <syslog.h>
 #include <sys/mman.h>
@@ -58,7 +79,7 @@
 
 #define P_ALIGN_(a) (((a)+page_size)&~(page_size-1))
 
-#ifdef __UCLIBC__
+#if defined ( __UCLIBC__ ) || !defined ( __linux__ )
 #define stack_trace(a,b,c)
 #else
 #include <stdio.h>
@@ -324,7 +345,7 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
    char* unrar_path = OBJ_STR(OBJ_UNRAR_PATH,0);
    if (entry_p->flags.mmap)
    {
-       int fd = open(entry_p->rar_p, O_RDONLY, S_IREAD);
+       int fd = open(entry_p->rar_p, O_RDONLY);
        if (fd != -1)
        {
 #ifdef HAS_GLIBC_CUSTOM_STREAMS_
@@ -900,11 +921,20 @@ getArcPassword(const char* file, char* buf)
 }
 
 static void
-set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p)
+set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
 {
-   entry_p->stat.st_mode = GET_RAR_MODE(alist_p);
-   entry_p->stat.st_nlink = IS_RAR_DIR(alist_p) ? 2 : 1;
-   entry_p->stat.st_size = GET_RAR_SZ(alist_p);
+   if (!force_dir)
+   {
+      entry_p->stat.st_mode = GET_RAR_MODE(alist_p);
+      entry_p->stat.st_nlink = IS_RAR_DIR(alist_p) ? 2 : 1;
+      entry_p->stat.st_size = GET_RAR_SZ(alist_p);
+   }
+   else
+   {
+      entry_p->stat.st_mode = (S_IFDIR|0755);
+      entry_p->stat.st_nlink = 2;
+      entry_p->stat.st_size = 4096;
+   }
    /* This is far from perfect but does the job pretty well! 
     * If there is some obvious way to calculate the number of blocks
     * used by a file, please tell me! Most Linux systems seems to
@@ -974,6 +1004,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
    RARArchiveListEx* next = &L;
    if (RARListArchiveEx(&hdl, next))
    {
+      char* last = strdup("");
       const unsigned int MainHeaderSize = RARGetMainHeaderSize(hdl);
       const unsigned int MainHeaderFlags = RARGetMainHeaderFlags(hdl);
       const off_t RawFileDataEnd = RARGetRawFileDataEnd(hdl);
@@ -990,7 +1021,6 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
             next = next->next;
             continue;
          }
-         //XXXbool isRAR = IS_RAR(next->FileName);
          int display = 0;
          char* rar_name  = strdup(next->FileName);
          char* tmp1 = rar_name;
@@ -1001,6 +1031,34 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
          if (!strcmp(rar_root, path) || !strcmp("/", path))
          { 
             if (!strcmp(".", rar_name)) display = 1;
+
+            /* Handle the rare case when the root folder does not have
+             * its own entry in the file header. The entry needs to be
+             * faked by adding it to the cache. */
+            if (!display)
+            {
+               if  (!strcmp(basename(rar_name), rar_name))
+               {
+                  char* mp;
+                  ABS_MP(mp, "/", rar_name);
+                  dir_elem_t* entry_p = cache_path_get(mp);
+                  if (entry_p == NULL)
+                  {
+                     tprintf("Adding %s to cache\n", mp);
+                     entry_p = cache_path_alloc(mp);
+                     entry_p->name_p = strdup(mp);
+                     entry_p->file_p = strdup(rar_name);
+                     entry_p->rar_p = strdup(arch);
+                     set_rarstats(entry_p, next, 1);
+                  }
+                  if (buffer && strcmp(last,rar_name))
+                  {
+                     DIR_ENTRY_ADD(*buffer, basename(entry_p->name_p), &entry_p->stat);
+                     free(last);
+                     last = strdup(rar_name);
+                  }
+               }
+            }
          }
          else if (!strcmp(path + strlen(rar_root)+1, rar_name)) display = 1;
          free(tmp1);
@@ -1124,7 +1182,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                                  entry2_p->offset = (next->Offset + next->HeadSize);
                                  entry2_p->flags.mmap = mflags;
                                  entry2_p->msize = msize;
-                                 set_rarstats(entry2_p, next2);
+                                 set_rarstats(entry2_p, next2, 0);
                               }
                               if (buffer)
                                  DIR_ENTRY_ADD(*buffer, next2->FileName, &entry2_p->stat);
@@ -1212,7 +1270,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                }
             }
             entry_p->file_p = strdup(next->FileName);
-            set_rarstats(entry_p, next);
+            set_rarstats(entry_p, next, 0);
          } 
          /* To protect from display of the same file name multiple times
           * the cache entry is compared with current archive name.
@@ -1233,9 +1291,12 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
 
          /* Check if there is already a ordinary/rared file with the same name.
           * In that case this one will loose :( */
-         if (display && buffer)
+         char* tmp = basename(entry_p->name_p);
+         if (display && buffer && strcmp(tmp, last))
          {
-            DIR_ENTRY_ADD(*buffer, basename(entry_p->name_p), &entry_p->stat);
+            DIR_ENTRY_ADD(*buffer, tmp, &entry_p->stat);
+            free(last);
+            last = strdup(tmp);
          }
 
          next = next->next;
@@ -1244,6 +1305,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
 clean_up:
       RARFreeListEx(&hdl, &L);
       RARCloseArchive(hdl);
+      free(last);
       pthread_mutex_unlock(&file_access_mutex);
       return 0;
    }
@@ -1253,9 +1315,9 @@ clean_up:
 
 #undef NEED_PASSWORD
 
-int f0(const struct dirent* e) { return (!IS_RAR(e->d_name) && !IS_RXX(e->d_name)); }
-int f1(const struct dirent* e) { return IS_RAR(e->d_name); }
-int f2(const struct dirent* e) { return IS_RXX(e->d_name); }
+int f0(CONST_DIRENT_ struct dirent* e) { return (!IS_RAR(e->d_name) && !IS_RXX(e->d_name)); }
+int f1(CONST_DIRENT_ struct dirent* e) { return IS_RAR(e->d_name); }
+int f2(CONST_DIRENT_ struct dirent* e) { return IS_RXX(e->d_name); }
 
 #define NOF_FILTERS 3
 
@@ -1276,7 +1338,7 @@ sync_dir(const char *dir)
       const char* password = NULL;
       struct dirent **namelist;
       int n, f;
-      int(*filter[NOF_FILTERS])(const struct dirent *) = {f0, f1, f2};
+      int(*filter[NOF_FILTERS])(CONST_DIRENT_ struct dirent *) = {f0, f1, f2};
       for (f = 0; f < NOF_FILTERS; f++)
       {
          n = scandir(root, &namelist, filter[f], alphasort);
@@ -1376,7 +1438,7 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
       tprintf("opendir() succeeded\n");
       struct dirent **namelist;
       int n, f;
-      int(*filter[NOF_FILTERS])(const struct dirent *) = {f0, f1, f2};
+      int(*filter[NOF_FILTERS])(CONST_DIRENT_ struct dirent *) = {f0, f1, f2};
       for (f = 0; f < NOF_FILTERS; f++)
       {
          n = scandir(root, &namelist, filter[f], alphasort);
@@ -1548,7 +1610,7 @@ preload_index(IoBuf* buf, const char* path)
    tprintf("preload_index() for %s\n", r2i);
 
    buf->idx.data_p = MAP_FAILED;
-   int fd = open(r2i, O_RDONLY, S_IREAD);
+   int fd = open(r2i, O_RDONLY);
    if (fd==-1)
    {
       return;

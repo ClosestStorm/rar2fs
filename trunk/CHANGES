@@ -1,5 +1,11 @@
     CHANGE LOG
 
+    1.11.3      o Update: Code updated to support Mac OS X and MacFUSE.
+                  Note that this is still very experimental and only tested on
+                  one platform. Please report back any issues you find.
+                o Bugfix: Fixed an issue with folders inside a RAR file that did
+                  not show up if the root folder was not having an entry of its
+                  own in the file header (very rare).
     1.11.2      o Added version.h
     1.11.1      o New revisioning approach using Major.Minor.PatchLevel instead 
                   of Major.Minor beta releases.

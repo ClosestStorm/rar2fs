@@ -1,7 +1,21 @@
 
 include config.mk
 
-LIBS=-lfuse -lunrar -pthread
+UNAME := $(shell uname)
+
+LIBS=-lunrar -pthread
+ifeq ($(UNAME), Darwin)
+LIBS+=-lstdc++
+OSX_VER := $(shell sw_vers | grep ProductV | cut -d"." -f2)
+NEED_FUSE_INO64 := $(shell `test $(OSX_VER) -gt 5` && echo true)
+ifeq ($(NEED_FUSE_INO64), true)
+LIBS+=-lfuse_ino64
+else
+LIBS+=-lfuse
+endif
+else
+LIBS+=-lfuse 
+endif
 ifeq ("$(HAS_GLIBC_CUSTOM_STREAMS)", "y")
 CONF+=-DHAS_GLIBC_CUSTOM_STREAMS_
 endif
@@ -37,7 +51,8 @@ rar2fs:	$(OBJECTS)
 else
 rar2fs:	$(OBJECTS) 
 endif
-	$(LINK) -o rar2fs $(LDFLAGS) $(OBJECTS) $(LIB_DIR) $(LIBS)	
+	$(LINK) -o rar2fs.x $(LDFLAGS) $(OBJECTS) $(LIB_DIR) $(LIBS)	
+	echo $X
 ifneq ("$(STRIP)", "")
 	$(STRIP) rar2fs
 endif
