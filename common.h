@@ -38,9 +38,19 @@
 #define     tprintf(f, ...)
 #endif /* DEBUG_ */
 
+/* MAC OS X version of gcc does not handle this properly!? */
+#if defined ( __GNUC__ ) &&  defined ( __APPLE__ )
+#define no_warn_result_ 
+#else
 #define no_warn_result_ void*ignore_result_=(void*)
+#endif
 
+#ifdef __GNUC__
 #define MB() asm volatile("" ::: "memory");
+#else
+#warning Check code for MB() on current platform
+#define MB() 
+#endif
 
 typedef struct
 {
