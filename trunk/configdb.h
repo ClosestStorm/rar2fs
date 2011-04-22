@@ -53,6 +53,7 @@
 #define OBJ_NO_PASSWD     (8)
 #define OBJ_NO_SMP        (9)
 #define OBJ_UNRAR_PATH    (10)
+#define OBJ_NO_LIB_CHECK  (11)
 
 typedef struct
 {
