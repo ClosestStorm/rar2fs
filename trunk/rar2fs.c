@@ -28,8 +28,9 @@
 
 #define _BSD_SOURCE /* or _SVID_SOURCE or _GNU_SOURCE */
 #define _GNU_SOURCE
-#define _XOPEN_SOURCE 500
-#if defined(__FreeBSD__) || defined (__NetBSD__) || defined (__OpenBSD__) || defined(__APPLE__)
+
+#ifdef __APPLE__
+#define _DARWIN_C_SOURCE /* Is this really needed? */
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <architecture/byte_order.h>
@@ -43,10 +44,21 @@
 #define __BYTE_ORDER __BIG_ENDIAN
 #endif
 #endif
-#else
+#endif
+#ifdef __FreeBSD__
+#define __BSD_VISIBLE 1
+#define __ISO_C_VISIBLE 1999
+#include <sys/endian.h>
+#define CONST_DIRENT_
+#define __BYTE_ORDER _BYTE_ORDER
+#define __LITTLE_ENDIAN _LITTLE_ENDIAN
+#define __BIG_ENDIAN _BIG_ENDIAN
+#endif
+#ifdef __linux__
 #include <endian.h>
 #define CONST_DIRENT_ const
 #endif
+
 #ifndef __BYTE_ORDER
 #error __BYTE_ORDER not defined 
 #endif
@@ -69,6 +81,7 @@
 #include <syslog.h>
 #include <sys/mman.h>
 #include <limits.h>
+#include <signal.h>
 #include <assert.h>
 #include "common.h"
 #include "version.h"
@@ -82,8 +95,6 @@
 #if defined ( __UCLIBC__ ) || !defined ( __linux__ )
 #define stack_trace(a,b,c)
 #else
-#include <stdio.h>
-#include <signal.h>
 #include <execinfo.h>
 
 /* get REG_EIP from ucontext.h */
