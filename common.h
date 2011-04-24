@@ -31,6 +31,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #ifdef DEBUG_
 #define     tprintf(f, ...)  fprintf(stderr, f, ##__VA_ARGS__)

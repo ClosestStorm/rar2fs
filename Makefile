@@ -2,6 +2,7 @@
 include config.mk
 
 UNAME := $(shell uname)
+MAKE := $(shell which gmake)
 
 LIBS=-lunrar -pthread
 ifeq ($(UNAME), Darwin)
@@ -23,6 +24,10 @@ ifneq ("$(UCLIBC_STUBS)", "")
 LIBS+=-lfmemopen
 endif
 
+ifeq ("$(MAKE)", "")
+MAKE := make
+endif
+
 C_COMPILE=$(CC) $(CFLAGS) $(DEFINES) $(CONF) -DRARDLL -DFUSE_USE_VERSION=27
 CXX_COMPILE=$(CXX) $(CXXFLAGS) $(DEFINES) -DRARDLL
 LINK=$(CC)
@@ -38,16 +43,16 @@ DEPS=.deps
 all:	rar2fs mkr2i
 
 clean:
-	(cd stubs;make clean)
+	(cd stubs;$(MAKE) clean)
 	rm -rf *.o *~ $(DEPS)
 
 clobber:
-	(cd stubs;make clobber)
+	(cd stubs;$(MAKE) clobber)
 	rm -rf *.o *.P *.d rar2fs mkr2i *~ $(DEPS)
 
 ifneq ("$(UCLIBC_STUBS)", "")
 rar2fs:	$(OBJECTS) 
-	(cd stubs;make CROSS=$(CROSS))
+	(cd stubs;$(MAKE) CROSS=$(CROSS))
 else
 rar2fs:	$(OBJECTS) 
 endif
