@@ -54,7 +54,7 @@
 #define __LITTLE_ENDIAN _LITTLE_ENDIAN
 #define __BIG_ENDIAN _BIG_ENDIAN
 #endif
-#ifdef __linux__
+#ifdef __linux
 #include <endian.h>
 #define CONST_DIRENT_ const
 #endif
@@ -92,7 +92,7 @@
 
 #define P_ALIGN_(a) (((a)+page_size)&~(page_size-1))
 
-#if defined ( __UCLIBC__ ) || !defined ( __linux__ )
+#if defined ( __UCLIBC__ ) || !defined ( __linux )
 #define stack_trace(a,b,c)
 #else
 #include <execinfo.h>
