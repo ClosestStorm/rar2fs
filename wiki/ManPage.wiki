@@ -104,7 +104,10 @@ OPTIONS
               chives.
 
        --no-smp
-              disable SMP support (bind to CPU #0) on Linux
+              disable SMP support (bind to CPU #0)
+
+              Note that this option is only available on Linux based platforms with support for the cpu_set_t type (GNU  exten-
+              sion).
 
        --no-lib-check
               disable dynamic library consistency check
