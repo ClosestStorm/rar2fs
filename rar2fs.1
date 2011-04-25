@@ -103,7 +103,11 @@ as the main archive/volume file but with a
 extension. Beware that a password must be stored in clear text format and is thus not protected in any way from unauthorized access. Specifying this option will disable the support for encrypted archives.
 .TP
 .B --no-smp
-disable SMP support (bind to CPU #0) on Linux 
+disable SMP support (bind to CPU #0)
+
+Note that this option is only available on Linux based platforms with support for the
+.I cpu_set_t
+type (GNU extension).
 .TP
 .B --no-lib-check
 disable dynamic library consistency check
