@@ -26,9 +26,6 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#define _BSD_SOURCE /* or _SVID_SOURCE or _GNU_SOURCE */
-#define _GNU_SOURCE
-
 #ifdef __APPLE__
 #define _DARWIN_C_SOURCE /* Is this really needed? */
 #include <sys/param.h>
