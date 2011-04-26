@@ -35,8 +35,8 @@
 #include "common.h"
 
 #define FHD_SZ                   (512*1024)
-#define IOB_SZ                   (4*1024*1024)
-#define IOB_HIST_SZ              (IOB_SZ/2)
+#define IOB_SZ                   (8*1024*1024)
+#define IOB_HIST_SZ              ((unsigned int)(IOB_SZ*(75/100.0)))
 
 #define IOB_NO_HIST 0
 #define IOB_SAVE_HIST 1
