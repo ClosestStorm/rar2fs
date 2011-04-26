@@ -98,10 +98,11 @@ OPTIONS
        --no-password
               disable password file support
 
-              Since rar2fs is non-interactive, passwords that are to be used to decrypt encrypted archives should be stored in a file with the
-              same name as the main archive/volume file but with a .pwd extension. Beware that a password must be stored in clear text  format
-              and is thus not protected in any way from unauthorized access. Specifying this option will disable the support for encrypted ar-
-              chives.
+              Since  rar2fs  is non-interactive, passwords that are to be used to decrypt encrypted archives
+              should be stored in a file with the same name as the main archive/volume file but with a  .pwd
+              extension. Beware that a password must be stored in plaintext format and is thus not protected
+              in any way from unauthorized access. Specifying this  option  will  disable  the  support  for
+              encrypted archives.
 
        --no-smp
               disable SMP support (bind to CPU #0)
