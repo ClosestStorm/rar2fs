@@ -21,14 +21,14 @@ A: Well, there is no install target in the Makefile. Question is if there ever w
 
 ==2. Usage and Functionality==
 ===Q 2.1. Ok, so I built it, now how do I use it?===
-A: There are many options that can be feed to the program. The complete set of options are described in the rar2fs [http://code.google.com/p/rar2fs/wiki/ManPage man page]. But in its simplest form rar2fs is invoked like:
+A: There are many options that can be fed to the program. The complete set of options are described in the rar2fs [http://code.google.com/p/rar2fs/wiki/ManPage man page]. But in its simplest form rar2fs is invoked like:
 {{{
    rar2fs some_source_folder some_target_folder
 }}}
 The source folder (or root folder) is the path to the folder containing some or all of your RAR archives, and normal files/folders too for that matter. The target folder is your "mount point". It works very similar to a bind mount in that sense. When you bring up a folder listing of your target folder, any RAR archives will be hidden and instead the files/folders within the RAR archives are displayed as if they were normal files/folders on your file system.
 
 ===Q 2.2. I get the "libunrar.so (???) or compatible library not found" message when I try to run?===
-A: See question 1.4 above. The design of rar2fs was made to be robust. In this case rar2fs has detected that your system library path points out a version of libunrar.so that is not compatible with what rar2fs was built against. Try replacing libunrar.so or force loading of a different version using your LD_LIBRARY_PATH or LD_PRELOAD environment variables. As a last resort you can also try the --no-lib-check option in an attempt to ignore the potential incompatibility. If, for some reason, this option is chosen do not be surprised if cutting corners like that will cause undefined behavior or even crashes. There, now it has been said.
+A: See question 1.4 above. The design of rar2fs attempts to be robust. In this case rar2fs has detected that your system library path points out a version of libunrar.so that is suspected not to be compatible with what rar2fs was built against. Try replacing libunrar.so or force loading of a different version using your LD_LIBRARY_PATH or LD_PRELOAD environment variables. As a last resort you can also try the --no-lib-check option in an attempt to ignore the potential incompatibility. If, for some reason, this option is chosen do not be surprised if cutting corners like that will cause undefined behavior or even crashes.
 
 ===Q 2.3. I get the "libfuse.so.??? or compatible library not found" message when I try to run?===
 A: This is a similar problem to what is described in question 2.2 for libunrar. This time it is the version of your systems FUSE library that rar2fs does not agree upon. 
