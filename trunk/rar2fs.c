@@ -79,6 +79,7 @@
 #include <sys/mman.h>
 #include <limits.h>
 #include <signal.h>
+#include <time.h>
 #include <assert.h>
 #include "common.h"
 #include "version.h"
