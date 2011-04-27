@@ -1,5 +1,7 @@
     CHANGE LOG
 
+    1.11.7      o Bugfix: Added missing display of "." and ".." for folders
+                  inside RAR archives.
     1.11.6      o Update: Using tmp file for extraction of "rar inside rar" if
                   glibc custom stream support is missing. This will allow for
                   extraction also if the encapsulating file is compressed and/or
