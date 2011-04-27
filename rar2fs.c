@@ -358,9 +358,10 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
       if (!fwrite(buffer, sz, 1, tmp))
       {
         fclose(tmp);
-        return MAP_FAILED;
+        tmp = MAP_FAILED;
       }
-      fseeko(tmp, 0, SEEK_SET);
+      else fseeko(tmp, 0, SEEK_SET);
+      free(buffer);
       return tmp;
   } 
   return buffer;
