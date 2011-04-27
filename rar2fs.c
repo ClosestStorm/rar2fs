@@ -1585,6 +1585,9 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
       }
    }
  
+   filler(buffer, ".", NULL, 0);
+   filler(buffer, "..", NULL, 0);
+
    if(!DIR_LIST_EMPTY(&dir_list))
    {
       sort_dir(&dir_list);
