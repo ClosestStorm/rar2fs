@@ -175,6 +175,9 @@ struct dir_entry_list
       free(tmp->entry.name);\
       free(tmp);}}
 
+#define E_TO_MEM 0
+#define E_TO_TMP 1
+
 typedef struct
 {
    FILE* fp;
@@ -293,14 +296,14 @@ sig_handler(int signum, siginfo_t *info, void* secret)
 }
 
 static void*
-extract_to_mem(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p)
+extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int oper)
 {
   int out_pipe[2];
   if(pipe(out_pipe) != 0 ) {          /* make a pipe */
     return MAP_FAILED;
   }
 
-  tprintf("extract_to_mem() extracting %s (%llu bytes) resident in %s\n", file, sz, entry_p->rar_p);
+  tprintf("extract_to() extracting %s (%llu bytes) resident in %s\n", file, sz, entry_p->rar_p);
   pid_t pid = fork();
   if (pid == 0)
   {
@@ -322,7 +325,15 @@ extract_to_mem(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p)
   }
 
   close(out_pipe[1]);
+
+  FILE* tmp = NULL;
   char* buffer = malloc(sz);
+  if (!buffer) 
+     return MAP_FAILED;
+  if (oper == E_TO_TMP) 
+  {
+     tmp = tmpfile();
+  } 
   off_t off = 0;
   do
   {
@@ -338,9 +349,20 @@ extract_to_mem(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p)
      }
      off += n;
   } while (off != sz);
+
   tprintf("read %llu bytes from pipe %d\n", off, out_pipe[0]);
   close(out_pipe[0]);
 
+  if (tmp && (buffer != MAP_FAILED))
+  {
+      if (!fwrite(buffer, sz, 1, tmp))
+      {
+        fclose(tmp);
+        return MAP_FAILED;
+      }
+      fseeko(tmp, 0, SEEK_SET);
+      return tmp;
+  } 
   return buffer;
 }
 
@@ -357,15 +379,22 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
        int fd = open(entry_p->rar_p, O_RDONLY);
        if (fd != -1)
        {
-#ifdef HAS_GLIBC_CUSTOM_STREAMS_
           if (entry_p->flags.mmap==2)
           {
-             maddr = extract_to_mem(entry_p->file_p, entry_p->msize, NULL, entry_p);
+#ifdef HAS_GLIBC_CUSTOM_STREAMS_
+             maddr = extract_to(entry_p->file_p, entry_p->msize, NULL, entry_p, E_TO_MEM);
              if (maddr != MAP_FAILED)
                 fp = fmemopen(maddr, entry_p->msize, "r");
+#else
+             fp = extract_to(entry_p->file_p, entry_p->msize, NULL, entry_p, E_TO_TMP);
+             if (fp == MAP_FAILED)
+             {
+                fp = NULL;
+                tprintf("extract_to() file failed\n");
+             }
+#endif
           }
           else
-#endif
           {
 #ifdef HAS_GLIBC_CUSTOM_STREAMS_
              maddr = mmap(0, P_ALIGN_(entry_p->msize), PROT_READ, MAP_SHARED, fd, 0);
@@ -1145,20 +1174,27 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                         msize = st.st_size;
                         mflags = 1;
                      }
-#ifdef HAS_GLIBC_CUSTOM_STREAMS_
                      else 
                      {
                          FILE* fp_ = RARGetFileHandle(hdl);
                          off_t curr_pos = ftello(fp_);
                          fseeko(fp_, 0, SEEK_SET);
-                         maddr = extract_to_mem(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p);
-                         fseeko(fp_, curr_pos, SEEK_SET);
+#ifdef HAS_GLIBC_CUSTOM_STREAMS_
+                         maddr = extract_to(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p, E_TO_MEM);
                          if (maddr != MAP_FAILED)
                             fp = fmemopen(maddr, GET_RAR_SZ(next), "r");
+#else
+                         fp = extract_to(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p, E_TO_TMP);
+                         if (fp == MAP_FAILED)
+                         {
+                            fp = NULL;
+                            tprintf("extract_to() file failed\n");
+                         }
+#endif
+                         fseeko(fp_, curr_pos, SEEK_SET);
                          msize = GET_RAR_SZ(next);
                          mflags = 2;
                      }
-#endif
                   } 
                   if (fp) hdl2 = RARInitArchive(&d2, fp);
                   if (hdl2)

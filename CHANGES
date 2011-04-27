@@ -1,6 +1,10 @@
     CHANGE LOG
 
-    1.11.5      o FreeBSD port
+    1.11.6      o Update: Using tmp file for extraction of "rar inside rar" if
+                  glibc custom stream support is missing. This will allow for
+                  extraction also if the encapsulating file is compressed and/or
+                  encrypted. 
+    1.11.5      o Update: FreeBSD port
     1.11.4      o Update: Added option --no-lib-check
     1.11.3      o Update: Code updated to support Mac OS X and MacFUSE.
                   Note that this is still very experimental and only tested on
