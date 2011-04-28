@@ -1842,6 +1842,12 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    return 0;
 }
 
+#ifdef __FreeBSD__
+#define SIG_FUNC_ (void*)
+#else
+#define SIG_FUNC_ (__sighandler_t)
+#endif
+
 static void*
 rar2_init(struct fuse_conn_info *conn)
 {
@@ -1854,24 +1860,26 @@ rar2_init(struct fuse_conn_info *conn)
 #if 1
    /* Avoid child zombies for SIGCHLD */
    sigaction(SIGCHLD, NULL, &act);
-   act.sa_handler = (__sighandler_t)sig_handler;
+   act.sa_handler = SIG_FUNC_ sig_handler;
    act.sa_flags |= SA_NOCLDWAIT;
    sigaction(SIGCHLD, &act, NULL);
 #endif
 
    sigaction(SIGUSR1, NULL, &act);
    sigemptyset(&act.sa_mask);
-   act.sa_handler = (__sighandler_t)sig_handler;
+   act.sa_handler = SIG_FUNC_ sig_handler;
    sigaction(SIGUSR1, &act, NULL);
 
    sigaction(SIGSEGV, NULL, &act);
    sigemptyset(&act.sa_mask);
-   act.sa_handler = (__sighandler_t)sig_handler;
+   act.sa_handler = SIG_FUNC_ sig_handler;
    act.sa_flags = SA_RESTART | SA_SIGINFO;
    sigaction(SIGSEGV, &act, NULL);
 
    return NULL;
 }
+
+#undef SIG_FUNC_
 
 static void
 rar2_destroy(void *data)
