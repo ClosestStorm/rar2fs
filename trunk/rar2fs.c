@@ -1000,13 +1000,16 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
        unsigned int second : 5;
 #endif
    };
-   struct dos_time_t* dos_time = (struct dos_time_t*)&alist_p->FileTime;
-   t.tm_sec = dos_time->second;
-   t.tm_min = dos_time->minute;
-   t.tm_hour = dos_time->hour;
-   t.tm_mday = dos_time->day;
-   t.tm_mon = dos_time->month-1;
-   t.tm_year = (1980 + dos_time->year) - 1900;
+
+   struct dos_time_t dos_time;
+   memcpy(&dos_time, &alist_p->FileTime, sizeof(alist_p->FileTime)); 
+   
+   t.tm_sec = dos_time.second;
+   t.tm_min = dos_time.minute;
+   t.tm_hour = dos_time.hour;
+   t.tm_mday = dos_time.day;
+   t.tm_mon = dos_time.month-1;
+   t.tm_year = (1980 + dos_time.year) - 1900;
    entry_p->stat.st_atime = mktime(&t);
    entry_p->stat.st_mtime = entry_p->stat.st_atime;
    entry_p->stat.st_ctime = entry_p->stat.st_atime;
