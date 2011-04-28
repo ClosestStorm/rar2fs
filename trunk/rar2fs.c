@@ -239,7 +239,7 @@ struct IOContext
        /* FD_ISSET(0, &rfds) will be true. */\
        char buf[2];\
        no_warn_result_ read(fd, buf, 1); /* consume byte */\
-       tprintf("%u thread wakeup (%d, %u)\n", pthread_self(), retval, (int)buf[0]);\
+       tprintf("%lu thread wakeup (%d, %u)\n", pthread_self(), retval, (int)buf[0]);\
    }\
    else perror("select()");\
 }
@@ -526,7 +526,7 @@ lread_raw(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
    IOContext* op = FH_TOCONTEXT(fi->fh);
    if (!op) return -EACCES;
 
-   tprintf("%d calling lread_raw, seq = %d\n", getpid(), op->seq, op->pos);
+   tprintf("%d calling lread_raw, seq = %d\n", getpid(), op->seq);
 
    off_t chunk;
    int tot = 0;
@@ -1609,7 +1609,7 @@ reader_task(void* arg)
 {
    IOContext* op = (IOContext*)arg;
    op->terminate = 0;
-   tprintf("Reader thread started : fp=0x%x\n", FH_TOFP(op->fh));
+   tprintf("Reader thread started : fp=%p\n", FH_TOFP(op->fh));
 
    int fd = op->pfd[0];
    int nfsd = fd+1;
@@ -1691,7 +1691,7 @@ preload_index(IoBuf* buf, const char* path)
 static int
 rar2_open(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("(%05d) %-8s%s [0x%08x][called from %05d]\n", getpid(), "OPEN", path, (int)(fi->fh), fuse_get_context()->pid);
+   tprintf ("(%05d) %-8s%s [0x%llu][called from %05d]\n", getpid(), "OPEN", path, fi->fh, fuse_get_context()->pid);
    dir_elem_t* entry_p;
    char* root;
 
@@ -1738,7 +1738,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
             IOContext* op = malloc(sizeof(IOContext));
             FH_SETFH(&op->fh, fp);
             FH_SETCONTEXT(&fi->fh, op);
-            tprintf ("(%05d) %-8s%s [0x%08x]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
+            tprintf ("(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
             op->pid = 0;
             op->entry_p = entry_p;
             op->seq = 0;
@@ -1802,15 +1802,15 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          op->buf = buf;
          op->pos = 0;
          FH_SETCONTEXT(&fi->fh, op);
-         tprintf ("(%05d) %-8s%s [0x%08x]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
+         tprintf ("(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
          FH_SETFH(&op->fh, fp);
          op->pid = pid;
-         tprintf("pipe 0x%08x created towards child %d\n", FH_TOFP(op->fh), pid);
+         tprintf("pipe %p created towards child %d\n", FH_TOFP(op->fh), pid);
 #ifdef USE_STATIC_WINDOW 
          /* Prefetch buffer and possible file header cache */
          size_t size = readTo(op->buf, fp, IOB_NO_HIST);
          size = size > FHD_SZ-1 ? FHD_SZ-1 : size;
-         tprintf("Copying %d bytes to static window @ %08x\n", size, (unsigned int)op->buf->sbuf_p);
+         tprintf("Copying %d bytes to static window @ %p\n", size, (unsigned int)op->buf->sbuf_p);
          memcpy(op->buf->sbuf_p, op->buf->data_p, size);
 #endif
 
@@ -1880,7 +1880,7 @@ rar2_destroy(void *data)
 static int
 rar2_flush(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("(%05d) %-8s%s [0x%08x][called from %05d]\n", getpid(), "FLUSH", path, FH_TOCONTEXT(fi->fh), fuse_get_context()->pid);
+   tprintf ("(%05d) %-8s%s [%-16p][called from %05d]\n", getpid(), "FLUSH", path, FH_TOCONTEXT(fi->fh), fuse_get_context()->pid);
    char* root;
    ABS_ROOT(root, path);
    return lflush(root, fi);
@@ -1889,7 +1889,7 @@ rar2_flush(const char *path, struct fuse_file_info *fi)
 static int
 rar2_release(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("(%05d) %-8s%s [0x%08x]\n", getpid(), "RELEASE", path, FH_TOCONTEXT(fi->fh));
+   tprintf ("(%05d) %-8s%s [%-16p]\n", getpid(), "RELEASE", path, FH_TOCONTEXT(fi->fh));
    if (!FH_ISSET(fi->fh))
    {
       pthread_mutex_lock(&file_access_mutex);
@@ -1920,11 +1920,11 @@ rar2_release(const char *path, struct fuse_file_info *fi)
                free(op->volHdl);
             }
             fclose(FH_TOFP(op->fh));
-            tprintf("closing file handle 0x%x\n", FH_TOFP(op->fh));
+            tprintf("closing file handle %p\n", FH_TOFP(op->fh));
          } 
          else
          {
-            tprintf("closing pipe 0x%x\n", FH_TOFP(op->fh));
+            tprintf("closing pipe %p\n", FH_TOFP(op->fh));
             close(op->pfd[0]);
             close(op->pfd[1]);
             close(op->pfd2[0]);
@@ -1945,7 +1945,7 @@ rar2_release(const char *path, struct fuse_file_info *fi)
             }
          }
       }
-      tprintf("Releasing IO context fi->fh=0x%x\n", FH_TOCONTEXT(fi->fh));
+      tprintf("Releasing IO context fi->fh=%p\n", FH_TOCONTEXT(fi->fh));
       if (op->buf) 
       { 
          /* XXX clean up */

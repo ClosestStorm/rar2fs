@@ -150,7 +150,7 @@ int collect_obj(int obj, char* s)
         if (obj!=OBJ_SEEK_DEPTH&&obj!=OBJ_SEEK_LENGTH)
            tprintf("\"%s\" ", OBJ_(obj)->u.v_arr_str[i]);
         else
-           tprintf("\"%d\" ", OBJ_(obj)->u.v_arr_int[i]);
+           tprintf("\"%ld\" ", OBJ_(obj)->u.v_arr_int[i]);
       tprintf("\n");
    }
 #endif
