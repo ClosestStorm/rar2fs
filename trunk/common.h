@@ -36,18 +36,17 @@
 #ifdef DEBUG_
 #define     tprintf(f, ...)  fprintf(stderr, f, ##__VA_ARGS__)
 #else /* DEBUG_ */
-#define     tprintf(f, ...)
+#define     tprintf(...)
 #endif /* DEBUG_ */
-
 /* MAC OS X version of gcc does not handle this properly!? */
 #if defined ( __GNUC__ ) &&  defined ( __APPLE__ )
 #define no_warn_result_ 
 #else
-#define no_warn_result_ void*ignore_result_=(void*)
+#define no_warn_result_ void*ignore_result_;ignore_result_=(void*)
 #endif
 
 #ifdef __GNUC__
-#define MB() asm volatile("" ::: "memory");
+#define MB() do{ __asm__ __volatile__ ("" ::: "memory"); } while(0)
 #else
 #warning Check code for MB() on current platform
 #define MB() 
@@ -65,7 +64,7 @@ typedef struct
 typedef struct
 {
    IdxHead head;
-   char bytes[0]; /* start of data bytes */
+   char bytes[1]; /* start of data bytes */
 } IdxData;
 
 #endif

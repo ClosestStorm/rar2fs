@@ -81,6 +81,9 @@
 #include <signal.h>
 #include <time.h>
 #include <assert.h>
+#include <pthread.h>
+#include <ctype.h>
+#include <sched.h>
 #include "common.h"
 #include "version.h"
 #include "dllwrapper.h"
@@ -98,6 +101,7 @@
 /* get REG_EIP from ucontext.h */
 #include <ucontext.h>
 
+static void
 stack_trace(int sig, siginfo_t *info, void *secret)
 {
   void *trace[30];
@@ -416,16 +420,16 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
        else
        {
           if (maddr != MAP_FAILED) 
+          {
              if(entry_p->flags.mmap==1) munmap(maddr, P_ALIGN_(entry_p->msize));
              else free(maddr);
+          }
           if (fd != -1) close(fd);
           return NULL;
        }
    }
-   int status;
    int pfd[2];
    pid_t pid;
-   char buf;
    if (pipe(pfd) == -1) { perror("pipe"); return NULL; }
 
    pid = fork();
@@ -642,7 +646,6 @@ lread_rar(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
    ++op->seq;
    tprintf("(%d) lread_rar : seq = %d, offset = %llu (%llu), size = %d\n", getpid(), op->seq, offset, op->pos, size);
 
-   FILE* fp = FH_TOFP(op->fh);
    int n = 0;
    errno = 0;
 
@@ -923,7 +926,7 @@ get_vnfm(const char* s, int t, int* l, int* p)
 #define GET_RAR_PACK_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->PackSizeHigh * 0x100000000ULL) | (l)->PackSize))
 
 #define BS_TO_UNIX(p) do{char*s=(p);while(*s++)if(*s==92)*s='/';}while(0)
-static inline IS_ROOT(const char* s)
+static inline int IS_ROOT(const char* s)
 {
     int ret;
     char* dup = strdup(s);
@@ -1241,8 +1244,10 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   }
                   if (fp) fclose(fp);
                   if (maddr != MAP_FAILED) 
+                  {
                      if (mflags==1) munmap(maddr, P_ALIGN_(msize));
                      else free(maddr);
+                  }
 
                   /* We are done with this rar file (.rar will never display!)*/
                   if (hdl2)
@@ -1348,7 +1353,6 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
          next = next->next;
       }
 
-clean_up:
       RARFreeListEx(&hdl, &L);
       RARCloseArchive(hdl);
       free(last);
@@ -1372,7 +1376,6 @@ sync_dir(const char *dir)
 {
    tprintf("sync_dir() %s\n", dir);
    DIR *dp;
-   struct dirent *ep;
    char* root;
    ABS_ROOT(root, dir);
 
@@ -1474,7 +1477,6 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
    dir_entry_list_t* next = &dir_list;
    DIR_LIST_RST(next);
    DIR *dp;
-   struct dirent *ep;
    char* root;
    ABS_ROOT(root, path);
 
@@ -1628,7 +1630,6 @@ reader_task(void* arg)
          /* FD_ISSET(0, &rfds) will be true. */
          tprintf("Reader thread wakeup (%d)\n", retval);
          char buf[2];
-         ssize_t n;
          no_warn_result_ read(fd, buf, 1); /* consume byte */
          {
             if (buf[0]<2 && !feof(FH_TOFP(op->fh))) 
@@ -1693,7 +1694,7 @@ preload_index(IoBuf* buf, const char* path)
 static int
 rar2_open(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("(%05d) %-08s%s [0x%08x][called from %05d]\n", getpid(), "OPEN", path, (int)(fi->fh), fuse_get_context()->pid);
+   tprintf ("(%05d) %-8s%s [0x%08x][called from %05d]\n", getpid(), "OPEN", path, (int)(fi->fh), fuse_get_context()->pid);
    dir_elem_t* entry_p;
    char* root;
 
@@ -1740,7 +1741,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
             IOContext* op = malloc(sizeof(IOContext));
             FH_SETFH(&op->fh, fp);
             FH_SETCONTEXT(&fi->fh, op);
-            tprintf ("(%05d) %-08s%s [0x%08x]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
+            tprintf ("(%05d) %-8s%s [0x%08x]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
             op->pid = 0;
             op->entry_p = entry_p;
             op->seq = 0;
@@ -1783,9 +1784,9 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    {
       /* Open PIPE(s) and create child process */
       pid_t pid;
-      void* mmap_addr;
-      FILE* mmap_fp;
-      int mmap_fd;
+      void* mmap_addr = NULL;
+      FILE* mmap_fp = NULL;
+      int mmap_fd = 0;
       FILE* fp = _popen(entry_p, &pid, &mmap_addr, &mmap_fp, &mmap_fd);
       if (fp!=NULL)
       {
@@ -1804,7 +1805,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          op->buf = buf;
          op->pos = 0;
          FH_SETCONTEXT(&fi->fh, op);
-         tprintf ("(%05d) %-08s%s [0x%08x]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
+         tprintf ("(%05d) %-8s%s [0x%08x]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
          FH_SETFH(&op->fh, fp);
          op->pid = pid;
          tprintf("pipe 0x%08x created towards child %d\n", FH_TOFP(op->fh), pid);
@@ -1853,16 +1854,19 @@ rar2_init(struct fuse_conn_info *conn)
 #if 1
    /* Avoid child zombies for SIGCHLD */
    sigaction(SIGCHLD, NULL, &act);
-   act.sa_handler = (void*)sig_handler;
+   act.sa_handler = (__sighandler_t)sig_handler;
    act.sa_flags |= SA_NOCLDWAIT;
    sigaction(SIGCHLD, &act, NULL);
 #endif
 
-   signal (SIGUSR1, (void*)sig_handler);
-   
+   sigaction(SIGUSR1, NULL, &act);
+   sigemptyset(&act.sa_mask);
+   act.sa_handler = (__sighandler_t)sig_handler;
+   sigaction(SIGUSR1, &act, NULL);
+
    sigaction(SIGSEGV, NULL, &act);
    sigemptyset(&act.sa_mask);
-   act.sa_handler = (void*)sig_handler;
+   act.sa_handler = (__sighandler_t)sig_handler;
    act.sa_flags = SA_RESTART | SA_SIGINFO;
    sigaction(SIGSEGV, &act, NULL);
 
@@ -1879,7 +1883,7 @@ rar2_destroy(void *data)
 static int
 rar2_flush(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("(%05d) %-08s%s [0x%08x][called from %05d]\n", getpid(), "FLUSH", path, FH_TOCONTEXT(fi->fh), fuse_get_context()->pid);
+   tprintf ("(%05d) %-8s%s [0x%08x][called from %05d]\n", getpid(), "FLUSH", path, FH_TOCONTEXT(fi->fh), fuse_get_context()->pid);
    char* root;
    ABS_ROOT(root, path);
    return lflush(root, fi);
@@ -1888,7 +1892,7 @@ rar2_flush(const char *path, struct fuse_file_info *fi)
 static int
 rar2_release(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("(%05d) %-08s%s [0x%08x]\n", getpid(), "RELEASE", path, FH_TOCONTEXT(fi->fh));
+   tprintf ("(%05d) %-8s%s [0x%08x]\n", getpid(), "RELEASE", path, FH_TOCONTEXT(fi->fh));
    if (!FH_ISSET(fi->fh))
    {
       pthread_mutex_lock(&file_access_mutex);
@@ -1964,6 +1968,8 @@ rar2_release(const char *path, struct fuse_file_info *fi)
       ABS_ROOT(root, path);
       return lrelease(root, fi);
    }
+
+   return 0;
 }
 
 static int
@@ -2029,12 +2035,10 @@ rar2_utime(const char * path, const struct timespec tv[2])
       argv[i] = argv[i+1];}\
 }
 
-#include <sched.h>
 int
 main(int argc, char* argv[])
 {
    int opt;
-   char *end;
    char *helpargv[2]={NULL,"-h"};
 
    /* mapping of FUSE file system operations */
@@ -2101,7 +2105,7 @@ main(int argc, char* argv[])
       }
       if(opt=='h'){
          helpargv[0]=argv[0];
-         fuse_main(2,helpargv,NULL,NULL);
+         fuse_main(2,helpargv,(const struct fuse_operations*)NULL,NULL);
          printf("\nrar2fs options:\n");
          printf("    --img-type=E1[;E2...]   additional image file type extensions beyond the default (.iso;.img;.nrg)\n");
          printf("    --show-comp-img\t    show image file types also for compressed archives\n");

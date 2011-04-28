@@ -73,7 +73,6 @@ size_t
 readFrom(char* dest, IoBuf* src, size_t size, int off)
 {
    size_t tot = 0;
-   unsigned int lwi = src->wi; /* read once */
    unsigned int lri = src->ri; /* read once */
    int used = src->used;
    if (off)

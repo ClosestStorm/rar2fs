@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 
 typedef struct dir_elem dir_elem;
+__extension__
 struct dir_elem
 {
    char* name_p;

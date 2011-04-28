@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/file.h>
 #include <arpa/inet.h>
 #include "common.h"
 
@@ -144,7 +145,7 @@ parse_ebml(IdxHead* h, FILE* fp, off_t sz)
           h->size = sz - h->offset;
       }
    }
-};
+}
 
 static char*
 map_file(int fd, size_t size)
@@ -223,20 +224,23 @@ int main(int argn, char* argv[])
       fseeko(fd_src, head.offset, SEEK_SET);
 
       int fd = open(dest, O_RDWR|O_CREAT, S_IREAD|S_IWRITE);
-      if (fd==-1) return;
+      if (fd==-1) return 1;
       size_t map_size = (head.size+sizeof(IdxHead)+4096)&~4095;
 
       char* addr = map_file(fd, map_size);
       if (!addr)
       {
          printf("Internal error %x\n", MAP_FAILED_); 
-         return;
+         return 1;
       }
 
       char* tmp = addr;
       memcpy(tmp, &head, sizeof(IdxHead));
       tmp+=sizeof(IdxHead);
-      size_t n = fread(tmp, 1, head.size, fd_src); 
+      if ((fread(tmp, 1, head.size, fd_src) != head.size) && ferror(fd_src)) 
+      {
+         return 1;
+      }
       /* flush to medium */
       msync(addr, map_size, MS_SYNC); 
       munmap(addr, map_size);
@@ -245,5 +249,7 @@ int main(int argn, char* argv[])
 
    fclose(fd_src);
    fclose(fd_dump);
+
+   return 0;
 }
 
