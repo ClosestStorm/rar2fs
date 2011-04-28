@@ -38,18 +38,18 @@
 #define MAX_NOF_CFG_OBJ (12)
 static CfgObj config_objects[MAX_NOF_CFG_OBJ] = 
 {
-   {{NULL}, 0, 0, 0, 1, 0},
-   {{NULL}, 0, 0, 0, 0, 0},
-   {{NULL}, 0, 0, 0, 0, 0},
-   {{NULL}, 0, 0, 0, 0, 0},
-   {{NULL}, 0, 0, 0, 0, 0},
-   {{NULL}, 0, 0, 0, 0, 0},
-   {{NULL}, 0, 0, 0, 0, 1},
-   {{NULL}, 0, 0, 0, 0, 1},
-   {{NULL}, 0, 0, 0, 0, 0},
-   {{NULL}, 0, 0, 0, 0, 0},
-   {{NULL}, 0, 0, 0, 0, 0},
-   {{NULL}, 0, 0, 0, 0, 0}
+   {{NULL,}, 0, 0, 0, 1, 0},
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 1},
+   {{NULL,}, 0, 0, 0, 0, 1},
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 0}
 };
 
 CfgObj* config_objects_ = &config_objects[0];
@@ -201,7 +201,8 @@ int chk_obj(int obj, char* path)
    {
       while (i!=OBJ_CNT(obj))
       {
-         if (!strcmp(basename(path), OBJ_STR(OBJ_EXCLUDE, i)))
+         char* tmp =  OBJ_STR(OBJ_EXCLUDE, i);
+         if (!strcmp(basename(path), tmp?tmp:""))
             return 1;
          ++i;
       }
@@ -213,7 +214,8 @@ int chk_obj(int obj, char* path)
       {
          while (i!=OBJ_CNT(obj))
          {
-            if (!strcmp((path)+(strlen(path)-l), OBJ_STR(obj, i)))
+            char* tmp =  OBJ_STR(obj, i);
+            if (!strcmp((path)+(strlen(path)-l), tmp?tmp:""))
                return l-1;
             ++i;
          }

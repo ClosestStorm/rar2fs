@@ -71,7 +71,7 @@ typedef struct
 } CfgObj;
 
 #define OBJ_CNT(o)    (config_objects_[(o)].n_elem)
-#define OBJ_STR(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:"__undef__")
+#define OBJ_STR(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:NULL)
 #define OBJ_INT(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_int[(n)]:0)
 #define OBJ_SET(o)    (config_objects_[(o)].is_set)
 
