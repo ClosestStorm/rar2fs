@@ -27,7 +27,6 @@
 */
 
 #ifdef __APPLE__
-#define _DARWIN_C_SOURCE /* Is this really needed? */
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <architecture/byte_order.h>
@@ -43,8 +42,6 @@
 #endif
 #endif
 #ifdef __FreeBSD__
-#define __BSD_VISIBLE 1
-#define __ISO_C_VISIBLE 1999
 #include <sys/endian.h>
 #define CONST_DIRENT_
 #define __BYTE_ORDER _BYTE_ORDER
