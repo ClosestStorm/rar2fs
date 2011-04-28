@@ -38,18 +38,18 @@
 #define MAX_NOF_CFG_OBJ (12)
 static CfgObj config_objects[MAX_NOF_CFG_OBJ] = 
 {
-   {NULL, 0, 0, 0, 1, 0},
-   {NULL, 0, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0, 1},
-   {NULL, 0, 0, 0, 0, 1},
-   {NULL, 0, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0, 0},
-   {NULL, 0, 0, 0, 0, 0}
+   {{NULL}, 0, 0, 0, 1, 0},
+   {{NULL}, 0, 0, 0, 0, 0},
+   {{NULL}, 0, 0, 0, 0, 0},
+   {{NULL}, 0, 0, 0, 0, 0},
+   {{NULL}, 0, 0, 0, 0, 0},
+   {{NULL}, 0, 0, 0, 0, 0},
+   {{NULL}, 0, 0, 0, 0, 1},
+   {{NULL}, 0, 0, 0, 0, 1},
+   {{NULL}, 0, 0, 0, 0, 0},
+   {{NULL}, 0, 0, 0, 0, 0},
+   {{NULL}, 0, 0, 0, 0, 0},
+   {{NULL}, 0, 0, 0, 0, 0}
 };
 
 CfgObj* config_objects_ = &config_objects[0];
