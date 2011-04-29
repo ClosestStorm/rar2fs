@@ -790,12 +790,47 @@ lopen(const char *path,
    return 0;
 }
 
+#ifndef DEBUG_
+#define dump_stat(s) 
+#else
+#define DUMP_STATO_(m) fprintf(stderr, "%10s = %o (octal)\n", #m , (unsigned int)stbuf->m)
+#define DUMP_STAT4_(m) fprintf(stderr, "%10s = %u\n", #m , (unsigned int)stbuf->m)
+#define DUMP_STAT8_(m) fprintf(stderr, "%10s = %llu\n", #m , stbuf->m)
+static void
+dump_stat(struct stat* stbuf)
+{
+   fprintf(stderr, "struct stat {\n"); 
+   DUMP_STAT4_(st_dev);
+   DUMP_STATO_(st_mode);
+   DUMP_STAT4_(st_nlink);
+   if (sizeof(stbuf->st_ino) > 4)
+      DUMP_STAT8_(st_ino);
+   else
+      DUMP_STAT4_(st_ino);
+   DUMP_STAT4_(st_uid);
+   DUMP_STAT4_(st_gid);
+   DUMP_STAT4_(st_rdev);
+   if (sizeof(stbuf->st_size) > 4)
+      DUMP_STAT8_(st_size);
+   else
+      DUMP_STAT4_(st_size);
+   DUMP_STAT4_(st_blocks);
+   DUMP_STAT4_(st_blksize);
+#ifdef __APPLE__
+   DUMP_STAT4_(st_gen);
+#endif
+   fprintf(stderr, "}\n"); 
+}
+#undef DUMP_STAT4_
+#undef DUMP_STAT8_
+#endif
+
 static int
 rar2_getattr(const char *path, struct stat *stbuf)
 {
    tprintf("getattr() %s\n", path);
-   memset(stbuf, 0, sizeof(struct stat));
 #if 0
+   memset(stbuf, 0, sizeof(struct stat));
    if(strcmp(path, "/") == 0) {
       stbuf->st_mode = S_IFDIR | 0755;
       stbuf->st_nlink = 2;
@@ -810,6 +845,7 @@ rar2_getattr(const char *path, struct stat *stbuf)
    if (cache_path(path, stbuf))
    {
       pthread_mutex_unlock(&file_access_mutex);
+      dump_stat(stbuf);
       return 0;
    }
    pthread_mutex_unlock(&file_access_mutex);
@@ -827,6 +863,7 @@ rar2_getattr(const char *path, struct stat *stbuf)
    if (e_p)
    {
       memcpy(stbuf, &e_p->stat, sizeof(struct stat));
+      dump_stat(stbuf);
       return 0;
    } 
    return -ENOENT;
@@ -1848,7 +1885,8 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    return 0;
 }
 
-#ifdef __FreeBSD__
+#if defined ( __APPLE__ ) || defined ( __FreeBSD__ )
+/* This is such a big mess! Simply cast to void* to walk away from it. */
 #define SIG_FUNC_ (void*)
 #else
 #define SIG_FUNC_ (__sighandler_t)
