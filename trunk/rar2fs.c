@@ -1010,7 +1010,7 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
       unsigned int as_uint_;
    };
 
-   union dos_time_t* dos_time = (union dos_time_t*)&alist_p->FileName; 
+   union dos_time_t* dos_time = (union dos_time_t*)&alist_p->FileTime; 
    
    t.tm_sec = dos_time->second;
    t.tm_min = dos_time->minute;
