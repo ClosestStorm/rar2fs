@@ -26,7 +26,6 @@
     software is permitted, provided that it is clearly stated in
     the documentation and source comments that the code may not be used
     to develop a RAR (WinRAR) compatible archiver.
-
 */
 
 #ifndef _UNRAR_DLLWRAPPER_
