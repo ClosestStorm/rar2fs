@@ -5,18 +5,25 @@ UNAME := $(shell uname)
 MAKE := $(shell which gmake)
 
 LIBS=-lunrar -pthread
+
 ifeq ($(UNAME), Darwin)
 LIBS+=-lstdc++
 # Is _DARWIN_C_SOURCE really needed ?
-DEFINES+=-D_DARWIN_C_SOURCE -D__DARWIN_64_BIT_INO_T=1
+DEFINES+=-D_DARWIN_C_SOURCE
+ifeq ($(USE_OSX_64_BIT_INODES), n)
+LIBS+=-lfuse
+DEFINES+=-D__DARWIN_64_BIT_INO_T=0
+else
 LIBS+=-lfuse_ino64
+DEFINES+=-D__DARWIN_64_BIT_INO_T=1
+endif
+else
+ifeq ($(UNAME), FreeBSD)
+DEFINES+=-D__BSD_VISIBLE=1 -D__ISO_C_VISIBLE=1999
 else
 LIBS+=-lfuse 
 endif
-
-ifeq ($(UNAME), FreeBSD)
-DEFINES+=-D__BSD_VISIBLE=1 -D__ISO_C_VISIBLE=1999
-endif
+endif 
 
 ifeq ("$(HAS_GLIBC_CUSTOM_STREAMS)", "y")
 CONF+=-DHAS_GLIBC_CUSTOM_STREAMS_

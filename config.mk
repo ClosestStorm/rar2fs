@@ -11,6 +11,13 @@ FUSE_LIB=
 # your answer was most likely incorrect.
 HAS_GLIBC_CUSTOM_STREAMS=y
 
+# For Mac OS X, choose if 64-bit inodes (file serial number) should
+# be supported or not. The default is _not_ to support it. But for
+# version >= 10.6 (Snow Leopard) this is enabled by default in the
+# Darwin kernel so it would sort of make sense saying 'y' here too.
+# This option has no effect on any other OS so just leave it as is.
+USE_OSX_64BIT_INODES=n
+
 ifdef DEBUG
 CFLAGS=-O0 -DDEBUG_
 CXXFLAGS=-O0 -DDEBUG_
