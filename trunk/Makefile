@@ -1,6 +1,14 @@
 
 include config.mk
 
+ifdef DEBUG
+CFLAGS+=-O0 -DDEBUG_
+CXXFLAGS+=-O0 -DDEBUG_
+else
+CFLAGS+=-O2
+CXXFLAGS+=-O2
+endif
+
 UNAME := $(shell uname)
 MAKE := $(shell which gmake)
 
