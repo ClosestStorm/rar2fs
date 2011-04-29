@@ -982,34 +982,42 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
 
    struct tm t;
    memset(&t, 0, sizeof(struct tm));
-   struct dos_time_t
+
+   union dos_time_t
    {
+      __extension__
+      struct
+      {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-       unsigned int second : 5;
-       unsigned int minute : 6;
-       unsigned int hour : 5;
-       unsigned int day : 5;
-       unsigned int month : 4;
-       unsigned int year : 7;
+      unsigned int second : 5;
+      unsigned int minute : 6;
+      unsigned int hour : 5;
+      unsigned int day : 5;
+      unsigned int month : 4;
+      unsigned int year : 7;
 #else
-       unsigned int year : 7;
-       unsigned int month : 4;
-       unsigned int day : 5;
-       unsigned int hour : 5;
-       unsigned int minute : 6;
-       unsigned int second : 5;
+      unsigned int year : 7;
+      unsigned int month : 4;
+      unsigned int day : 5;
+      unsigned int hour : 5;
+      unsigned int minute : 6;
+      unsigned int second : 5;
 #endif
+      };
+
+      /* Avoid type-punned pointer warning when strict aliasing is used 
+       * with some versions of gcc */
+      unsigned int as_uint_;
    };
 
-   struct dos_time_t dos_time;
-   memcpy(&dos_time, &alist_p->FileTime, sizeof(alist_p->FileTime)); 
+   union dos_time_t* dos_time = (union dos_time_t*)&alist_p->FileName; 
    
-   t.tm_sec = dos_time.second;
-   t.tm_min = dos_time.minute;
-   t.tm_hour = dos_time.hour;
-   t.tm_mday = dos_time.day;
-   t.tm_mon = dos_time.month-1;
-   t.tm_year = (1980 + dos_time.year) - 1900;
+   t.tm_sec = dos_time->second;
+   t.tm_min = dos_time->minute;
+   t.tm_hour = dos_time->hour;
+   t.tm_mday = dos_time->day;
+   t.tm_mon = dos_time->month-1;
+   t.tm_year = (1980 + dos_time->year) - 1900;
    entry_p->stat.st_atime = mktime(&t);
    entry_p->stat.st_mtime = entry_p->stat.st_atime;
    entry_p->stat.st_ctime = entry_p->stat.st_atime;

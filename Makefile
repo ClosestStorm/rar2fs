@@ -19,6 +19,7 @@ DEFINES+=-D__DARWIN_64_BIT_INO_T=1
 endif
 else
 ifeq ($(UNAME), FreeBSD)
+LIBS+=-lfuse 
 DEFINES+=-D__BSD_VISIBLE=1 -D__ISO_C_VISIBLE=1999
 else
 LIBS+=-lfuse 
