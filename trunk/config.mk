@@ -16,7 +16,7 @@ HAS_GLIBC_CUSTOM_STREAMS=y
 # version >= 10.6 (Snow Leopard) this is enabled by default in the
 # Darwin kernel so it would sort of make sense saying 'y' here too.
 # This option has no effect on any other OS so just leave it as is.
-USE_OSX_64BIT_INODES=n
+USE_OSX_64_BIT_INODES=n
 
 ifdef DEBUG
 CFLAGS=-O0 -DDEBUG_
