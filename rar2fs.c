@@ -26,6 +26,8 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
+#include <sys/types.h>
+
 #ifdef __APPLE__
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -42,22 +44,18 @@
 #endif
 #endif
 #ifdef __FreeBSD__
-#include <sys/endian.h>
 #define CONST_DIRENT_
 #define __BYTE_ORDER _BYTE_ORDER
 #define __LITTLE_ENDIAN _LITTLE_ENDIAN
 #define __BIG_ENDIAN _BIG_ENDIAN
 #endif
 #ifdef __linux
-#include <endian.h>
 #define CONST_DIRENT_ const
 #endif
-
 #ifndef __BYTE_ORDER
 #error __BYTE_ORDER not defined 
 #endif
 
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <unistd.h>
