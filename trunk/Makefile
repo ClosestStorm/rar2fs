@@ -8,15 +8,8 @@ LIBS=-lunrar -pthread
 ifeq ($(UNAME), Darwin)
 LIBS+=-lstdc++
 # Is _DARWIN_C_SOURCE really needed ?
-DEFINES+=-D_DARWIN_C_SOURCE
-OSX_VER := $(shell sw_vers | grep ProductV | cut -d"." -f2)
-NEED_FUSE_INO64 := $(shell `test $(OSX_VER) -gt 5` && echo true)
-ifeq ($(NEED_FUSE_INO64), true)
-DEFINES+=-D__DARWIN_64_BIT_INO_T=1
+DEFINES+=-D_DARWIN_C_SOURCE -D__DARWIN_64_BIT_INO_T=1
 LIBS+=-lfuse_ino64
-else
-LIBS+=-lfuse
-endif
 else
 LIBS+=-lfuse 
 endif
