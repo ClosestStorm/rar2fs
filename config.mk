@@ -1,16 +1,39 @@
 # Change below to match current configuration
 ##########################
 
+##########################
+# This is the path (absolute or relative) to the folder containing
+# the full portable "Unrar C++ library" (libunrar) sources 
 UNRAR_SRC=./unrar
-UNRAR_LIB=./unrar
-FUSE_SRC=/opt/include/fuse
+
+##########################
+# This is the path (absolute or relative) to the folder containing
+# the compiled libunrar.so.
+# This can be left blank if the system already points out the location
+# of a compatible unrarlib.so, eg. /lib.
+UNRAR_LIB=
+
+##########################
+# This is the path (absolute or relative) to the folder containing
+# the FUSE development header files.
+# This can be left blank if the header files are already placed in
+# some default location such as /usr/include.
+FUSE_SRC=
+
+##########################
+# This is the path (absolute or relative) to the folder containing
+# the FUSE library files.
+# This can be left blank if the system already points out the location
+# of a compatible FUSE library, eg. /lib.
 FUSE_LIB=
 
+##########################
 # Does the host support glibc custom streams?
 # If unsure try 'y' here. If linker fails to find e.g. fmemopen()
 # your answer was most likely incorrect.
 HAS_GLIBC_CUSTOM_STREAMS=y
 
+##########################
 # For Mac OS X, choose if 64-bit inodes (file serial number) should
 # be supported or not. The default is _not_ to support it. But for
 # version >= 10.6 (Snow Leopard) this is enabled by default in the
@@ -18,14 +41,9 @@ HAS_GLIBC_CUSTOM_STREAMS=y
 # This option has no effect on any other OS so just leave it as is.
 USE_OSX_64_BIT_INODES=n
 
-ifdef DEBUG
-CFLAGS=-O0 -DDEBUG_
-CXXFLAGS=-O0 -DDEBUG_
-else
-CFLAGS=-O2
-CXXFLAGS=-O2
-endif
 
+##########################
+# Change here to match your local platform or toolchain
 ifndef CROSS
 # Linux using GCC
 CC=gcc
