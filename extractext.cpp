@@ -1,4 +1,6 @@
 /*
+   Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
+
    This is an extension of the freeware Unrar C++ library (libunrar).
    It requires the complete unrar source in order to compile.
 
