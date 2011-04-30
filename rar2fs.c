@@ -252,6 +252,7 @@ struct IOContext
 
 char* src_path = NULL;
 static long page_size;
+static int mount_type;
 
 static int glibc_test = 0;
 static pthread_mutex_t file_access_mutex;
@@ -1510,6 +1511,14 @@ sort_dir(dir_entry_list_t* root)
 }
 
 static int
+rar2_opendir(const char *path, struct fuse_file_info *fi)
+{
+   tprintf ("opendir %s\n", path);
+   /* Always permitted */
+   return 0;
+}
+
+static int
 rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
              off_t offset, struct fuse_file_info *fi)
 {
@@ -2100,6 +2109,7 @@ main(int argc, char* argv[])
       .utimens = rar2_utime,
       .destroy = rar2_destroy,
       .getattr = rar2_getattr,
+      .opendir = rar2_opendir,
       .readdir = rar2_readdir,
       .open    = rar2_open,
       .read    = rar2_read,
@@ -2216,6 +2226,18 @@ main(int argc, char* argv[])
       if (!strcmp(a1,a2))
       {
          printf("root and mount must not point to the same location\n");
+         exit(-1);
+      }
+
+      struct stat st;
+      (void)stat(a1, &st);
+      mount_type = S_ISDIR(st.st_mode) ? 0 : 1;
+      /* Check path type(s), destination path *must* be a folder.
+       * For now that also applies to the source path. */
+      (void)stat(a2, &st);
+      if (!S_ISDIR(st.st_mode) || mount_type)
+      {
+         printf("invalid root and/or mount point\n");
          exit(-1);
       }
       src_path = strdup(a1);
