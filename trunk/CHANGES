@@ -1,5 +1,12 @@
     CHANGE LOG
 
+    1.11.9      o Bugfix: Added check to validate that source (root) and
+                  target folder (mount point) are in fact directories.
+                  This check will be relaxed for the source folder once 
+                  support for mounting of individual RAR archives is added.
+                o Bugfix: Several OS X and FreeBSD build issues corrected.
+                o Update: Added check that file is of type .avi or .mkv 
+                  before attempting an index preload.  
     1.11.8      o Update: Build now forces C99. Also addded -Wall to identify
                   and resolve a lot of warnings.
     1.11.7      o Bugfix: Added missing display of "." and ".." for folders
