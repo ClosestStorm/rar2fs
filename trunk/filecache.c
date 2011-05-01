@@ -189,11 +189,17 @@ inval_cache_path(const char* path)
             FREE_CACHE_MEM(p);
             prev_p->next_p = p->next_p;
             free(p);
+            /* Entry purged. We can leave now. */
             return;
          }
       }
-      FREE_CACHE_MEM(e_p);
-      memset(e_p, 0, sizeof(dir_elem_t));
+      /* Entry not found in collision chain.
+       * Most likely it is in the bucket, but double check. */
+      if (!strcmp(e_p->name_p, path))
+      {
+         FREE_CACHE_MEM(e_p);
+         memset(e_p, 0, sizeof(dir_elem_t));
+      }
    }
    /* Invalidate entire cache */
    else
