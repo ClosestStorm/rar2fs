@@ -60,7 +60,7 @@ parse_riff(IdxHead* h, FILE* fp, off_t sz)
    char* needle = NULL;
    while (!needle && !feof(fp))
    {
-      fgets(s, sizeof(s), fp);
+      no_warn_result_ fgets(s, sizeof(s), fp);
       needle = strstr(s, "idx1");
    }
    char* tmp = alloca(strlen(needle));
@@ -102,7 +102,7 @@ parse_ebml(IdxHead* h, FILE* fp, off_t sz)
    char* needle = NULL;
    while (!needle && !feof(fp))
    {
-      fgets(s, sizeof(s), fp);
+      no_warn_result_ fgets(s, sizeof(s), fp);
       needle = strstr(s, "Cues");
    }
    if (needle)
@@ -153,7 +153,7 @@ map_file(int fd, size_t size)
   if (flock(fd, LOCK_EX|LOCK_NB) == -1) return NULL;
 
   /* Prepare the file */
-  ftruncate(fd, size);
+  no_warn_result_ ftruncate(fd, size);
 
   /* Map the file into address space */
   char* addr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
@@ -190,7 +190,7 @@ int main(int argn, char* argv[])
 
    Mode mode;
    char dump_magic[10];
-   fscanf(fd_dump, "%s", dump_magic);
+   no_warn_result_ fscanf(fd_dump, "%s", dump_magic);
    if (!strcmp(dump_magic, "EBML")) mode = M_EBML; else
    if (!strcmp(dump_magic+3, "RIFF")) mode = M_RIFF; else
    {
