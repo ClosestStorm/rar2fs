@@ -55,13 +55,14 @@ struct dir_elem
    struct Flags
    {
       unsigned int image:1;
-      unsigned int vobsub:1;
+      unsigned int fake_iso:1;
       unsigned int mmap:2;
       unsigned int :28;
    } flags;
    struct dir_elem* next_p;
 };
 typedef struct dir_elem dir_elem_t;
+#define LOCAL_FS_ENTRY ((void*)-1)
 
 
 #define ABS_ROOT(s, path) \

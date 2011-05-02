@@ -94,8 +94,8 @@ cache_path_get(const char* path)
 dir_elem_t*
 cache_path(const char* path, struct stat *stbuf)
 {
-   dir_elem_t* e_p = cache_path_alloc(path);
-   if (e_p->name_p && !strcmp(path, e_p->name_p))
+   dir_elem_t* e_p = cache_path_get(path);
+   if (e_p && !e_p->flags.fake_iso)
    {
       if (stbuf)
       {
@@ -103,23 +103,21 @@ cache_path(const char* path, struct stat *stbuf)
       }
       return e_p;
    }
-   else
+   else /* CACHE MISS */
    {
-      tprintf("CACHE MISS %s (collision %s) rar=%s\n", path, e_p->name_p ? e_p->name_p : "n/a", e_p->rar_p ? e_p->rar_p : "n/a");
-      FREE_CACHE_MEM(e_p);
-      memset(e_p, 0, sizeof(dir_elem_t));
+      struct stat st;
       char* root;
+
+      tprintf("CACHE MISS %s   (collision: %s)\n", path, (e_p && e_p->name_p) ? e_p->name_p : "no");
+
+      /* Do _NOT_ remember fake .ISO entries between getattr() calls */
+      if (e_p && e_p->flags.fake_iso) inval_cache_path(path);
+      
       ABS_ROOT(root, path);
-      if(!stat(root, &e_p->stat))
+      if(!stat(root, stbuf?stbuf:&st))
       {
          tprintf("STAT retrieved for %s\n", root);
-         e_p->name_p = strdup(path);
-         e_p->file_p = strdup(path);
-         if (stbuf)
-         {
-            memcpy(stbuf, &e_p->stat, sizeof(struct stat));
-         }
-         return e_p;
+         return LOCAL_FS_ENTRY;
       }
       else
       {
@@ -141,19 +139,22 @@ cache_path(const char* path, struct stat *stbuf)
                   if (l>4)
                      root1 = realloc(root1, strlen(root1)+1+(l-4));
                   strcpy(root1+(strlen(root1)-4), tmp?tmp:"");
-                  res = stat(root1, &e_p->stat);
+                  res = stat(root1, &st);
                   if (!res)
                   {
+                     e_p = cache_path_alloc(path);
                      e_p->name_p = strdup(path);
                      e_p->file_p = strdup(path);
+                     e_p->flags.fake_iso = 1;
                      if (l>4)
                         e_p->file_p = realloc(e_p->file_p, strlen(path)+1+(l-4));
                      /* back-patch *real* file name */
                      strncpy(e_p->file_p+(strlen(e_p->file_p)-4), tmp?tmp:"", l);
                      *(e_p->file_p+(strlen(path)-4+l)) = 0;
+                     memcpy(&e_p->stat, &st, sizeof(struct stat));
                      if (stbuf)
                      {
-                        memcpy(stbuf, &e_p->stat, sizeof(struct stat));
+                        memcpy(stbuf, &st, sizeof(struct stat));
                      }
                      free(root1);
                      return e_p;
@@ -164,8 +165,6 @@ cache_path(const char* path, struct stat *stbuf)
          }
       }
    }
-   e_p->file_p = NULL;
-   e_p->name_p = NULL;
    return NULL;
 }
 
@@ -195,7 +194,7 @@ inval_cache_path(const char* path)
       }
       /* Entry not found in collision chain.
        * Most likely it is in the bucket, but double check. */
-      if (!strcmp(e_p->name_p, path))
+      if (e_p->name_p && !strcmp(e_p->name_p, path))
       {
          FREE_CACHE_MEM(e_p);
          memset(e_p, 0, sizeof(dir_elem_t));

@@ -1,5 +1,15 @@
     CHANGE LOG
 
+    1.11.10     o Update: Resolved some compilation warnings in mkr2i.c
+                  that was discovered when building on Ubuntu 10.10.
+                o Update: Files on the local/native file system are no longer 
+                  added to the cache. This means any changes to file system
+                  should now propagate properly also to the FUSE mount point.   
+                o Update: Picking up UID and GID from the calling process when
+                  setting up stat(2) information for files inside a RAR archives.
+                  Unless the FUSE options 'uid' and 'gid' where used, owner and
+                  group were always set to 0 (root). 
+                o Bugfix: Fixed a crash when invalidating an empty cache entry. 
     1.11.9      o Bugfix: Added check to validate that source (root) and
                   target folder (mount point) are in fact directories.
                   This check will be relaxed for the source folder once 
