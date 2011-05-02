@@ -1010,6 +1010,9 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
       entry_p->stat.st_nlink = 2;
       entry_p->stat.st_size = 4096;
    }
+   entry_p->stat.st_uid = getuid();
+   entry_p->stat.st_gid = getgid();
+
    /* This is far from perfect but does the job pretty well! 
     * If there is some obvious way to calculate the number of blocks
     * used by a file, please tell me! Most Linux systems seems to
@@ -1432,7 +1435,7 @@ sync_dir(const char *dir)
       struct dirent **namelist;
       int n, f;
       int(*filter[NOF_FILTERS])(CONST_DIRENT_ struct dirent *) = {f0, f1, f2};
-      for (f = 0; f < NOF_FILTERS; f++)
+      for (f = 1; f < NOF_FILTERS; f++)   /* skip first filter; not needed */
       {
          n = scandir(root, &namelist, filter[f], alphasort);
          if (n < 0)
@@ -1442,6 +1445,7 @@ sync_dir(const char *dir)
             int i = 0;
             while (i < n)
             {
+#if 0
                if (!f)
                {
                   char* file;
@@ -1451,6 +1455,7 @@ sync_dir(const char *dir)
                   pthread_mutex_unlock(&file_access_mutex);
                }
                else
+#endif
                {
                   int vno =  get_vnfm(namelist[i]->d_name, !(f-1), NULL, NULL);
                   if (!OBJ_INT(OBJ_SEEK_LENGTH,0) ||
@@ -1551,11 +1556,13 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
             {
                if (!f)
                {
+#if 0
                   char* file;
                   ABS_MP(file, path, namelist[i]->d_name);
                   pthread_mutex_lock(&file_access_mutex);
                   (void)cache_path(file, NULL);
                   pthread_mutex_unlock(&file_access_mutex);
+#endif
                   char* tmp = strdup(namelist[i]->d_name);
                   if (OBJ_SET(OBJ_FAKE_ISO))
                   {
@@ -1776,8 +1783,12 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    {
       return -EACCES;
    }
-
-   if (entry_p->rar_p == NULL)
+   if (entry_p == LOCAL_FS_ENTRY)
+   {
+      ABS_ROOT(root, path);
+      return lopen(root, fi);
+   }
+   if (entry_p->flags.fake_iso)
    {
       ABS_ROOT(root, entry_p->file_p);
       return lopen(root, fi);
@@ -2043,25 +2054,27 @@ rar2_read(const char *path, char *buffer, size_t size, off_t offset,
    pthread_mutex_lock(&file_access_mutex);
    entry_p = cache_path_get(path);
    pthread_mutex_unlock(&file_access_mutex);
-   if (entry_p)
+   if (!entry_p)
    {
-      if (entry_p->rar_p == NULL)
-      {
-         char* root;
-         tprintf("%d calling lread() for %s\n", getpid(),path);
-         ABS_ROOT(root, entry_p->file_p);
-         return lread(root, buffer, size, offset, fi);
-      }
-      if (entry_p->offset && !entry_p->flags.mmap)
-      {
-         tprintf("%d calling lread_raw() for %s\n", getpid(), path);
-         return lread_raw(buffer, size, offset, fi); 
-      }
-      tprintf("%d calling lread_rar() for %s\n", getpid(), path);
-      int res = lread_rar(buffer, size, offset, fi);
-      return res; 
+      char* root;
+      tprintf("%d calling lread() for %s\n", getpid(), path);
+      ABS_ROOT(root, path);
+      return lread(root, buffer, size, offset, fi);
    }
-   return -ENOENT;
+   if (entry_p->flags.fake_iso)
+   {
+      char* root;
+      tprintf("%d calling lread() for %s\n", getpid(), entry_p->file_p);
+      ABS_ROOT(root, entry_p->file_p);
+      return lread(root, buffer, size, offset, fi);
+   }
+   if (entry_p->offset && !entry_p->flags.mmap)
+   {
+      tprintf("%d calling lread_raw() for %s\n", getpid(), path);
+      return lread_raw(buffer, size, offset, fi); 
+   }
+   tprintf("%d calling lread_rar() for %s\n", getpid(), path);
+   return lread_rar(buffer, size, offset, fi);
 }
 
 static int
@@ -2272,7 +2285,7 @@ main(int argc, char* argv[])
 
    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
    fuse_opt_parse(&args, NULL, NULL, NULL);
-   fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,default_permissions");
+   fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,subtype=rar2fs,default_permissions");
    fuse_opt_add_arg(&args, "-s");
 
    return fuse_main(args.argc, args.argv, &rar2_operations, NULL);
