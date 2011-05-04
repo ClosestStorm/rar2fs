@@ -1,5 +1,8 @@
     CHANGE LOG
 
+    1.11.11     o Update: Improved logic in the volume part parser(s) to handle
+                  umlimited (in theory) number of volume files for old style 
+                  .rNN format.
     1.11.10     o Update: Resolved some compilation warnings in mkr2i.c
                   that was discovered when building on Ubuntu 10.10.
                 o Update: Files on the local/native file system are no longer 
