@@ -492,10 +492,10 @@ _pclose(FILE* fd, pid_t pid)
 #define VOL_NO(off) (off < VOL_FIRST_SZ ? 0 : ((offset-VOL_FIRST_SZ) / VOL_NEXT_SZ)+1)
 
 static char*
-get_volfn(int t, const char* str, int vol, int len, int pos)
+get_vname(int t, const char* str, int vol, int len, int pos)
 {
    char* s = strdup(str);
-   tprintf("get_volfn(%s): vol=%d, len=%d, pos=%d\n", str, vol,len,pos);
+   tprintf("get_vname(%s): vol=%d, len=%d, pos=%d\n", str, vol,len,pos);
    if (!vol) return s;
    if (t)
    {
@@ -504,18 +504,28 @@ get_volfn(int t, const char* str, int vol, int len, int pos)
       sprintf(f1, "%%0%dd", len);
       sprintf(f, f1, vol);
       strncpy(&s[pos], f, len);
-      return s;
    }
-   else if (vol <= MAX_NOF_OPEN_VOL)
+   else 
    {
       char f[16];
-      if (vol==1) sprintf(f, "%s", "ar");
-      else sprintf(f, "%02d", vol-2);
-
+      if (vol==1) 
+      {
+         sprintf(f, "%s", "ar");
+      }
+      else if (vol <= 101)
+      {
+         sprintf(f, "%02d", (vol-2));
+      }
+      /* Possible, but unlikely */
+      else
+      {
+         sprintf(f, "%c%02d", 'r'+(vol-2)/100, (vol-2)%100);
+         --pos;
+         ++len;
+      }
       strncpy(&s[pos], f, len);
-      return s;
    }
-   return NULL;
+   return s;
 }
 
 static int
@@ -570,7 +580,7 @@ lread_raw(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
                    * than -errno at failure. 
                    * Some media players tend to react "bettter" on that and 
                    * terminate playback as expected. */
-                  char* tmp = get_volfn(
+                  char* tmp = get_vname(
                      op->entry_p->vtype, op->entry_p->rar_p, op->vno+op->entry_p->vno_base, op->entry_p->vlen, op->entry_p->vpos);
                   if (tmp)
                   {
@@ -876,7 +886,7 @@ is_rxx_vol(const char* name)
    size_t len = strlen(name);
    {
       if (name[len-4] == '.' &&
-         name[len-3] == 'r' &&
+         name[len-3] >= 'r' &&
          isdigit(name[len-2]) &&
          isdigit(name[len-1]))
       {
@@ -890,7 +900,7 @@ is_rxx_vol(const char* name)
 }
 
 static int
-get_vnfm(const char* s, int t, int* l, int* p)
+get_vformat(const char* s, int t, int* l, int* p)
 {
    int len = 0;
    int pos = 0;
@@ -938,8 +948,9 @@ get_vnfm(const char* s, int t, int* l, int* p)
             else
             {
                errno = 0;
-               vol = strtoul(&s[pos], NULL, 10);
-               vol = errno ? 0 : vol + 2;
+               vol = strtoul(&s[pos], NULL, 10) + 2 +
+                  (100*(s[pos-1]-'r'));   /* Possible, but unlikely */
+               vol = errno ? 0 : vol;
             }
          }
       }
@@ -1012,6 +1023,7 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
    }
    entry_p->stat.st_uid = getuid();
    entry_p->stat.st_gid = getgid();
+   entry_p->stat.st_ino = 1;
 
    /* This is far from perfect but does the job pretty well! 
     * If there is some obvious way to calculate the number of blocks
@@ -1317,7 +1329,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
 
                   entry_p->flags.image = IS_IMG(next->FileName);
                   entry_p->vtype = MainHeaderFlags & MHD_NEWNUMBERING?1:0;
-                  entry_p->vno_base = get_vnfm(entry_p->rar_p,
+                  entry_p->vno_base = get_vformat(entry_p->rar_p,
                      entry_p->vtype,
                      &len,
                      &pos);
@@ -1362,7 +1374,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   int len,pos;
                   entry_p->vtype = MainHeaderFlags & MHD_NEWNUMBERING?1:0;
                   entry_p->vsize = 1;
-                  (void)get_vnfm(entry_p->rar_p, entry_p->vtype, &len, &pos);
+                  (void)get_vformat(entry_p->rar_p, entry_p->vtype, &len, &pos);
                   entry_p->vlen = len;
                   entry_p->vpos = pos;
                }
@@ -1380,7 +1392,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
           * in that case we might need to skip presentation of the file */
          if ((next->Flags & MHD_VOLUME) && !IS_RAR_DIR(next))
          {
-            if(get_vnfm(arch, MainHeaderFlags & MHD_NEWNUMBERING?1:0, NULL, NULL)
+            if(get_vformat(arch, MainHeaderFlags & MHD_NEWNUMBERING?1:0, NULL, NULL)
                != entry_p->vno_base)
             {
                display = 0;
@@ -1457,7 +1469,7 @@ sync_dir(const char *dir)
                else
 #endif
                {
-                  int vno =  get_vnfm(namelist[i]->d_name, !(f-1), NULL, NULL);
+                  int vno =  get_vformat(namelist[i]->d_name, !(f-1), NULL, NULL);
                   if (!OBJ_INT(OBJ_SEEK_LENGTH,0) ||
                       vno <= OBJ_INT(OBJ_SEEK_LENGTH,0))
                   {
@@ -1579,7 +1591,7 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
                }
                else
                {
-                  int vno =  get_vnfm(namelist[i]->d_name, !(f-1), NULL, NULL);
+                  int vno =  get_vformat(namelist[i]->d_name, !(f-1), NULL, NULL);
                   if (!OBJ_INT(OBJ_SEEK_LENGTH,0) ||
                       vno <= OBJ_INT(OBJ_SEEK_LENGTH,0))
                   {
@@ -1616,7 +1628,7 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
          do
          {
             if (tmp) free(tmp);
-            tmp = get_volfn(entry_p->vtype, entry_p->rar_p, vol, entry_p->vlen, entry_p->vpos);
+            tmp = get_vname(entry_p->vtype, entry_p->rar_p, vol, entry_p->vlen, entry_p->vpos);
             tprintf("search for local directory in %s\n", tmp);
             if (vol == 1) /* first file */
             {
@@ -1822,7 +1834,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
                memset(op->volHdl, 0, MAX_NOF_OPEN_VOL * sizeof(VolHandle));
                for (;j<MAX_NOF_OPEN_VOL;j++)
                {
-                  char* tmp = get_volfn(op->entry_p->vtype, op->entry_p->rar_p, i++, op->entry_p->vlen, op->entry_p->vpos);
+                  char* tmp = get_vname(op->entry_p->vtype, op->entry_p->rar_p, i++, op->entry_p->vlen, op->entry_p->vpos);
                   FILE* fp_ = fopen(tmp, "r");
                   if (fp_ == NULL) 
                   {
