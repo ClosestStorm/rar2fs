@@ -1023,7 +1023,7 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
    }
    entry_p->stat.st_uid = getuid();
    entry_p->stat.st_gid = getgid();
-   entry_p->stat.st_ino = 1;
+   entry_p->stat.st_ino = 0;
 
    /* This is far from perfect but does the job pretty well! 
     * If there is some obvious way to calculate the number of blocks
