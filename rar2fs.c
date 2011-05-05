@@ -2307,7 +2307,9 @@ main(int argc, char* argv[])
    }
    if(argc<3 || !argv[optind])
    {
-      printf("Usage: %s [options] <root dir> <mount point>\n",*argv);
+      const char* P_ = basename(*argv);
+      printf("Usage: %s [options] source target\n", P_);
+      printf("Try `%s -h' or `%s --help' for more information.\n", P_, P_);
       return -1;
    }
 
@@ -2335,7 +2337,7 @@ main(int argc, char* argv[])
       char* a2 = realpath(argv[optind+1], p2);
       if (!a1||!a2) 
       {
-         printf("invalid root and/or mount point\n");
+         printf("invalid source and/or mount point\n");
          exit(-1);
       }
       if (!strcmp(a1,a2))
