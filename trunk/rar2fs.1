@@ -3,10 +3,10 @@
 .B rar2fs
 \- FUSE file system for reading RAR archives
 .SH SYNOPSIS
-rar2fs [options] <root dir> <mount point>
+rar2fs [options] [<source dir> | <rar archive>] <mount point>
 .br
 .SH DESCRIPTION
-rar2fs is a FUSE based file system that can mount a source directory containing any number of RAR archive files and access the contents of those as plain files (read only). Regular files/directories located in the source directory are handled transparently. Both compressed and non-compressed (store) archives/volumes are supported but full seek support in raw mode is only available for non-compressed archives.
+rar2fs is a FUSE based file system that can mount a RAR archive/volume or a source directory containing any number of RAR archive files and access the contents of those as plain files (read only). Regular files/directories located in the source directory are handled transparently. Both compressed and non-compressed (store) archives/volumes are supported but full seek support in raw mode is only available for non-compressed archives. If a RAR volume is selected as source, the file specified must be the first in the set. 
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 

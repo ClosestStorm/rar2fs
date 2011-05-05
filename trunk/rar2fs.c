@@ -177,6 +177,9 @@ struct dir_entry_list
 #define E_TO_MEM 0
 #define E_TO_TMP 1
 
+#define MOUNT_FOLDER  0
+#define MOUNT_ARCHIVE 1
+
 typedef struct
 {
    FILE* fp;
@@ -253,6 +256,8 @@ struct IOContext
 char* src_path = NULL;
 static long page_size;
 static int mount_type;
+dir_entry_list_t arch_list_root;    /* internal list root */
+dir_entry_list_t* arch_list = &arch_list_root;
 
 static int glibc_test = 0;
 static pthread_mutex_t file_access_mutex;
@@ -837,12 +842,50 @@ dump_stat(struct stat* stbuf)
 #endif
 
 static int
+collect_files(const char* arch, dir_entry_list_t* list)
+{
+   RAROpenArchiveDataEx d;
+   int files = 0;
+
+   memset(&d, 0, sizeof(RAROpenArchiveDataEx));
+   d.ArcName=strdup(arch);
+   d.OpenMode=RAR_OM_LIST;
+
+   while (1)
+   {
+      HANDLE hdl = RAROpenArchiveEx(&d);
+      if (d.OpenResult)
+      {
+         break;
+      }
+      if (!(d.Flags & MHD_VOLUME))
+      {
+         files = 1;
+         DIR_ENTRY_ADD(list, d.ArcName, NULL);
+         break;
+      }
+      if (!files && !(d.Flags & MHD_FIRSTVOLUME))
+      {
+         break;
+      }
+      ++files;
+      DIR_ENTRY_ADD(list, d.ArcName, NULL);
+      RARCloseArchive(hdl);
+      RARNextVolumeName(d.ArcName, !(d.Flags&MHD_NEWNUMBERING));
+   }
+   free(d.ArcName);
+   return files;
+}
+
+static int
 rar2_getattr(const char *path, struct stat *stbuf)
 {
    tprintf("getattr() %s\n", path);
+   
 #if 0
    memset(stbuf, 0, sizeof(struct stat));
-   if(strcmp(path, "/") == 0) {
+   if(strcmp(path, "/") == 0) 
+   {
       stbuf->st_mode = S_IFDIR | 0755;
       stbuf->st_nlink = 2;
       /* Hardcoded defaults. Just cosmetics really. */
@@ -860,6 +903,7 @@ rar2_getattr(const char *path, struct stat *stbuf)
       return 0;
    }
    pthread_mutex_unlock(&file_access_mutex);
+
    /* There was a cache miss and the file could not be found locally!
     * This is bad! To make sure the files does not really exist all
     * rar archives need to be scanned for a matching file = slow! */
@@ -877,6 +921,22 @@ rar2_getattr(const char *path, struct stat *stbuf)
       dump_stat(stbuf);
       return 0;
    } 
+   return -ENOENT;
+}
+
+static int
+rar2_getattr2(const char *path, struct stat *stbuf)
+{
+   tprintf("getattr2() %s\n", path);
+
+   pthread_mutex_lock(&file_access_mutex);
+   if (cache_path(path, stbuf))
+   {
+      pthread_mutex_unlock(&file_access_mutex);
+      dump_stat(stbuf);
+      return 0;
+   }
+   pthread_mutex_unlock(&file_access_mutex);
    return -ENOENT;
 }
 
@@ -1434,6 +1494,9 @@ static void
 sync_dir(const char *dir)
 {
    tprintf("sync_dir() %s\n", dir);
+
+   char tmpbuf[MAXPASSWORD]; 
+   const char* password = NULL;
    DIR *dp;
    char* root;
    ABS_ROOT(root, dir);
@@ -1442,8 +1505,6 @@ sync_dir(const char *dir)
    if (dp != NULL)
    {
       tprintf("opendir() succeeded\n");
-      char tmpbuf[MAXPASSWORD]; 
-      const char* password = NULL;
       struct dirent **namelist;
       int n, f;
       int(*filter[NOF_FILTERS])(CONST_DIRENT_ struct dirent *) = {f0, f1, f2};
@@ -1540,11 +1601,13 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
              off_t offset, struct fuse_file_info *fi)
 {
    tprintf ("readdir %s\n", path);
+
    char tmpbuf[MAXPASSWORD]; 
    const char* password = NULL;
    dir_entry_list_t dir_list;    /* internal list root */
    dir_entry_list_t* next = &dir_list;
    DIR_LIST_RST(next);
+
    DIR *dp;
    char* root;
    ABS_ROOT(root, path);
@@ -1660,7 +1723,46 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
       filler(buffer, ".", NULL, 0);
       filler(buffer, "..", NULL, 0);
    }
- 
+
+   if(!DIR_LIST_EMPTY(&dir_list))
+   {
+      sort_dir(&dir_list);
+      dir_entry_list_t* next = dir_list.next;
+      while(next)
+      {
+        filler(buffer, next->entry.name, next->entry.st, 0);
+        next = next->next;
+      }
+      DIR_LIST_FREE(&dir_list);
+   }
+
+   return 0;
+}
+
+static int
+rar2_readdir2(const char *path, void *buffer, fuse_fill_dir_t filler,
+              off_t offset, struct fuse_file_info *fi)
+{
+   tprintf ("readdir2 %s\n", path);
+
+   char tmpbuf[MAXPASSWORD];
+   const char* password = NULL;
+   dir_entry_list_t dir_list;    /* internal list root */
+   dir_entry_list_t* next = &dir_list;
+   DIR_LIST_RST(next);
+
+   int c = 0;
+   dir_entry_list_t* arch_next = arch_list_root.next;
+   while(arch_next)
+   {
+     if (!c++) password = getArcPassword(arch_next->entry.name, tmpbuf);
+     (void)listrar(path, &next, arch_next->entry.name, password);
+     arch_next = arch_next->next;
+   }
+
+   filler(buffer, ".", NULL, 0);
+   filler(buffer, "..", NULL, 0);
+
    if(!DIR_LIST_EMPTY(&dir_list))
    {
       sort_dir(&dir_list);
@@ -1775,17 +1877,20 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    pthread_mutex_unlock(&file_access_mutex);
    if (entry_p == NULL)
    {
-      /* There was a cache miss and the file could not be found locally!
-       * This is bad! To make sure the files does not really exist all 
-       * rar archives need to be scanned for a matching file = slow! */
-      CHK_FILTER;
-      char* dir = alloca(strlen(path)+1);
-      strcpy(dir, path);
-      dir = dirname(dir);
-      sync_dir(dir);
-      pthread_mutex_lock(&file_access_mutex);
-      entry_p = cache_path_get(path);
-      pthread_mutex_unlock(&file_access_mutex);
+      if (mount_type == MOUNT_FOLDER)
+      {
+         /* There was a cache miss and the file could not be found locally!
+          * This is bad! To make sure the files does not really exist all 
+          * rar archives need to be scanned for a matching file = slow! */
+         CHK_FILTER;
+         char* dir = alloca(strlen(path)+1);
+         strcpy(dir, path);
+         dir = dirname(dir);
+         sync_dir(dir);
+         pthread_mutex_lock(&file_access_mutex);
+         entry_p = cache_path_get(path);
+         pthread_mutex_unlock(&file_access_mutex);
+      }
       if (entry_p == NULL)
       {
          return -ENOENT;
@@ -2127,21 +2232,6 @@ main(int argc, char* argv[])
    int opt;
    char *helpargv[2]={NULL,"-h"};
 
-   /* mapping of FUSE file system operations */
-   static struct fuse_operations rar2_operations = {
-      .init    = rar2_init,
-      .create  = rar2_create,
-      .utimens = rar2_utime,
-      .destroy = rar2_destroy,
-      .getattr = rar2_getattr,
-      .opendir = rar2_opendir,
-      .readdir = rar2_readdir,
-      .open    = rar2_open,
-      .read    = rar2_read,
-      .release = rar2_release,
-      .flush   = rar2_flush
-   };
-
    struct option longopts[] = {
       {"show-comp-img", no_argument,       NULL, OBJ_ADDR(OBJ_SHOW_COMP_IMG)},
       {"preopen-img",   no_argument,       NULL, OBJ_ADDR(OBJ_PREOPEN_IMG)},
@@ -2254,18 +2344,18 @@ main(int argc, char* argv[])
          exit(-1);
       }
 
+      DIR_LIST_RST(arch_list);
       struct stat st;
       (void)stat(a1, &st);
-      mount_type = S_ISDIR(st.st_mode) ? 0 : 1;
-      /* Check path type(s), destination path *must* be a folder.
-       * For now that also applies to the source path. */
+      mount_type = S_ISDIR(st.st_mode) ? MOUNT_FOLDER : MOUNT_ARCHIVE;
+      /* Check path type(s), destination path *must* be a folder */
       (void)stat(a2, &st);
-      if (!S_ISDIR(st.st_mode) || mount_type)
+      if (!S_ISDIR(st.st_mode) || (mount_type == MOUNT_ARCHIVE && !collect_files(a1, arch_list)))
       {
          printf("invalid root and/or mount point\n");
          exit(-1);
       }
-      src_path = strdup(a1);
+      src_path = mount_type == MOUNT_FOLDER ? strdup(a1) : strdup(dirname(a1));
    }
 
    init_cache();
@@ -2300,6 +2390,21 @@ main(int argc, char* argv[])
    fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,subtype=rar2fs,default_permissions");
    fuse_opt_add_arg(&args, "-s");
 
+   /* mapping of FUSE file system operations */
+   static struct fuse_operations rar2_operations = {
+      .init    = rar2_init,
+      .create  = rar2_create,
+      .utimens = rar2_utime,
+      .destroy = rar2_destroy,
+      .opendir = rar2_opendir,
+      .open    = rar2_open,
+      .read    = rar2_read,
+      .release = rar2_release,
+      .flush   = rar2_flush
+   };
+   /* Dynamic entries */
+   rar2_operations.getattr = mount_type == MOUNT_FOLDER ? rar2_getattr : rar2_getattr2; 
+   rar2_operations.readdir = mount_type == MOUNT_FOLDER ? rar2_readdir : rar2_readdir2; 
    return fuse_main(args.argc, args.argv, &rar2_operations, NULL);
 }
 

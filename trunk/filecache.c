@@ -110,9 +110,9 @@ cache_path(const char* path, struct stat *stbuf)
 
       tprintf("CACHE MISS %s   (collision: %s)\n", path, (e_p && e_p->name_p) ? e_p->name_p : "no");
 
-      /* Do _NOT_ remember fake .ISO entries between getattr() calls */
+      /* Do _NOT_ remember fake .ISO entries between eg. getattr() calls */
       if (e_p && e_p->flags.fake_iso) inval_cache_path(path);
-      
+
       ABS_ROOT(root, path);
       if(!stat(root, stbuf?stbuf:&st))
       {

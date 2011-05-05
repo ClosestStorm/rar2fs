@@ -280,6 +280,12 @@ FileHandle PASCAL RARGetFileHandle(HANDLE hArcData)
 }
 
 
+void PASCAL RARNextVolumeName(char* arch, bool oldstylevolume)
+{
+   NextVolumeName(arch, NULL, 0, oldstylevolume);
+}
+
+
 static int RarErrorToDll(int ErrCode)
 {
    switch(ErrCode)

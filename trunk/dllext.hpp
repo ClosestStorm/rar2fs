@@ -179,6 +179,7 @@ unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData);
 unsigned int PASCAL RARGetMainHeaderFlags(HANDLE hArcData);
 off_t        PASCAL RARGetRawFileDataEnd(HANDLE hArcData);
 FileHandle   PASCAL RARGetFileHandle(HANDLE hArcData);
+void         PASCAL RARNextVolumeName(char*, bool);
 
 #ifdef __cplusplus
 }
