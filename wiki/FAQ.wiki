@@ -37,4 +37,4 @@ A: This is a similar problem to what is described in question 2.2 for libunrar. 
 A: No. It can not. The RAR archives are internally treated as read only. The RAR compression algorithm (not excluding store mode) is proprietary and as such protected by a copyright license. 
 
 ===Q 2.5. Does rar2fs support writing to the underlying file system?===
-A: Yes and no. There are plans of adding that feature. To early to say when it will be officially supported though. But some limited experimental write support was added to version 1.11.13. Feel free to try it out.
+A: Yes and no. There are plans of adding that feature. Too early to say when it will be officially supported though. But some limited experimental write support was added to version 1.11.13. Feel free to try it out.
