@@ -27,6 +27,11 @@ A: There are many options that can be fed to the program. The complete set of op
 }}}
 The source folder (or root folder) is the path to the folder containing some or all of your RAR archives, and normal files/folders too for that matter. The target folder is your "mount point". It works very similar to a bind mount in that sense. When you bring up a folder listing of your target folder, any RAR archives will be hidden and instead the files/folders within the RAR archives are displayed as if they were normal files/folders on your file system.
 
+From version 1.11.12 it is also possible to mount single RAR archives or volumes instead of a directory. Simply replace the source directory with the name of the archive file. For a RAR volume the file specified must be the first in the set, such as:
+{{{
+   rar2fs some_archive.part01.rar some_target_folder
+}}}
+
 ===Q 2.2. I get the "libunrar.so (???) or compatible library not found" message when I try to run?===
 A: See question 1.4 above. The design of rar2fs attempts to be robust. In this case rar2fs has detected that your system library path points out a version of libunrar.so that is suspected not to be compatible with what rar2fs was built against. Try replacing libunrar.so or force loading of a different version using your LD_LIBRARY_PATH or LD_PRELOAD environment variables. As a last resort you can also try the --no-lib-check option in an attempt to ignore the potential incompatibility. If, for some reason, this option is chosen do not be surprised if cutting corners like that will cause undefined behavior or even crashes.
 
