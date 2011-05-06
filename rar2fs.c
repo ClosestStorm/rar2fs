@@ -2248,8 +2248,6 @@ rar2_chown(const char* path, uid_t uid, gid_t gid)
 static inline int
 create_chk(const char* path)
 {
-   char* p = strdup(path);
-
    /* To produce a more correct fault code if an attempt is
     * made to create/remove a file in a RAR folder, a cache lookup
     * will tell if operation should be permitted or not.
@@ -2259,8 +2257,7 @@ create_chk(const char* path)
     * a getattr() callback even if -EPERM is returned which
     * will eventually render a "No such file or directory"
     * type of error/message. */
-    void* e = (void*)cache_path_get(dirname(p));
-    free(p);
+    void* e = (void*)cache_path_get(path);
     return e?1:0; 
 }
 
