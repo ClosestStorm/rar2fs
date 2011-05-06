@@ -2223,13 +2223,36 @@ rar2_write(const char* path, const char *buffer, size_t size, off_t offset,
    return -EPERM;
 }
 
+static inline int
+access_chk(const char* path)
+{
+   /* To produce a more correct fault code if an attempt is
+    * made to create/remove a file in a RAR folder, a cache lookup
+    * will tell if operation should be permitted or not.
+    * Simply, if the file/folder is in the cache, forget it!
+    *   This works fine in most cases but due to a FUSE bug(!?)
+    * is does not work for 'touch'. A touch seems to result in
+    * a getattr() callback even if -EPERM is returned which
+    * will eventually render a "No such file or directory"
+    * type of error/message. */
+    void* e = (void*)cache_path_get(path);
+    return e?1:0;
+}
+
 static int
 rar2_chmod(const char* path, mode_t mode)
 {
    tprintf("chmod %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      return 0;
+      if (!access_chk(path))
+      {
+         char* root;
+         ABS_ROOT(root, path);
+         if (!chmod(root, mode))
+            return 0;
+         return -errno;
+      }
    }
    return -EPERM;
 }
@@ -2240,25 +2263,16 @@ rar2_chown(const char* path, uid_t uid, gid_t gid)
    tprintf("chown %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      return 0;
+      if (!access_chk(path))
+      {
+         char* root;
+         ABS_ROOT(root, path);
+         if (!chown(root, uid, gid))
+            return 0;
+         return -errno;
+      }
    }
    return -EPERM;
-}
-
-static inline int
-create_chk(const char* path)
-{
-   /* To produce a more correct fault code if an attempt is
-    * made to create/remove a file in a RAR folder, a cache lookup
-    * will tell if operation should be permitted or not.
-    * Simply, if the root folder is in the cache, forget it!
-    *   This works fine in most cases but due to a FUSE bug(!?)
-    * is does not work for 'touch'. A touch seems to result in
-    * a getattr() callback even if -EPERM is returned which
-    * will eventually render a "No such file or directory"
-    * type of error/message. */
-    void* e = (void*)cache_path_get(path);
-    return e?1:0; 
 }
 
 static int
@@ -2270,11 +2284,10 @@ rar2_create(const char* path, mode_t mode, struct fuse_file_info* fi)
       /* Only allow creation of "regular" files this way */
       if (S_ISREG(mode)) 
       {
-         if (!create_chk(path))
+         if (!access_chk(path))
          {
             char* root;
             ABS_ROOT(root, path);
-
             int fd = creat(root, mode);
             if (fd == -1)
                return -errno;
@@ -2292,11 +2305,10 @@ rar2_mknod(const char* path, mode_t mode, dev_t dev)
    tprintf("mknod %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!create_chk(path))
+      if (!access_chk(path))
       {
          char* root;
          ABS_ROOT(root, path);
-
          if (!mknod(root, mode, dev))
             return 0;
          return -errno;
@@ -2311,7 +2323,7 @@ rar2_unlink(const char* path)
    tprintf("unlink %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!create_chk(path))
+      if (!access_chk(path))
       {
          char* root;
          ABS_ROOT(root, path);
@@ -2329,11 +2341,10 @@ rar2_mkdir(const char* path, mode_t mode)
    tprintf("mkdir %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!create_chk(path))
+      if (!access_chk(path))
       {
          char* root;
          ABS_ROOT(root, path);
- 
          if (!mkdir(root, mode)) 
            return 0;
          return -errno;
@@ -2348,11 +2359,10 @@ rar2_rmdir(const char* path)
    tprintf("rmdir %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!create_chk(path))
+      if (!access_chk(path))
       {
          char* root;
          ABS_ROOT(root, path);
-
          if (!rmdir(root))
             return 0;
          return -errno;
