@@ -1,5 +1,7 @@
     CHANGE LOG
 
+    1.11.14     o Bugfix: Corrected some early "flaws" in the write support.
+                o Update: Added support for chmod() and chown().
     1.11.13     o Update: Added some very basic write support to underlying
                   file system. Very experimental.
     1.11.12     o Update: Added support for mounting single RAR archives.
