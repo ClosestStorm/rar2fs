@@ -2197,7 +2197,7 @@ rar2_read(const char *path, char *buffer, size_t size, off_t offset,
 }
 
 static int
-rar2_truncate(const char *path, off_t offset)
+rar2_truncate(const char* path, off_t offset)
 {
    tprintf("truncate %s\n", path);
    if (mount_type == MOUNT_FOLDER)
@@ -2210,7 +2210,7 @@ rar2_truncate(const char *path, off_t offset)
 }
 
 static int
-rar2_write(const char *path, const char *buffer, size_t size, off_t offset,
+rar2_write(const char* path, const char *buffer, size_t size, off_t offset,
           struct fuse_file_info *fi)
 {
    tprintf("write %s\n", path);
@@ -2224,7 +2224,7 @@ rar2_write(const char *path, const char *buffer, size_t size, off_t offset,
 }
 
 static int
-rar2_chmod(const char *path, mode_t mode)
+rar2_chmod(const char* path, mode_t mode)
 {
    tprintf("chmod %s\n", path);
    if (mount_type == MOUNT_FOLDER)
@@ -2235,7 +2235,7 @@ rar2_chmod(const char *path, mode_t mode)
 }
 
 static int
-rar2_chown(const char *path, uid_t uid, gid_t gid)
+rar2_chown(const char* path, uid_t uid, gid_t gid)
 {
    tprintf("chown %s\n", path);
    if (mount_type == MOUNT_FOLDER)
@@ -2245,41 +2245,71 @@ rar2_chown(const char *path, uid_t uid, gid_t gid)
    return -EPERM;
 }
 
+static inline int
+create_chk(const char* path)
+{
+   char* p = strdup(path);
+
+   /* To produce a more correct fault code if an attempt is
+    * made to create a file in a RAR folder, a cache lookup
+    * will tell if creation should be permitted or not.
+    * Simply, if the root folder is in the cache, forget it!
+    *   This works fine in most cases but due to a FUSE bug(!?)
+    * is does not work for 'touch'. A touch seems to result in
+    * a getattr() callback even if -EPERM is returned which
+    * will eventually render a "No such file or directory"
+    * type of error/message. */
+    void* e = (void*)cache_path_get(dirname(p));
+    free(p);
+    return e?1:0; 
+}
+
 static int
-rar2_create(const char * path, mode_t mode, struct fuse_file_info* fi)
+rar2_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 {
    tprintf("create %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      char* root;
-      ABS_ROOT(root, path);
-      if (S_ISREG(mode))
+      /* Only allow creation of "regular" files this way */
+      if (S_ISREG(mode)) 
       {
-         int fd = creat(root, mode);
-         if (fd == -1)
-            return -errno;
-         FH_SETFH(&fi->fh, fd);
-         return 0;
+         if (!create_chk(path))
+         {
+            char* root;
+            ABS_ROOT(root, path);
+
+            int fd = creat(root, mode);
+            if (fd == -1)
+               return -errno;
+            FH_SETFH(&fi->fh, fd);
+            return 0;
+          }
       }
    }
    return -EPERM;
 }
 
 static int
-rar2_mknod(const char * path, mode_t mode, dev_t dev)
+rar2_mknod(const char* path, mode_t mode, dev_t dev)
 {
    tprintf("mknod %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      char* root;
-      ABS_ROOT(root, path);
-      return -mknod(root, mode, dev);
+      if (!create_chk(path))
+      {
+         char* root;
+         ABS_ROOT(root, path);
+
+         if (!mknod(root, mode, dev))
+            return 0;
+         return -errno;
+      }
    }
    return -EPERM;
 }
 
 static int 
-rar2_unlink(const char * path)
+rar2_unlink(const char* path)
 {
    tprintf("unlink %s\n", path);
    if (mount_type == MOUNT_FOLDER)
@@ -2292,21 +2322,26 @@ rar2_unlink(const char * path)
 }
 
 static int
-rar2_mkdir(const char * path, mode_t mode)
+rar2_mkdir(const char* path, mode_t mode)
 {
    tprintf("mkdir %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      char* root;
-      ABS_ROOT(root, path);
-      tprintf("mkdir %s\n", root);
-      return -mkdir(root, mode);
+      if (!create_chk(path))
+      {
+         char* root;
+         ABS_ROOT(root, path);
+ 
+         if (!mkdir(root, mode)) 
+           return 0;
+         return -errno;
+      }
    }
    return -EPERM;
 }
 
 static int 
-rar2_rmdir(const char * path)
+rar2_rmdir(const char* path)
 {
    if (mount_type == MOUNT_FOLDER)
    {
@@ -2319,17 +2354,17 @@ rar2_rmdir(const char * path)
 }
 
 static int
-rar2_utime_deprecated(const char * path, struct utimbuf* ut)
+rar2_utime_deprecated(const char* path, struct utimbuf* ut)
 {
    tprintf("utime_deprecated %s\n", path);
    return 0;
 }
 
 static int
-rar2_utime(const char * path, const struct timespec tv[2])
+rar2_utime(const char* path, const struct timespec tv[2])
 {
    tprintf("utime %s\n", path);
-   return 0;
+   return -1;
 }
 
 #define CONSUME_LONG_ARG() { \
@@ -2465,6 +2500,7 @@ main(int argc, char* argv[])
          printf("invalid source and/or mount point\n");
          exit(-1);
       }
+      /* Do not try to use 'a1' after this call since dirname() will destroy it! */
       src_path = mount_type == MOUNT_FOLDER ? strdup(a1) : strdup(dirname(a1));
    }
 
