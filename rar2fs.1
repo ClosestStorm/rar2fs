@@ -8,11 +8,11 @@ rar2fs [options] source target
 .SH DESCRIPTION
 rar2fs is a FUSE based file system that can mount a 
 .I source
-RAR archive/volume or directory containing any number of RAR archives on
+RAR archive/volume or a directory containing any number of RAR archives on
 .I target
-and access (read only) the contents as plain files/directories. Non RAR files located in the
+and access (read only) the contents as plain files/directories. Other files located in the
 .I source
-directory are handled transparently. Both compressed and non-compressed (store) archives/volumes are supported but full seek support in raw mode is only available for non-compressed archives. If a RAR volume is selected as
+directory are handled transparently. Both compressed and non-compressed (store) archives/volumes are supported but full media seek support (aka. indexing) is only available for non-compressed plaintext archives. If a RAR volume is selected as
 .I source
 the file specified must be the first in the set. 
 

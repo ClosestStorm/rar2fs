@@ -2335,17 +2335,11 @@ main(int argc, char* argv[])
       char p2[PATH_MAX];
       char* a1 = realpath(argv[optind], p1);
       char* a2 = realpath(argv[optind+1], p2);
-      if (!a1||!a2) 
+      if (!a1||!a2||!strcmp(a1,a2)) 
       {
          printf("invalid source and/or mount point\n");
          exit(-1);
       }
-      if (!strcmp(a1,a2))
-      {
-         printf("root and mount must not point to the same location\n");
-         exit(-1);
-      }
-
       DIR_LIST_RST(arch_list);
       struct stat st;
       (void)stat(a1, &st);
@@ -2354,7 +2348,7 @@ main(int argc, char* argv[])
       (void)stat(a2, &st);
       if (!S_ISDIR(st.st_mode) || (mount_type == MOUNT_ARCHIVE && !collect_files(a1, arch_list)))
       {
-         printf("invalid root and/or mount point\n");
+         printf("invalid source and/or mount point\n");
          exit(-1);
       }
       src_path = mount_type == MOUNT_FOLDER ? strdup(a1) : strdup(dirname(a1));
@@ -2392,7 +2386,7 @@ main(int argc, char* argv[])
    fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,subtype=rar2fs,default_permissions");
    fuse_opt_add_arg(&args, "-s");
 
-   /* mapping of FUSE file system operations */
+   /* Mapping of FUSE file system operations */
    static struct fuse_operations rar2_operations = {
       .init    = rar2_init,
       .create  = rar2_create,
