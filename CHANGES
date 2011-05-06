@@ -1,5 +1,7 @@
     CHANGE LOG
 
+    1.11.13     o Update: Added some very basic write support to underlying
+                  file system. Very experimental.
     1.11.12     o Update: Added support for mounting single RAR archives.
     1.11.11     o Update: Improved logic in the volume part parser(s) to handle
                   umlimited (in theory) number of volume files for old style 

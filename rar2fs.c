@@ -1896,9 +1896,11 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          return -ENOENT;
       }
    }
-   if ((fi->flags & 3) != O_RDONLY)
+   if ((fi->flags & O_RDONLY) != O_RDONLY)
    {
-      return -EACCES;
+      /* XXX Do we need to handle O_TRUNC specifically here? */
+      ABS_ROOT(root, path);
+      return lopen(root, fi);
    }
    if (entry_p == LOCAL_FS_ENTRY)
    {
@@ -2195,26 +2197,138 @@ rar2_read(const char *path, char *buffer, size_t size, off_t offset,
 }
 
 static int
+rar2_truncate(const char *path, off_t offset)
+{
+   tprintf("truncate %s\n", path);
+   if (mount_type == MOUNT_FOLDER)
+   {
+      char* root;
+      ABS_ROOT(root, path);
+      return truncate(root, offset);
+   }
+   return -EPERM;
+}
+
+static int
+rar2_write(const char *path, const char *buffer, size_t size, off_t offset,
+          struct fuse_file_info *fi)
+{
+   tprintf("write %s\n", path);
+   if (mount_type == MOUNT_FOLDER)
+   {
+      char* root;
+      ABS_ROOT(root, path);
+      return pwrite(FH_TOFD(fi->fh), buffer, size, offset);
+   }
+   return -EPERM;
+}
+
+static int
+rar2_chmod(const char *path, mode_t mode)
+{
+   tprintf("chmod %s\n", path);
+   if (mount_type == MOUNT_FOLDER)
+   {
+      return 0;
+   }
+   return -EPERM;
+}
+
+static int
+rar2_chown(const char *path, uid_t uid, gid_t gid)
+{
+   tprintf("chown %s\n", path);
+   if (mount_type == MOUNT_FOLDER)
+   {
+      return 0;
+   }
+   return -EPERM;
+}
+
+static int
 rar2_create(const char * path, mode_t mode, struct fuse_file_info* fi)
 {
    tprintf("create %s\n", path);
-   /* fake cache entry */
-   pthread_mutex_lock(&file_access_mutex);
-   dir_elem_t* e_p = cache_path_alloc(path);
-   memset(&e_p->stat, 0, sizeof(struct stat));
-   e_p->stat.st_mode = mode;
-   e_p->stat.st_nlink = 1;
-   if (!e_p->name_p) e_p->name_p = strdup(path);
-   if (!e_p->file_p) e_p->file_p = strdup(path);
-   pthread_mutex_unlock(&file_access_mutex);
-   FH_ZERO(&fi->fh);
+   if (mount_type == MOUNT_FOLDER)
+   {
+      char* root;
+      ABS_ROOT(root, path);
+      if (S_ISREG(mode))
+      {
+         int fd = creat(root, mode);
+         if (fd == -1)
+            return -errno;
+         FH_SETFH(&fi->fh, fd);
+         return 0;
+      }
+   }
+   return -EPERM;
+}
+
+static int
+rar2_mknod(const char * path, mode_t mode, dev_t dev)
+{
+   tprintf("mknod %s\n", path);
+   if (mount_type == MOUNT_FOLDER)
+   {
+      char* root;
+      ABS_ROOT(root, path);
+      return -mknod(root, mode, dev);
+   }
+   return -EPERM;
+}
+
+static int 
+rar2_unlink(const char * path)
+{
+   tprintf("unlink %s\n", path);
+   if (mount_type == MOUNT_FOLDER)
+   {
+      char* root;
+      ABS_ROOT(root, path);
+      return -unlink(root);
+   }
+   return -EPERM;
+}
+
+static int
+rar2_mkdir(const char * path, mode_t mode)
+{
+   tprintf("mkdir %s\n", path);
+   if (mount_type == MOUNT_FOLDER)
+   {
+      char* root;
+      ABS_ROOT(root, path);
+      tprintf("mkdir %s\n", root);
+      return -mkdir(root, mode);
+   }
+   return -EPERM;
+}
+
+static int 
+rar2_rmdir(const char * path)
+{
+   if (mount_type == MOUNT_FOLDER)
+   {
+      tprintf("rmdir %s\n", path);
+      char* root;
+      ABS_ROOT(root, path);
+      return -rmdir(root);
+   }
+   return -EPERM;
+}
+
+static int
+rar2_utime_deprecated(const char * path, struct utimbuf* ut)
+{
+   tprintf("utime_deprecated %s\n", path);
    return 0;
 }
 
 static int
 rar2_utime(const char * path, const struct timespec tv[2])
 {
-   tprintf("utime() %s\n", path);
+   tprintf("utime %s\n", path);
    return 0;
 }
 
@@ -2390,12 +2504,21 @@ main(int argc, char* argv[])
    static struct fuse_operations rar2_operations = {
       .init    = rar2_init,
       .create  = rar2_create,
+      .mknod   = rar2_mknod,
+      .unlink  = rar2_unlink,
+      .mkdir   = rar2_mkdir,
+      .rmdir   = rar2_rmdir,
+      .utime   = rar2_utime_deprecated,
       .utimens = rar2_utime,
       .destroy = rar2_destroy,
       .opendir = rar2_opendir,
       .open    = rar2_open,
-      .read    = rar2_read,
       .release = rar2_release,
+      .read    = rar2_read,
+      .write   = rar2_write,
+      .truncate= rar2_truncate,
+      .chmod   = rar2_chmod,
+      .chown   = rar2_chown,
       .flush   = rar2_flush
    };
    /* Dynamic entries */
