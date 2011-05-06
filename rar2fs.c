@@ -2251,8 +2251,8 @@ create_chk(const char* path)
    char* p = strdup(path);
 
    /* To produce a more correct fault code if an attempt is
-    * made to create a file in a RAR folder, a cache lookup
-    * will tell if creation should be permitted or not.
+    * made to create/remove a file in a RAR folder, a cache lookup
+    * will tell if operation should be permitted or not.
     * Simply, if the root folder is in the cache, forget it!
     *   This works fine in most cases but due to a FUSE bug(!?)
     * is does not work for 'touch'. A touch seems to result in
@@ -2314,9 +2314,14 @@ rar2_unlink(const char* path)
    tprintf("unlink %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      char* root;
-      ABS_ROOT(root, path);
-      return -unlink(root);
+      if (!create_chk(path))
+      {
+         char* root;
+         ABS_ROOT(root, path);
+         if (!unlink(root))
+            return 0;
+         return -errno;
+      }
    }
    return -EPERM;
 }
@@ -2343,12 +2348,18 @@ rar2_mkdir(const char* path, mode_t mode)
 static int 
 rar2_rmdir(const char* path)
 {
+   tprintf("rmdir %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      tprintf("rmdir %s\n", path);
-      char* root;
-      ABS_ROOT(root, path);
-      return -rmdir(root);
+      if (!create_chk(path))
+      {
+         char* root;
+         ABS_ROOT(root, path);
+
+         if (!rmdir(root))
+            return 0;
+         return -errno;
+      }
    }
    return -EPERM;
 }
