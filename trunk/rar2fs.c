@@ -2224,8 +2224,10 @@ rar2_write(const char* path, const char *buffer, size_t size, off_t offset,
 }
 
 static inline int
-access_chk(const char* path)
+access_chk(const char* path, int new_file)
 {
+   void* e;
+
    /* To produce a more correct fault code if an attempt is
     * made to create/remove a file in a RAR folder, a cache lookup
     * will tell if operation should be permitted or not.
@@ -2235,7 +2237,13 @@ access_chk(const char* path)
     * a getattr() callback even if -EPERM is returned which
     * will eventually render a "No such file or directory"
     * type of error/message. */
-    void* e = (void*)cache_path_get(path);
+    if (new_file)
+    {
+       char* p = strdup(path);
+       e = (void*)cache_path_get(dirname(p));
+       free(p);
+    }
+    else e = (void*)cache_path_get(path);
     return e?1:0;
 }
 
@@ -2245,7 +2253,7 @@ rar2_chmod(const char* path, mode_t mode)
    tprintf("chmod %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!access_chk(path))
+      if (!access_chk(path, 0))
       {
          char* root;
          ABS_ROOT(root, path);
@@ -2263,7 +2271,7 @@ rar2_chown(const char* path, uid_t uid, gid_t gid)
    tprintf("chown %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!access_chk(path))
+      if (!access_chk(path, 0))
       {
          char* root;
          ABS_ROOT(root, path);
@@ -2284,7 +2292,7 @@ rar2_create(const char* path, mode_t mode, struct fuse_file_info* fi)
       /* Only allow creation of "regular" files this way */
       if (S_ISREG(mode)) 
       {
-         if (!access_chk(path))
+         if (!access_chk(path, 1))
          {
             char* root;
             ABS_ROOT(root, path);
@@ -2293,7 +2301,29 @@ rar2_create(const char* path, mode_t mode, struct fuse_file_info* fi)
                return -errno;
             FH_SETFH(&fi->fh, fd);
             return 0;
-          }
+         }
+      }
+   }
+   return -EPERM;
+}
+
+static int
+rar2_rename(const char* oldpath, const char* newpath)
+{
+   tprintf("rename %s\n", path);
+   if (mount_type == MOUNT_FOLDER)
+   {
+      /* We can not move things out of- or from RAR archives */
+      if (!access_chk(newpath, 1) &&
+          !access_chk(oldpath, 0))
+      {
+         char* oldroot;
+         char* newroot;
+         ABS_ROOT(oldroot, oldpath);
+         ABS_ROOT(newroot, newpath);
+         if (!rename(oldroot, newroot))
+            return 0;
+         return -errno;
       }
    }
    return -EPERM;
@@ -2305,7 +2335,7 @@ rar2_mknod(const char* path, mode_t mode, dev_t dev)
    tprintf("mknod %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!access_chk(path))
+      if (!access_chk(path, 1))
       {
          char* root;
          ABS_ROOT(root, path);
@@ -2323,7 +2353,7 @@ rar2_unlink(const char* path)
    tprintf("unlink %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!access_chk(path))
+      if (!access_chk(path, 0))
       {
          char* root;
          ABS_ROOT(root, path);
@@ -2341,7 +2371,7 @@ rar2_mkdir(const char* path, mode_t mode)
    tprintf("mkdir %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!access_chk(path))
+      if (!access_chk(path, 1))
       {
          char* root;
          ABS_ROOT(root, path);
@@ -2359,7 +2389,7 @@ rar2_rmdir(const char* path)
    tprintf("rmdir %s\n", path);
    if (mount_type == MOUNT_FOLDER)
    {
-      if (!access_chk(path))
+      if (!access_chk(path, 0))
       {
          char* root;
          ABS_ROOT(root, path);
@@ -2558,6 +2588,7 @@ main(int argc, char* argv[])
    static struct fuse_operations rar2_operations = {
       .init    = rar2_init,
       .create  = rar2_create,
+      .rename  = rar2_rename,
       .mknod   = rar2_mknod,
       .unlink  = rar2_unlink,
       .mkdir   = rar2_mkdir,
