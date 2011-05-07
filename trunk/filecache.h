@@ -70,12 +70,13 @@ typedef struct dir_elem dir_elem_t;
       strcpy((s), src_path); \
       strcat((s), path)
 
-#define ABS_MP(s, path, file) \
-      int len = strlen(path);\
-      (s) = alloca(len + strlen(file) + 3 + 2); /* add +2 in case of fake .iso */ \
+#define ABS_MP(s, path, file)         ABS_MP1_((s), (path), (file), __LINE__)
+#define ABS_MP1_(s, path, file, line) ABS_MP2_((s), (path), (file), line)
+#define ABS_MP2_(s, path, file, line) \
+      int l##line##_ = strlen(path);\
+      (s) = alloca(l##line##_ + strlen(file) + 3 + 2); /* add +2 in case of fake .iso */ \
       strcpy((s), path); \
-      /*if (len > 1) strcat((s), "/"); */\
-      if (len && path[len-1] != '/') strcat((s), "/"); \
+      if (l##line##_ && path[l##line##_ - 1] != '/') strcat((s), "/"); \
       strcat((s), file)
 
 dir_elem_t*
