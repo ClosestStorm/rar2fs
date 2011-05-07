@@ -1,5 +1,6 @@
     CHANGE LOG
 
+    1.11.16     o Bugfix: Corrected a build problem in previous release.
     1.11.15     o Bugfix: More minor bugs in write support fixed.
                 o Update: Added support for rename(), eg. 'mv' (move).
     1.11.14     o Bugfix: Corrected some early "flaws" in the write support.
