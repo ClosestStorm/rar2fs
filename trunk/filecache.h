@@ -66,8 +66,7 @@ typedef struct dir_elem dir_elem_t;
 
 
 #define ABS_ROOT(s, path) \
-      int len = strlen(path);\
-      (s) = alloca(len + strlen(src_path) + 1); \
+      (s) = alloca(strlen(path) + strlen(src_path) + 1); \
       strcpy((s), src_path); \
       strcat((s), path)
 
