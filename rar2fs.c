@@ -2200,13 +2200,9 @@ static int
 rar2_truncate(const char* path, off_t offset)
 {
    tprintf("truncate %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
-   {
-      char* root;
-      ABS_ROOT(root, path);
-      return truncate(root, offset);
-   }
-   return -EPERM;
+   char* root;
+   ABS_ROOT(root, path);
+   return truncate(root, offset);
 }
 
 static int
@@ -2214,13 +2210,9 @@ rar2_write(const char* path, const char *buffer, size_t size, off_t offset,
           struct fuse_file_info *fi)
 {
    tprintf("write %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
-   {
-      char* root;
-      ABS_ROOT(root, path);
-      return pwrite(FH_TOFD(fi->fh), buffer, size, offset);
-   }
-   return -EPERM;
+   char* root;
+   ABS_ROOT(root, path);
+   return pwrite(FH_TOFD(fi->fh), buffer, size, offset);
 }
 
 static inline int
@@ -2251,16 +2243,13 @@ static int
 rar2_chmod(const char* path, mode_t mode)
 {
    tprintf("chmod %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
+   if (!access_chk(path, 0))
    {
-      if (!access_chk(path, 0))
-      {
-         char* root;
-         ABS_ROOT(root, path);
-         if (!chmod(root, mode))
-            return 0;
-         return -errno;
-      }
+      char* root;
+      ABS_ROOT(root, path);
+      if (!chmod(root, mode))
+         return 0;
+      return -errno;
    }
    return -EPERM;
 }
@@ -2269,16 +2258,13 @@ static int
 rar2_chown(const char* path, uid_t uid, gid_t gid)
 {
    tprintf("chown %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
+   if (!access_chk(path, 0))
    {
-      if (!access_chk(path, 0))
-      {
-         char* root;
-         ABS_ROOT(root, path);
-         if (!chown(root, uid, gid))
-            return 0;
-         return -errno;
-      }
+      char* root;
+      ABS_ROOT(root, path);
+      if (!chown(root, uid, gid))
+         return 0;
+      return -errno;
    }
    return -EPERM;
 }
@@ -2287,23 +2273,26 @@ static int
 rar2_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 {
    tprintf("create %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
+   /* Only allow creation of "regular" files this way */
+   if (S_ISREG(mode)) 
    {
-      /* Only allow creation of "regular" files this way */
-      if (S_ISREG(mode)) 
+      if (!access_chk(path, 1))
       {
-         if (!access_chk(path, 1))
-         {
-            char* root;
-            ABS_ROOT(root, path);
-            int fd = creat(root, mode);
-            if (fd == -1)
-               return -errno;
-            FH_SETFH(&fi->fh, fd);
-            return 0;
-         }
+         char* root;
+         ABS_ROOT(root, path);
+         int fd = creat(root, mode);
+         if (fd == -1)
+            return -errno;
+         FH_SETFH(&fi->fh, fd);
+         return 0;
       }
    }
+   return -EPERM;
+}
+
+static int
+rar2_eperm_stub()
+{
    return -EPERM;
 }
 
@@ -2311,20 +2300,17 @@ static int
 rar2_rename(const char* oldpath, const char* newpath)
 {
    tprintf("rename %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
+   /* We can not move things out of- or from RAR archives */
+   if (!access_chk(newpath, 1) &&
+       !access_chk(oldpath, 0))
    {
-      /* We can not move things out of- or from RAR archives */
-      if (!access_chk(newpath, 1) &&
-          !access_chk(oldpath, 0))
-      {
-         char* oldroot;
-         char* newroot;
-         ABS_ROOT(oldroot, oldpath);
-         ABS_ROOT(newroot, newpath);
-         if (!rename(oldroot, newroot))
-            return 0;
-         return -errno;
-      }
+      char* oldroot;
+      char* newroot;
+      ABS_ROOT(oldroot, oldpath);
+      ABS_ROOT(newroot, newpath);
+      if (!rename(oldroot, newroot))
+         return 0;
+      return -errno;
    }
    return -EPERM;
 }
@@ -2333,16 +2319,13 @@ static int
 rar2_mknod(const char* path, mode_t mode, dev_t dev)
 {
    tprintf("mknod %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
+   if (!access_chk(path, 1))
    {
-      if (!access_chk(path, 1))
-      {
-         char* root;
-         ABS_ROOT(root, path);
-         if (!mknod(root, mode, dev))
-            return 0;
-         return -errno;
-      }
+      char* root;
+      ABS_ROOT(root, path);
+      if (!mknod(root, mode, dev))
+         return 0;
+      return -errno;
    }
    return -EPERM;
 }
@@ -2351,16 +2334,13 @@ static int
 rar2_unlink(const char* path)
 {
    tprintf("unlink %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
+   if (!access_chk(path, 0))
    {
-      if (!access_chk(path, 0))
-      {
-         char* root;
-         ABS_ROOT(root, path);
-         if (!unlink(root))
-            return 0;
-         return -errno;
-      }
+      char* root;
+      ABS_ROOT(root, path);
+      if (!unlink(root))
+         return 0;
+      return -errno;
    }
    return -EPERM;
 }
@@ -2369,16 +2349,13 @@ static int
 rar2_mkdir(const char* path, mode_t mode)
 {
    tprintf("mkdir %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
+   if (!access_chk(path, 1))
    {
-      if (!access_chk(path, 1))
-      {
-         char* root;
-         ABS_ROOT(root, path);
-         if (!mkdir(root, mode)) 
-           return 0;
-         return -errno;
-      }
+      char* root;
+      ABS_ROOT(root, path);
+      if (!mkdir(root, mode)) 
+        return 0;
+      return -errno;
    }
    return -EPERM;
 }
@@ -2387,16 +2364,13 @@ static int
 rar2_rmdir(const char* path)
 {
    tprintf("rmdir %s\n", path);
-   if (mount_type == MOUNT_FOLDER)
+   if (!access_chk(path, 0))
    {
-      if (!access_chk(path, 0))
-      {
-         char* root;
-         ABS_ROOT(root, path);
-         if (!rmdir(root))
-            return 0;
-         return -errno;
-      }
+      char* root;
+      ABS_ROOT(root, path);
+      if (!rmdir(root))
+         return 0;
+      return -errno;
    }
    return -EPERM;
 }
@@ -2412,7 +2386,7 @@ static int
 rar2_utime(const char* path, const struct timespec tv[2])
 {
    tprintf("utime %s\n", path);
-   return -1;
+   return 0;
 }
 
 #define CONSUME_LONG_ARG() { \
@@ -2587,12 +2561,6 @@ main(int argc, char* argv[])
    /* Mapping of FUSE file system operations */
    static struct fuse_operations rar2_operations = {
       .init    = rar2_init,
-      .create  = rar2_create,
-      .rename  = rar2_rename,
-      .mknod   = rar2_mknod,
-      .unlink  = rar2_unlink,
-      .mkdir   = rar2_mkdir,
-      .rmdir   = rar2_rmdir,
       .utime   = rar2_utime_deprecated,
       .utimens = rar2_utime,
       .destroy = rar2_destroy,
@@ -2600,15 +2568,21 @@ main(int argc, char* argv[])
       .open    = rar2_open,
       .release = rar2_release,
       .read    = rar2_read,
-      .write   = rar2_write,
-      .truncate= rar2_truncate,
-      .chmod   = rar2_chmod,
-      .chown   = rar2_chown,
       .flush   = rar2_flush
    };
-   /* Dynamic entries */
-   rar2_operations.getattr = mount_type == MOUNT_FOLDER ? rar2_getattr : rar2_getattr2; 
-   rar2_operations.readdir = mount_type == MOUNT_FOLDER ? rar2_readdir : rar2_readdir2; 
+   /* The below depends on mount mode */
+   rar2_operations.getattr  = mount_type == MOUNT_FOLDER ? rar2_getattr  : rar2_getattr2; 
+   rar2_operations.readdir  = mount_type == MOUNT_FOLDER ? rar2_readdir  : rar2_readdir2; 
+   rar2_operations.create   = mount_type == MOUNT_FOLDER ? rar2_create   : (void*)rar2_eperm_stub; 
+   rar2_operations.rename   = mount_type == MOUNT_FOLDER ? rar2_rename   : (void*)rar2_eperm_stub; 
+   rar2_operations.mknod    = mount_type == MOUNT_FOLDER ? rar2_mknod    : (void*)rar2_eperm_stub; 
+   rar2_operations.unlink   = mount_type == MOUNT_FOLDER ? rar2_unlink   : (void*)rar2_eperm_stub; 
+   rar2_operations.mkdir    = mount_type == MOUNT_FOLDER ? rar2_mkdir    : (void*)rar2_eperm_stub; 
+   rar2_operations.rmdir    = mount_type == MOUNT_FOLDER ? rar2_rmdir    : (void*)rar2_eperm_stub; 
+   rar2_operations.write    = mount_type == MOUNT_FOLDER ? rar2_write    : (void*)rar2_eperm_stub; 
+   rar2_operations.truncate = mount_type == MOUNT_FOLDER ? rar2_truncate : (void*)rar2_eperm_stub; 
+   rar2_operations.chmod    = mount_type == MOUNT_FOLDER ? rar2_chmod    : (void*)rar2_eperm_stub; 
+   rar2_operations.chown    = mount_type == MOUNT_FOLDER ? rar2_chown    : (void*)rar2_eperm_stub; 
    return fuse_main(args.argc, args.argv, &rar2_operations, NULL);
 }
 
