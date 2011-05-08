@@ -1,5 +1,8 @@
     CHANGE LOG
 
+    1.11.17     o Bugfix: Should now work also on 64-bit platforms.
+                o Bugfix: Corrected an issue with dirname(3) usage that caused
+                  very strange behavior depending on what platform was used.
     1.11.16     o Bugfix: Corrected a build problem in previous release.
     1.11.15     o Bugfix: More minor bugs in write support fixed.
                 o Update: Added support for rename(), eg. 'mv' (move).

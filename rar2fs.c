@@ -197,14 +197,14 @@ typedef union
 
 #define FH_ZERO(fh)            (((IOFileHandle*)(fh))->bits=0)
 #define FH_ISSET(fh)           (fh)
-#define FH_ISADDR(fh)          (FH_ISSET(fh) && !FH_ISFH(fh))
-#define FH_ISFH(fh)            (FH_ISSET(fh) && ((fh)&0x1000000000000000ULL))
-#define FH_SETFH(fh, v)        {((IOFileHandle*)(fh))->bits = (uint64_t)(size_t)(v)|0x1000000000000000ULL;}
-#define FH_SETCONTEXT(fh, v)   {((IOFileHandle*)(fh))->bits = (uint64_t)(size_t)(v)&~0x1000000000000000ULL;}
+#define FH_ISADDR(fh)          (FH_ISSET(fh) && !FH_ISFP(fh))
+#define FH_ISFP(fh)            (FH_ISSET(fh) && ((fh)&0x1))
+#define FH_SETFP(fh, v)        {((IOFileHandle*)(fh))->bits = ((uint64_t)(size_t)(v))|0x1ULL;}
+#define FH_SETFD(fh, v)        FH_SETFP(fh, ((v)<<1))
+#define FH_SETCONTEXT(fh, v)   {((IOFileHandle*)(fh))->bits = ((uint64_t)(size_t)(v))&~0x1ULL;}
+#define FH_TOFP(fh)            ((FILE*)(size_t)(((uint64_t)(size_t)(((IOFileHandle)(fh)).fp))&~0x1ULL))
+#define FH_TOFD(fh)            (((IOFileHandle)(fh)).fd>>1)
 #define FH_TOCONTEXT(fh)       (((IOFileHandle)(fh)).context)
-#define FH_TOFD(fh)            (((IOFileHandle)(fh)).fd)
-#define FH_TOFP(fh)            (((IOFileHandle)(fh)).fp)
-#define FH_TOFH(fh)            (fh)
 
 struct IOContext
 {
@@ -598,7 +598,7 @@ lread_raw(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
                         return 0;
                      }
                      fclose(FH_TOFP(op->fh));
-                     FH_SETFH(&op->fh, fp);
+                     FH_SETFP(&op->fh, fp);
                      force_seek = 1;
                   } 
                   else return 0;
@@ -799,10 +799,10 @@ lopen(const char *path,
       struct fuse_file_info *fi)
 {
    tprintf("lopen %s\n", path);   
-   int res = open(path, fi->flags);
-   if (res == -1)
+   int fd = open(path, fi->flags);
+   if (fd == -1)
       return -errno;
-   FH_SETFH(&fi->fh, res);
+   FH_SETFD(&fi->fh, fd);
    return 0;
 }
 
@@ -910,8 +910,7 @@ rar2_getattr(const char *path, struct stat *stbuf)
    CHK_FILTER;
    char* dir = alloca(strlen(path)+1);
    strcpy(dir, path);
-   dir = dirname(dir);
-   sync_dir(dir);
+   sync_dir(dirname(dir));
    pthread_mutex_lock(&file_access_mutex);
    dir_elem_t* e_p = cache_path_get(path);
    pthread_mutex_unlock(&file_access_mutex);
@@ -1030,15 +1029,6 @@ get_vformat(const char* s, int t, int* l, int* p)
 #define GET_RAR_PACK_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->PackSizeHigh * 0x100000000ULL) | (l)->PackSize))
 
 #define BS_TO_UNIX(p) do{char*s=(p);while(*s++)if(*s==92)*s='/';}while(0)
-static inline int IS_ROOT(const char* s)
-{
-    int ret;
-    char* dup = strdup(s);
-    char* dir = dirname(dup);
-    ret = (*dir == '.' || *dir == '/') ? 1 : 0;
-    free(dup);
-    return ret;
-}
 
 static char*
 getArcPassword(const char* file, char* buf)
@@ -1183,12 +1173,17 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
             continue;
          }
          int display = 0;
-         char* rar_name  = strdup(next->FileName);
+         char* rar_name = strdup(next->FileName);
          char* tmp1 = rar_name;
-         rar_name = dirname(rar_name);
+         rar_name = strdup(dirname(rar_name));
+         free(tmp1);
+         tmp1 = rar_name;
          char* rar_root = strdup(arch);
          char* tmp2 = rar_root;
-         rar_root = dirname(rar_root) + strlen(src_path);
+         rar_root = strdup(dirname(rar_root));
+         free(tmp2);
+         tmp2 = rar_root;
+         rar_root += strlen(src_path);
          if (!strcmp(rar_root, path) || !strcmp("/", path))
          { 
             if (!strcmp(".", rar_name)) display = 1;
@@ -1885,8 +1880,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          CHK_FILTER;
          char* dir = alloca(strlen(path)+1);
          strcpy(dir, path);
-         dir = dirname(dir);
-         sync_dir(dir);
+         sync_dir(dirname(dir));
          pthread_mutex_lock(&file_access_mutex);
          entry_p = cache_path_get(path);
          pthread_mutex_unlock(&file_access_mutex);
@@ -1921,7 +1915,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          {
             tprintf("Opened %s\n", entry_p->rar_p);
             IOContext* op = malloc(sizeof(IOContext));
-            FH_SETFH(&op->fh, fp);
+            FH_SETFP(&op->fh, fp);
             FH_SETCONTEXT(&fi->fh, op);
             tprintf ("(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
             op->pid = 0;
@@ -1988,7 +1982,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          op->pos = 0;
          FH_SETCONTEXT(&fi->fh, op);
          tprintf ("(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
-         FH_SETFH(&op->fh, fp);
+         FH_SETFP(&op->fh, fp);
          op->pid = pid;
          tprintf("pipe %p created towards child %d\n", FH_TOFP(op->fh), pid);
 #ifdef USE_STATIC_WINDOW 
@@ -2167,7 +2161,7 @@ static int
 rar2_read(const char *path, char *buffer, size_t size, off_t offset,
           struct fuse_file_info *fi)
 {
-   tprintf ("read %s:%u:%lld fh=%llu\n", path, size, offset, FH_TOFH(fi->fh));
+   tprintf ("read %s:%u:%lld fh=%llu\n", path, size, offset, fi->fh);
 
    dir_elem_t* entry_p;
    pthread_mutex_lock(&file_access_mutex);
@@ -2232,8 +2226,9 @@ access_chk(const char* path, int new_file)
     if (new_file)
     {
        char* p = strdup(path);
+       char* tmp = p;   /* In case p is destroyed by dirname() */
        e = (void*)cache_path_get(dirname(p));
-       free(p);
+       free(tmp);
     }
     else e = (void*)cache_path_get(path);
     return e?1:0;
@@ -2283,7 +2278,7 @@ rar2_create(const char* path, mode_t mode, struct fuse_file_info* fi)
          int fd = creat(root, mode);
          if (fd == -1)
             return -errno;
-         FH_SETFH(&fi->fh, fd);
+         FH_SETFD(&fi->fh, fd);
          return 0;
       }
    }
