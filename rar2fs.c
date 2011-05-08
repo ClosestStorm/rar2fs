@@ -473,11 +473,11 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
 #undef UNRAR_
 
 static int
-_pclose(FILE* fd, pid_t pid)
+_pclose(FILE* fp, pid_t pid)
 {
    int status;
-   tprintf("_pclose(%lu, %d)\n", (unsigned long)fd, pid);
-   fclose(fd);
+   tprintf("_pclose(%p, %d)\n", fp, pid);
+   fclose(fp);
    killpg(pid, SIGKILL);
    /* Sync */
    while (waitpid(pid, &status, WNOHANG|WUNTRACED) != -1);
@@ -534,7 +534,7 @@ get_vname(int t, const char* str, int vol, int len, int pos)
 }
 
 static int
-lread_raw(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
+lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
    int n = 0;
    IOContext* op = FH_TOCONTEXT(fi->fh);
@@ -649,13 +649,13 @@ lread_raw(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
 }
 
 static int
-lread_rar(char *buf, size_t size,  off_t offset, struct fuse_file_info *fi)
+lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
    IOContext* op = FH_TOCONTEXT(fi->fh);
    if (!op) return -EIO;
 
    ++op->seq;
-   tprintf("(%d) lread_rar : seq = %d, offset = %llu (%llu), size = %d\n", getpid(), op->seq, offset, op->pos, size);
+   tprintf("(%d) lread_rar : seq = %d, offset = %llu (%llu), size = %zu\n", getpid(), op->seq, offset, op->pos, size);
 
    int n = 0;
    errno = 0;
@@ -790,7 +790,7 @@ lread(const char *path,
       char *buffer, size_t size, off_t offset,
       struct fuse_file_info *fi)
 {
-   tprintf("lread %s : size = %d, offset = %llu\n", path, size, offset);
+   tprintf("lread %s : size = %zu, offset = %llu\n", path, size, offset);
    return pread(FH_TOFD(fi->fh), buffer, size, offset);
 }
 
@@ -2161,7 +2161,7 @@ static int
 rar2_read(const char *path, char *buffer, size_t size, off_t offset,
           struct fuse_file_info *fi)
 {
-   tprintf ("read %s:%u:%lld fh=%llu\n", path, size, offset, fi->fh);
+   tprintf ("read %s:%zu:%llu fh=%llu\n", path, size, offset, fi->fh);
 
    dir_elem_t* entry_p;
    pthread_mutex_lock(&file_access_mutex);
@@ -2294,7 +2294,7 @@ rar2_eperm_stub()
 static int
 rar2_rename(const char* oldpath, const char* newpath)
 {
-   tprintf("rename %s\n", path);
+   tprintf("rename %s\n", oldpath);
    /* We can not move things out of- or from RAR archives */
    if (!access_chk(newpath, 1) &&
        !access_chk(oldpath, 0))
