@@ -240,7 +240,7 @@ struct IOContext
        /* FD_ISSET(0, &rfds) will be true. */\
        char buf[2];\
        no_warn_result_ read(fd, buf, 1); /* consume byte */\
-       tprintf("%lu thread wakeup (%d, %u)\n", pthread_self(), retval, (int)buf[0]);\
+       tprintf("%lu thread wakeup (%d, %u)\n", (unsigned long)pthread_self(), retval, (int)buf[0]);\
    }\
    else perror("select()");\
 }
@@ -811,7 +811,7 @@ lopen(const char *path,
 #else
 #define DUMP_STATO_(m) fprintf(stderr, "%10s = %o (octal)\n", #m , (unsigned int)stbuf->m)
 #define DUMP_STAT4_(m) fprintf(stderr, "%10s = %u\n", #m , (unsigned int)stbuf->m)
-#define DUMP_STAT8_(m) fprintf(stderr, "%10s = %llu\n", #m , stbuf->m)
+#define DUMP_STAT8_(m) fprintf(stderr, "%10s = %llu\n", #m , (unsigned long long)stbuf->m)
 static void
 dump_stat(struct stat* stbuf)
 {
