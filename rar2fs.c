@@ -617,7 +617,7 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
             fseeko(fp, src_off, SEEK_SET);
             force_seek = 0;
          }
-         tprintf("size = %d, chunk=%llu\n", size, chunk);
+         tprintf("size = %zu, chunk=%llu\n", size, chunk);
          chunk = size < chunk ? size : chunk;
       }
       else
@@ -1989,7 +1989,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          /* Prefetch buffer and possible file header cache */
          size_t size = readTo(op->buf, fp, IOB_NO_HIST);
          size = size > FHD_SZ-1 ? FHD_SZ-1 : size;
-         tprintf("Copying %d bytes to static window @ %p\n", size, (unsigned int)op->buf->sbuf_p);
+         tprintf("Copying %zu bytes to static window @ %p\n", size, op->buf->sbuf_p);
          memcpy(op->buf->sbuf_p, op->buf->data_p, size);
 #endif
 
