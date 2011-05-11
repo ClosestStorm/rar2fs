@@ -108,7 +108,7 @@ cache_path(const char* path, struct stat *stbuf)
       struct stat st;
       char* root;
 
-      tprintf("CACHE MISS %s   (collision: %s)\n", path, (e_p && e_p->name_p) ? e_p->name_p : "no");
+      printd(3, "MISS    %s   (collision: %s)\n", path, (e_p && e_p->name_p) ? e_p->name_p : "no");
 
       /* Do _NOT_ remember fake .ISO entries between eg. getattr() calls */
       if (e_p && e_p->flags.fake_iso) inval_cache_path(path);
@@ -116,7 +116,7 @@ cache_path(const char* path, struct stat *stbuf)
       ABS_ROOT(root, path);
       if(!stat(root, stbuf?stbuf:&st))
       {
-         tprintf("STAT retrieved for %s\n", root);
+         printd(3, "STAT retrieved for %s\n", root);
          return LOCAL_FS_ENTRY;
       }
       else
@@ -175,7 +175,7 @@ inval_cache_path(const char* path)
    if (path)
    {
       int hash = get_hash(path);
-      tprintf("Invalidating cache path %s\n", path);
+      printd(3, "Invalidating cache path %s\n", path);
       dir_elem_t* e_p = &path_cache[hash];
       dir_elem_t* p = e_p;
       /* Search collision chain */
@@ -203,7 +203,7 @@ inval_cache_path(const char* path)
    /* Invalidate entire cache */
    else
    {
-      tprintf("Invalidating all cache entries\n");
+      printd(3, "Invalidating all cache entries\n");
       for (i = 0; i < PATH_CACHE_SZ;i++)
       {
          dir_elem_t* e_p = &path_cache[i];

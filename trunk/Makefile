@@ -2,8 +2,8 @@
 include config.mk
 
 ifdef DEBUG
-CFLAGS+=-O0 -DDEBUG_
-CXXFLAGS+=-O0 -DDEBUG_
+CFLAGS+=-O0 -DDEBUG_=$(DEBUG)
+CXXFLAGS+=-O0 -DDEBUG_=$(DEBUG)
 else
 CFLAGS+=-O2
 CXXFLAGS+=-O2
