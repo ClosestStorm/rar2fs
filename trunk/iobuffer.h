@@ -36,7 +36,7 @@
 
 #define FHD_SZ                   (512*1024)
 #define IOB_SZ                   (4*1024*1024)
-#define IOB_HIST_SZ              (IOB_SZ/2)
+#define IOB_HIST_SZ              (iob_hist_sz)
 
 #define IOB_NO_HIST 0
 #define IOB_SAVE_HIST 1
@@ -72,6 +72,11 @@ readFrom(char* dest, IoBuf* src, size_t size, int off);
 
 size_t
 copyFrom(char* dest, IoBuf* src, size_t size, size_t pos);
+
+extern size_t iob_hist_sz;
+
+void
+iobuffer_init();
 
 #endif
 

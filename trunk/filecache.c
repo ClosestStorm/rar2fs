@@ -223,7 +223,7 @@ inval_cache_path(const char* path)
 }
 
 void
-init_cache()
+filecache_init()
 {
    memset(path_cache, 0, sizeof(dir_elem_t)*PATH_CACHE_SZ);
 }

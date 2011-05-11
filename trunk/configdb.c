@@ -35,7 +35,7 @@
 #include "common.h"
 #include "configdb.h"
 
-#define MAX_NOF_CFG_OBJ (12)
+#define MAX_NOF_CFG_OBJ (13)
 static CfgObj config_objects[MAX_NOF_CFG_OBJ] = 
 {
    {{NULL,}, 0, 0, 0, 1, 0},
@@ -49,7 +49,8 @@ static CfgObj config_objects[MAX_NOF_CFG_OBJ] =
    {{NULL,}, 0, 0, 0, 0, 0},
    {{NULL,}, 0, 0, 0, 0, 0},
    {{NULL,}, 0, 0, 0, 0, 0},
-   {{NULL,}, 0, 0, 0, 0, 0}
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 1}
 };
 
 CfgObj* config_objects_ = &config_objects[0];
@@ -119,6 +120,7 @@ int collect_obj(int obj, char* s)
    {
       case OBJ_SEEK_LENGTH:
       case OBJ_SEEK_DEPTH:
+      case OBJ_HIST_SIZE:
          ADD_OBJ_(obj, s1, OBJ_INT_);
          break; 
       default:

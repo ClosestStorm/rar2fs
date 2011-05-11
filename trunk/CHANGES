@@ -1,5 +1,11 @@
     CHANGE LOG
 
+    1.11.18     o Update: Added option --hist-size that can be used to tune the
+                  I/O buffer history size. The history can be set as a percentage
+                  (25-75) of the total buffer size. Default is half the size of 
+                  the total buffer, currently 2MiB.
+                o Update: Reinserted check of .avi and .mkv before attempting
+                  an index preload. This update some how got lost on the way.
     1.11.17     o Bugfix: Should now work also on 64-bit platforms.
                 o Bugfix: Corrected an issue with dirname(3) usage that caused
                   very strange behavior depending on what platform was used.
