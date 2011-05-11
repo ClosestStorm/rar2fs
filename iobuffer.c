@@ -27,8 +27,11 @@
 */
 
 #include <memory.h>
-#include "iobuffer.h"
 #include "common.h"
+#include "iobuffer.h"
+#include "configdb.h"
+
+size_t iob_hist_sz = IOB_SZ/2;
 
 #define SPACE_LEFT(ri, wi) (IOB_SZ - SPACE_USED((ri), (wi)))
 #define SPACE_USED(ri, wi) (((wi) - (ri)) & (IOB_SZ-1))
@@ -123,3 +126,8 @@ copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
    return tot;
 }
 
+void iobuffer_init()
+{
+   int hsz = OBJ_INT(OBJ_HIST_SIZE,0);
+   iob_hist_sz = IOB_SZ*((hsz?hsz:50)/100.0);
+}

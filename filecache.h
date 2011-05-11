@@ -92,6 +92,6 @@ void
 inval_cache_path(const char* path);
 
 void
-init_cache();
+filecache_init();
 
 #endif

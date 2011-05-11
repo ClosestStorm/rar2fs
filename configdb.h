@@ -33,6 +33,8 @@
    ((OBJ_CNT(OBJ_IMG_TYPE) && chk_obj(OBJ_IMG_TYPE, s)) || \
    (OBJ_CNT(OBJ_FAKE_ISO) && chk_obj(OBJ_FAKE_ISO, s)))
 #define IS_ISO(s) (!strcasecmp((s)+(strlen(s)-4), ".iso"))
+#define IS_AVI(s) (!strcasecmp((s)+(strlen(s)-4), ".avi"))
+#define IS_MKV(s) (!strcasecmp((s)+(strlen(s)-4), ".mkv"))
 
 #define CHK_FILTER \
    if (OBJ_CNT(OBJ_EXCLUDE) && \
@@ -54,6 +56,7 @@
 #define OBJ_NO_SMP        (9)
 #define OBJ_UNRAR_PATH    (10)
 #define OBJ_NO_LIB_CHECK  (11)
+#define OBJ_HIST_SIZE     (12)
 
 typedef struct
 {

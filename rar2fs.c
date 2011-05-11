@@ -1941,11 +1941,8 @@ preload_index(IoBuf* buf, const char* path)
    ENTER_("%s", path); 
 
    /* check for .avi or .mkv */
-   {
-      const char* tmp = path + strlen(path) - 4;
-      if (strcasecmp(tmp, ".avi") && strcasecmp(tmp, ".mkv")) 
-         return;
-   }
+   if (!IS_AVI(path) && !IS_MKV(path))
+      return;
 
    char* r2i;
    ABS_ROOT(r2i, path);
@@ -2597,6 +2594,14 @@ rar2_utime(const char* path, const struct timespec tv[2])
       argv[i] = argv[i+1];}\
 }
 
+static void 
+usage(char* prog)
+{
+   const char* P_ = basename(prog);
+   printf("Usage: %s [options] source target\n", P_);
+   printf("Try `%s -h' or `%s --help' for more information.\n", P_, P_);
+}
+
 int
 main(int argc, char* argv[])
 {
@@ -2618,6 +2623,7 @@ main(int argc, char* argv[])
 #endif
       {"img-type",      required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
       {"no-lib-check",  no_argument,       NULL, OBJ_ADDR(OBJ_NO_LIB_CHECK)},
+      {"hist-size",     required_argument, NULL, OBJ_ADDR(OBJ_HIST_SIZE)},
       {"version",       no_argument,       NULL, 'V'},
       {"help",          no_argument,       NULL, 'h'},
       {NULL,0,NULL,0}
@@ -2655,7 +2661,7 @@ main(int argc, char* argv[])
          helpargv[0]=argv[0];
          fuse_main(2,helpargv,(const struct fuse_operations*)NULL,NULL);
          printf("\nrar2fs options:\n");
-         printf("    --img-type=E1[;E2...]   additional image file type extensions beyond the default (.iso;.img;.nrg)\n");
+         printf("    --img-type=E1[;E2...]   additional image file type extensions beyond the default [.iso;.img;.nrg]\n");
          printf("    --show-comp-img\t    show image file types also for compressed archives\n");
          printf("    --preopen-img\t    prefetch volume file descriptors for image file types\n");
          printf("    --fake-iso[=E1[;E2...]] fake .iso extension for specified image file types\n");
@@ -2666,6 +2672,7 @@ main(int argc, char* argv[])
          printf("    --unrar-path=PATH\t    path to external unrar binary (overide libunrar)\n");
          printf("    --no-password\t    disable password file support\n");
          printf("    --no-lib-check\t    disable validation of library version(s)\n");
+         printf("    --hist-size=n\t    I/O buffer history size as a percentage (25-75) of total buffer size [50]\n");
 #if defined ( __linux ) && defined ( __cpu_set_t_defined )
          printf("    --no-smp\t\t    disable SMP support (bind to CPU #0)\n");
 #endif
@@ -2678,10 +2685,17 @@ main(int argc, char* argv[])
    }
    if(argc<3 || !argv[optind])
    {
-      const char* P_ = basename(*argv);
-      printf("Usage: %s [options] source target\n", P_);
-      printf("Try `%s -h' or `%s --help' for more information.\n", P_, P_);
+      usage(*argv);
       return -1;
+   }
+   /* Validate I/O buffer history size */
+   {
+      int hsz = OBJ_INT(OBJ_HIST_SIZE, 0);
+      if (hsz && (hsz < 25 || hsz > 75)) 
+      {
+         usage(*argv);
+         return -1;
+      }
    }
 
    if (!OBJ_SET(OBJ_NO_LIB_CHECK))
@@ -2726,7 +2740,8 @@ main(int argc, char* argv[])
       src_path = mount_type == MOUNT_FOLDER ? strdup(a1) : strdup(dirname(a1));
    }
 
-   init_cache();
+   filecache_init();
+   iobuffer_init();
 
    long ps = -1;
 #if defined ( _SC_PAGE_SIZE )
