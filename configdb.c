@@ -145,13 +145,13 @@ int collect_obj(int obj, char* s)
 #ifdef DEBUG_
    {
       int i;
-      tprintf("config object %d : ", obj);
+      printd(5, "config object %d : ", obj);
       for(i = 0; i<OBJ_(obj)->n_elem;i++)
         if (obj!=OBJ_SEEK_DEPTH&&obj!=OBJ_SEEK_LENGTH)
-           tprintf("\"%s\" ", OBJ_(obj)->u.v_arr_str[i]);
+           printd(5, "\"%s\" ", OBJ_(obj)->u.v_arr_str[i]);
         else
-           tprintf("\"%ld\" ", OBJ_(obj)->u.v_arr_int[i]);
-      tprintf("\n");
+           printd(5, "\"%ld\" ", OBJ_(obj)->u.v_arr_int[i]);
+      printd(5, "\n");
    }
 #endif
    return 0;

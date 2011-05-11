@@ -33,11 +33,31 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#if defined ( DEBUG_ ) && DEBUG_ > 5
+#undef DEBUG_
+#endif
+
+#if defined ( DEBUG_ ) 
+#if DEBUG_ > 2
+#define ELVL_ 2
+#else
+#define ELVL_ DEBUG_
+#endif 
+#define ENTER_(...)         ENTER__(ELVL_, __VA_ARGS__)
+#define ENTER__(l, ...)     ENTERx_(l, __VA_ARGS__)
+#define ENTERx_(l, ...)     ENTER##l##_(__VA_ARGS__)
+#define ENTER1_(fmt, ...)   printd(1, "%s()\n", __func__)
+#define ENTER2_(fmt, ...)   printd(2, "%s()   " fmt "\n", __func__, ##__VA_ARGS__)
+#else
+#define ENTER_(...)
+#endif
+
 #ifdef DEBUG_
-#define     tprintf(f, ...)  fprintf(stderr, f, ##__VA_ARGS__)
-#else /* DEBUG_ */
-#define     tprintf(...)
-#endif /* DEBUG_ */
+#define printd(l, fmt, ...) do{ if(l <= DEBUG_) fprintf(stderr, fmt, ##__VA_ARGS__); }while(0)
+#else
+#define printd(...)
+#endif
+
 /* MAC OS X version of gcc does not handle this properly!? */
 #if defined ( __GNUC__ ) &&  defined ( __APPLE__ )
 #define no_warn_result_ 

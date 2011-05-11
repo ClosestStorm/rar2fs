@@ -240,7 +240,7 @@ struct IOContext
        /* FD_ISSET(0, &rfds) will be true. */\
        char buf[2];\
        no_warn_result_ read(fd, buf, 1); /* consume byte */\
-       tprintf("%lu thread wakeup (%d, %u)\n", (unsigned long)pthread_self(), retval, (int)buf[0]);\
+       printd(4, "%lu thread wakeup (%d, %u)\n", (unsigned long)pthread_self(), retval, (int)buf[0]);\
    }\
    else perror("select()");\
 }
@@ -264,6 +264,10 @@ static pthread_mutex_t file_access_mutex;
 
 static void sync_dir(const char *dir);
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 #include <sys/wait.h>
 static void
 sig_handler(int signum, siginfo_t *info, void* secret)
@@ -272,7 +276,8 @@ sig_handler(int signum, siginfo_t *info, void* secret)
    {
    case SIGUSR1:
    {
-      tprintf("Invalidating path cache\n");
+      printd(4, "Caught signal SIGUSR1\n");
+      printd(3, "Invalidating path cache\n");
       pthread_mutex_lock(&file_access_mutex);
       inval_cache_path(NULL);
       pthread_mutex_unlock(&file_access_mutex);
@@ -282,7 +287,7 @@ sig_handler(int signum, siginfo_t *info, void* secret)
    {
       if (!glibc_test)
       {
-         tprintf("SIGSEGV\n");
+         printd(4, "Caught signal SIGSEGV\n");
          stack_trace(SIGSEGV, info, secret);
       } 
       else
@@ -294,21 +299,27 @@ sig_handler(int signum, siginfo_t *info, void* secret)
    break;
    case SIGCHLD:
    {
-      tprintf("SIGCHLD\n");
+      printd(4, "Caught signal SIGCHLD\n");
    }
    break;
    }
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static void*
 extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int oper)
 {
+  ENTER_("%s", file);
+
   int out_pipe[2];
   if(pipe(out_pipe) != 0 ) {          /* make a pipe */
     return MAP_FAILED;
   }
 
-  tprintf("extract_to() extracting %s (%llu bytes) resident in %s\n", file, sz, entry_p->rar_p);
+  printd(3, "Extracting %llu bytes resident in %s\n", sz, entry_p->rar_p);
   pid_t pid = fork();
   if (pid == 0)
   {
@@ -355,7 +366,7 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
      off += n;
   } while (off != sz);
 
-  tprintf("read %llu bytes from pipe %d\n", off, out_pipe[0]);
+  printd(4, "Read %llu bytes from PIPE %d\n", off, out_pipe[0]);
   close(out_pipe[0]);
 
   if (tmp && (buffer != MAP_FAILED))
@@ -371,6 +382,11 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
   } 
   return buffer;
 }
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 
 #define UNRAR_ unrar_path, unrar_path
 
@@ -396,7 +412,7 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
              if (fp == MAP_FAILED)
              {
                 fp = NULL;
-                tprintf("extract_to() file failed\n");
+                printd(1, "Extract to tmpfile failed\n");
              }
 #endif
           }
@@ -446,7 +462,7 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
          if (entry_p->password_p)
          {
             char parg[MAXPASSWORD+2];
-            snprintf(parg, MAXPASSWORD+2, "%s%s", "-p", entry_p->password_p);
+            printd(3, parg, MAXPASSWORD+2, "%s%s", "-p", entry_p->password_p);
             execl(UNRAR_, parg, "P", "-inul", entry_p->rar_p, entry_p->file_p, NULL);
          }
          else
@@ -472,11 +488,15 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
 
 #undef UNRAR_
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 _pclose(FILE* fp, pid_t pid)
 {
    int status;
-   tprintf("_pclose(%p, %d)\n", fp, pid);
+
    fclose(fp);
    killpg(pid, SIGKILL);
    /* Sync */
@@ -496,11 +516,15 @@ _pclose(FILE* fp, pid_t pid)
 /* Calculate volume number (base 0) using archived file offset */
 #define VOL_NO(off) (off < VOL_FIRST_SZ ? 0 : ((offset-VOL_FIRST_SZ) / VOL_NEXT_SZ)+1)
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static char*
 get_vname(int t, const char* str, int vol, int len, int pos)
 {
+   ENTER_("%s   vol=%d, len=%d, pos=%d", str, vol, len, pos);
    char* s = strdup(str);
-   tprintf("get_vname(%s): vol=%d, len=%d, pos=%d\n", str, vol,len,pos);
    if (!vol) return s;
    if (t)
    {
@@ -533,6 +557,10 @@ get_vname(int t, const char* str, int vol, int len, int pos)
    return s;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
@@ -540,12 +568,12 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
    IOContext* op = FH_TOCONTEXT(fi->fh);
    if (!op) return -EACCES;
 
-   tprintf("%d calling lread_raw, seq = %d\n", getpid(), op->seq);
+   ++op->seq;
+   printd(3, "PID %05d calling %s(), seq = %d, offset=%llu\n", getpid(), __func__, op->seq, offset);
 
    off_t chunk;
    int tot = 0;
    int force_seek = 0;
-   ++op->seq;
 
    /* Handle the case when a user tries to read outside file size.
     * This is especially important to handle here since last file in a
@@ -589,7 +617,7 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                      op->entry_p->vtype, op->entry_p->rar_p, op->vno+op->entry_p->vno_base, op->entry_p->vlen, op->entry_p->vpos);
                   if (tmp)
                   {
-                     tprintf("Opening %s\n", tmp);
+                     printd(3, "Opening %s\n", tmp);
                      fp = fopen(tmp, "r");
                      free(tmp);
                      if (fp == NULL)
@@ -611,13 +639,12 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
          }
          if (force_seek || offset != op->pos)
          {
-            tprintf("real_size = %llu, chunk = %llu\n", VOL_REAL_SZ, chunk);
             src_off = VOL_REAL_SZ - chunk;
-            tprintf("SEEK src_off = %llu\n", src_off);
+            printd(3, "SEEK src_off = %llu, VOL_REAL_SZ = %llu\n", src_off, VOL_REAL_SZ);
             fseeko(fp, src_off, SEEK_SET);
             force_seek = 0;
          }
-         tprintf("size = %zu, chunk=%llu\n", size, chunk);
+         printd(3, "size = %zu, chunk = %llu\n", size, chunk);
          chunk = size < chunk ? size : chunk;
       }
       else
@@ -627,12 +654,12 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
          if (!offset || offset != op->pos)
          {
             src_off = offset + op->entry_p->offset;
-            tprintf("SEEK src_off = %llu\n", src_off);
+            printd(3, "SEEK src_off = %llu\n", src_off);
             fseeko(fp, src_off, SEEK_SET);
          }
       }
       n = fread(buf, 1, (size_t)chunk, fp);
-      tprintf("read %d bytes from vol=%d,base=%d\n", n, op->vno, op->entry_p->vno_base);
+      printd(3, "Read %d bytes from vol=%d, base=%d\n", n, op->vno, op->entry_p->vno_base);
       if (n!=chunk)
       {
          size = n; 
@@ -648,6 +675,10 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
    return tot;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
@@ -655,7 +686,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
    if (!op) return -EIO;
 
    ++op->seq;
-   tprintf("(%d) lread_rar : seq = %d, offset = %llu (%llu), size = %zu\n", getpid(), op->seq, offset, op->pos, size);
+   printd(3, "PID %05d calling %s(), seq = %d, size=%zu, offset=%llu/%llu\n", getpid(), __func__, op->seq, size, offset, op->pos);
 
    int n = 0;
    errno = 0;
@@ -670,7 +701,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
          size_t s = op->buf->idx.data_p->head.size;
          off_t off = (offset - o);
          size = (off + size) > s ? size - ((off + size) - s) : size;
-         tprintf("Copying data from preloaded index information @ %llu\n", offset);
+         printd(3, "Copying data from preloaded index information @ %llu\n", offset);
          if (op->buf->idx.mmap)
          {
             memcpy(buf, op->buf->idx.data_p->bytes+off, size);
@@ -714,7 +745,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
          }
          else 
          {
-            tprintf("I/O ERROR %d\n",op->terminate);
+            printd(1, "I/O ERROR %d\n", op->terminate);
             return -EIO;
          }
       }
@@ -764,41 +795,57 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
       op->pos += (off + n);
       if (!op->terminate) WAKE_THREAD(op->pfd, 0);
    }
-   tprintf("RETURN %d\n", errno ? -errno : n);
+   printd(3, "RETURN %d\n", errno ? -errno : n);
    return errno ? -errno : n;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int lflush(const char *path,
                   struct fuse_file_info *fi)
 {
-   tprintf("lflush %s\n", path);   
+   ENTER_("%s", path);
    (void)fi; /* touch */
    return 0;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int lrelease(const char *path,
                     struct fuse_file_info *fi) 
 {
-   tprintf("lrelease %s\n", path);   
+   ENTER_("%s", path);
    close(FH_TOFD(fi->fh));
    FH_ZERO(&fi->fh);
    return 0;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 lread(const char *path,
       char *buffer, size_t size, off_t offset,
       struct fuse_file_info *fi)
 {
-   tprintf("lread %s : size = %zu, offset = %llu\n", path, size, offset);
+   ENTER_("%s   size = %zu, offset = %llu", path, size, offset);
    return pread(FH_TOFD(fi->fh), buffer, size, offset);
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 lopen(const char *path,
       struct fuse_file_info *fi)
 {
-   tprintf("lopen %s\n", path);   
+   ENTER_("%s", path);
    int fd = open(path, fi->flags);
    if (fd == -1)
       return -errno;
@@ -806,7 +853,11 @@ lopen(const char *path,
    return 0;
 }
 
-#ifndef DEBUG_
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+#if !defined ( DEBUG_ ) || DEBUG_ < 5
 #define dump_stat(s) 
 #else
 #define DUMP_STATO_(m) fprintf(stderr, "%10s = %o (octal)\n", #m , (unsigned int)stbuf->m)
@@ -841,6 +892,10 @@ dump_stat(struct stat* stbuf)
 #undef DUMP_STAT8_
 #endif
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 collect_files(const char* arch, dir_entry_list_t* list)
 {
@@ -877,10 +932,14 @@ collect_files(const char* arch, dir_entry_list_t* list)
    return files;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_getattr(const char *path, struct stat *stbuf)
 {
-   tprintf("getattr() %s\n", path);
+   ENTER_("%s", path);
    
 #if 0
    memset(stbuf, 0, sizeof(struct stat));
@@ -923,10 +982,14 @@ rar2_getattr(const char *path, struct stat *stbuf)
    return -ENOENT;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_getattr2(const char *path, struct stat *stbuf)
 {
-   tprintf("getattr2() %s\n", path);
+   ENTER_("%s", path);
 
    pthread_mutex_lock(&file_access_mutex);
    if (cache_path(path, stbuf))
@@ -939,6 +1002,10 @@ rar2_getattr2(const char *path, struct stat *stbuf)
    return -ENOENT;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 int
 is_rxx_vol(const char* name)
 {
@@ -958,6 +1025,10 @@ is_rxx_vol(const char* name)
 
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 get_vformat(const char* s, int t, int* l, int* p)
 {
@@ -1028,8 +1099,10 @@ get_vformat(const char* s, int t, int* l, int* p)
 #define GET_RAR_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->UnpSizeHigh * 0x100000000ULL) | (l)->UnpSize))
 #define GET_RAR_PACK_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->PackSizeHigh * 0x100000000ULL) | (l)->PackSize))
 
-#define BS_TO_UNIX(p) do{char*s=(p);while(*s++)if(*s==92)*s='/';}while(0)
-
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static char*
 getArcPassword(const char* file, char* buf)
 {
@@ -1056,6 +1129,10 @@ getArcPassword(const char* file, char* buf)
   return buf;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static void
 set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
 {
@@ -1124,14 +1201,19 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
    entry_p->stat.st_ctime = entry_p->stat.st_atime;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+
 #define NEED_PASSWORD() ((MainHeaderFlags&MHD_PASSWORD)||(next->Flags&LHD_PASSWORD))
+#define BS_TO_UNIX(p) do{char*s=(p);while(*s++)if(*s==92)*s='/';}while(0)
 
 static int
 listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const char* Password)
 {
+   ENTER_("%s   arch=%s", path, arch);
    pthread_mutex_lock(&file_access_mutex);
-   tprintf("Listing %s\n", arch);
-   tprintf("source path %s\n", path);
 
    RAROpenArchiveData d;
    d.ArcName=(char*)arch; /* Horrible cast! But hey... it is the API! */
@@ -1200,7 +1282,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   dir_elem_t* entry_p = cache_path_get(mp);
                   if (entry_p == NULL)
                   {
-                     tprintf("Adding %s to cache\n", mp);
+                     printd(3, "Adding %s to cache\n", mp);
                      entry_p = cache_path_alloc(mp);
                      entry_p->name_p = strdup(mp);
                      entry_p->file_p = strdup(rar_name);
@@ -1240,11 +1322,11 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
             if (l) strcpy(mp+(strlen(mp)-l), "iso");
          }
 
-         tprintf("Looking up %s in cache\n",mp);
+         printd(3, "Looking up %s in cache\n", mp);
          dir_elem_t* entry_p = cache_path_get(mp);
          if (entry_p == NULL)
          {
-            tprintf("Adding %s to cache\n", mp);
+            printd(3, "Adding %s to cache\n", mp);
             entry_p = cache_path_alloc(mp);
             entry_p->name_p = strdup(mp);
             entry_p->rar_p = strdup(arch);
@@ -1260,7 +1342,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                /* Check for .rar file */
                if (IS_RAR(entry_p->name_p))
                {
-                  tprintf("%llu byte RAR file %s found in archive %s\n", GET_RAR_PACK_SZ(next), entry_p->name_p, arch);
+                  printd(3, "%llu byte RAR file %s found in archive %s\n", GET_RAR_PACK_SZ(next), entry_p->name_p, arch);
                   RAROpenArchiveData d2;
                   d2.ArcName=entry_p->name_p;
                   d2.OpenMode=RAR_OM_LIST;
@@ -1306,7 +1388,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                          if (fp == MAP_FAILED)
                          {
                             fp = NULL;
-                            tprintf("extract_to() file failed\n");
+                            printd(1, "Extract to tmpfile failed\n");
                          }
 #endif
                          fseeko(fp_, curr_pos, SEEK_SET);
@@ -1327,7 +1409,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                            if (!(MHF & MHD_VOLUME))
                            {
                               dir_elem_t* entry2_p;
-                              tprintf("file inside archive is %s\n", next2->FileName);
+                              printd(3, "File inside archive is %s\n", next2->FileName);
                               /* Allocate a cache entry for this file */
                               char* mp2;
                               char* rar_dir = strdup(next2->FileName);
@@ -1399,7 +1481,6 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                      if (!IS_RAR_DIR(next))
                      {
                         entry_p->vsize_real = RawFileDataEnd;
-                        tprintf("vsize_real = %llu\n",  entry_p->vsize_real);
                         entry_p->vsize_next =
                            RawFileDataEnd - (SIZEOF_MARKHEAD + MainHeaderSize+next->HeadSize);
                         entry_p->vsize = GET_RAR_PACK_SZ(next);
@@ -1478,17 +1559,27 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
 }
 
 #undef NEED_PASSWORD
+#undef BS_TO_UNIX
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+
+#define NOF_FILTERS 3
 
 int f0(CONST_DIRENT_ struct dirent* e) { return (!IS_RAR(e->d_name) && !IS_RXX(e->d_name)); }
 int f1(CONST_DIRENT_ struct dirent* e) { return IS_RAR(e->d_name); }
 int f2(CONST_DIRENT_ struct dirent* e) { return IS_RXX(e->d_name); }
 
-#define NOF_FILTERS 3
-
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static void
 sync_dir(const char *dir)
 {
-   tprintf("sync_dir() %s\n", dir);
+   ENTER_("%s", dir);
 
    char tmpbuf[MAXPASSWORD]; 
    const char* password = NULL;
@@ -1499,7 +1590,6 @@ sync_dir(const char *dir)
    dp = opendir (root);
    if (dp != NULL)
    {
-      tprintf("opendir() succeeded\n");
       struct dirent **namelist;
       int n, f;
       int(*filter[NOF_FILTERS])(CONST_DIRENT_ struct dirent *) = {f0, f1, f2};
@@ -1545,10 +1635,13 @@ sync_dir(const char *dir)
          }
       }
       (void)closedir(dp);
-      tprintf("closedir() done\n");
    }
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static inline int
 swap(struct dir_entry_list* A, struct dir_entry_list* B)
 {
@@ -1562,6 +1655,10 @@ swap(struct dir_entry_list* A, struct dir_entry_list* B)
     return 0;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static void
 sort_dir(dir_entry_list_t* root)
 {
@@ -1583,19 +1680,27 @@ sort_dir(dir_entry_list_t* root)
    }
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_opendir(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("opendir %s\n", path);
+   ENTER_("%s", path);
    /* Always permitted */
    return 0;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
              off_t offset, struct fuse_file_info *fi)
 {
-   tprintf ("readdir %s\n", path);
+   ENTER_("%s", path);
 
    char tmpbuf[MAXPASSWORD]; 
    const char* password = NULL;
@@ -1610,7 +1715,6 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
    dp = opendir (root);
    if (dp != NULL)
    {
-      tprintf("opendir() succeeded\n");
       struct dirent **namelist;
       int n, f;
       int(*filter[NOF_FILTERS])(CONST_DIRENT_ struct dirent *) = {f0, f1, f2};
@@ -1672,7 +1776,6 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
          }
       }
       (void)closedir(dp);
-      tprintf("closedir() done\n");
    }
    else
    {
@@ -1687,7 +1790,7 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
          {
             if (tmp) free(tmp);
             tmp = get_vname(entry_p->vtype, entry_p->rar_p, vol, entry_p->vlen, entry_p->vpos);
-            tprintf("search for local directory in %s\n", tmp);
+            printd(3, "Search for local directory in %s\n", tmp);
             if (vol == 1) /* first file */
             {
                password = getArcPassword(tmp, tmpbuf);
@@ -1698,7 +1801,7 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
       }
       else if (entry_p && entry_p->rar_p)
       {
-         tprintf("search for local directory in %s\n", entry_p->rar_p);
+         printd(3, "Search for local directory in %s\n", entry_p->rar_p);
          password = getArcPassword(entry_p->rar_p, tmpbuf);
          if (!listrar(path, &next, entry_p->rar_p, password))
          {
@@ -1734,11 +1837,15 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
    return 0;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_readdir2(const char *path, void *buffer, fuse_fill_dir_t filler,
               off_t offset, struct fuse_file_info *fi)
 {
-   tprintf ("readdir2 %s\n", path);
+   ENTER_("%s", path);
 
    char tmpbuf[MAXPASSWORD];
    const char* password = NULL;
@@ -1775,12 +1882,17 @@ rar2_readdir2(const char *path, void *buffer, fuse_fill_dir_t filler,
 
 #undef NOF_FILTERS
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 void*
 reader_task(void* arg)
 {
    IOContext* op = (IOContext*)arg;
    op->terminate = 0;
-   tprintf("Reader thread started : fp=%p\n", FH_TOFP(op->fh));
+
+   printd(4, "Reader thread started, fp=%p\n", FH_TOFP(op->fh));
 
    int fd = op->pfd[0];
    int nfsd = fd+1;
@@ -1796,7 +1908,7 @@ reader_task(void* arg)
       else if (retval)
       {
          /* FD_ISSET(0, &rfds) will be true. */
-         tprintf("Reader thread wakeup (%d)\n", retval);
+         printd(4, "Reader thread wakeup, select()=%d\n", retval);
          char buf[2];
          no_warn_result_ read(fd, buf, 1); /* consume byte */
          {
@@ -1804,7 +1916,7 @@ reader_task(void* arg)
                (void)readTo(op->buf, FH_TOFP(op->fh), IOB_SAVE_HIST);
             if (buf[0])
             {
-               tprintf("Reader thread acknowledge\n");
+               printd(4, "Reader thread acknowledge\n");
                int fd = op->pfd2[1];
                if (write(fd, buf, 1) != 1) perror("write"); 
             }
@@ -1815,17 +1927,30 @@ reader_task(void* arg)
       else
          perror("select()");
    }
-   tprintf("Reader thread stopped\n");
+   printd(4, "Reader thread stopped\n");
    pthread_exit(NULL);
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static void
 preload_index(IoBuf* buf, const char* path)
 {
+   ENTER_("%s", path); 
+
+   /* check for .avi or .mkv */
+   {
+      const char* tmp = path + strlen(path) - 4;
+      if (strcasecmp(tmp, ".avi") && strcasecmp(tmp, ".mkv")) 
+         return;
+   }
+
    char* r2i;
    ABS_ROOT(r2i, path);
    strcpy(&r2i[strlen(r2i)-3], "r2i");
-   tprintf("preload_index() for %s\n", r2i);
+   printd(3, "Preloading index for %s\n", r2i);
 
    buf->idx.data_p = MAP_FAILED;
    int fd = open(r2i, O_RDONLY);
@@ -1859,10 +1984,15 @@ preload_index(IoBuf* buf, const char* path)
    buf->idx.fd = fd;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_open(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("(%05d) %-8s%s [0x%llu][called from %05d]\n", getpid(), "OPEN", path, fi->fh, fuse_get_context()->pid);
+   ENTER_("%s", path);
+   printd(3, "(%05d) %-8s%s [0x%llu][called from %05d]\n", getpid(), "OPEN", path, fi->fh, fuse_get_context()->pid);
    dir_elem_t* entry_p;
    char* root;
 
@@ -1913,11 +2043,11 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          FILE* fp = fopen(entry_p->rar_p, "r");
          if (fp != NULL)
          {
-            tprintf("Opened %s\n", entry_p->rar_p);
+            printd(3, "Opened %s\n", entry_p->rar_p);
             IOContext* op = malloc(sizeof(IOContext));
             FH_SETFP(&op->fh, fp);
             FH_SETCONTEXT(&fi->fh, op);
-            tprintf ("(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
+            printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
             op->pid = 0;
             op->entry_p = entry_p;
             op->seq = 0;
@@ -1942,11 +2072,11 @@ rar2_open(const char *path, struct fuse_file_info *fi)
                      free(tmp);
                      break;
                   }
-                  tprintf("Pre-open %s\n", tmp);
+                  printd(3, "Pre-open %s\n", tmp);
                   free(tmp);
                   op->volHdl[j].fp = fp_;
                   op->volHdl[j].pos = VOL_REAL_SZ - VOL_FIRST_SZ;
-                  tprintf("SEEK src_off = %llu\n", op->volHdl[j].pos);
+                  printd(3, "SEEK src_off = %llu\n", op->volHdl[j].pos);
                   fseeko(fp_, op->volHdl[j].pos, SEEK_SET);
                }
             }
@@ -1981,15 +2111,15 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          op->buf = buf;
          op->pos = 0;
          FH_SETCONTEXT(&fi->fh, op);
-         tprintf ("(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
+         printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
          FH_SETFP(&op->fh, fp);
          op->pid = pid;
-         tprintf("pipe %p created towards child %d\n", FH_TOFP(op->fh), pid);
+         printd(4, "PIPE %p created towards child %d\n", FH_TOFP(op->fh), pid);
 #ifdef USE_STATIC_WINDOW 
          /* Prefetch buffer and possible file header cache */
          size_t size = readTo(op->buf, fp, IOB_NO_HIST);
          size = size > FHD_SZ-1 ? FHD_SZ-1 : size;
-         tprintf("Copying %zu bytes to static window @ %p\n", size, op->buf->sbuf_p);
+         printd(3, "Copying %zu bytes to static window @ %p\n", size, op->buf->sbuf_p);
          memcpy(op->buf->sbuf_p, op->buf->data_p, size);
 #endif
 
@@ -2018,6 +2148,11 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    return 0;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+
 #if defined ( __APPLE__ ) || defined ( __FreeBSD__ )
 /* This is such a big mess! Simply cast to void* to walk away from it. */
 #define SIG_FUNC_ (void*)
@@ -2028,7 +2163,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
 static void*
 rar2_init(struct fuse_conn_info *conn)
 {
-   tprintf ("init\n");
+   ENTER_();
 
    pthread_mutex_init(&file_access_mutex, NULL);
 
@@ -2058,26 +2193,38 @@ rar2_init(struct fuse_conn_info *conn)
 
 #undef SIG_FUNC_
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static void
 rar2_destroy(void *data)
 {
-   tprintf("destroy\n");
+   ENTER_();
    if (src_path) free(src_path);
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_flush(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("(%05d) %-8s%s [%-16p][called from %05d]\n", getpid(), "FLUSH", path, FH_TOCONTEXT(fi->fh), fuse_get_context()->pid);
-   char* root;
-   ABS_ROOT(root, path);
-   return lflush(root, fi);
+   ENTER_("%s", path);
+   printd(3, "(%05d) %-8s%s [%-16p][called from %05d]\n", getpid(), "FLUSH", path, FH_TOCONTEXT(fi->fh), fuse_get_context()->pid);
+   return lflush(path, fi);
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_release(const char *path, struct fuse_file_info *fi)
 {
-   tprintf ("(%05d) %-8s%s [%-16p]\n", getpid(), "RELEASE", path, FH_TOCONTEXT(fi->fh));
+   ENTER_("%s", path);
+   printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "RELEASE", path, FH_TOCONTEXT(fi->fh));
    if (!FH_ISSET(fi->fh))
    {
       pthread_mutex_lock(&file_access_mutex);
@@ -2108,19 +2255,16 @@ rar2_release(const char *path, struct fuse_file_info *fi)
                free(op->volHdl);
             }
             fclose(FH_TOFP(op->fh));
-            tprintf("closing file handle %p\n", FH_TOFP(op->fh));
+            printd(3, "Closing file handle %p\n", FH_TOFP(op->fh));
          } 
          else
          {
-            tprintf("closing pipe %p\n", FH_TOFP(op->fh));
             close(op->pfd[0]);
             close(op->pfd[1]);
             close(op->pfd2[0]);
             close(op->pfd2[1]);
-            if (_pclose(FH_TOFP(op->fh), op->pid) == -1)
-            {
-               perror("pclose");
-            }
+            if (_pclose(FH_TOFP(op->fh), op->pid) == -1) perror("pclose");
+            else printd(4, "PIPE %p closed towards child %05d\n", FH_TOFP(op->fh), op->pid);
             if (op->entry_p->flags.mmap)
             {
                fclose(op->mmap_fp);
@@ -2133,7 +2277,7 @@ rar2_release(const char *path, struct fuse_file_info *fi)
             }
          }
       }
-      tprintf("Releasing IO context fi->fh=%p\n", FH_TOCONTEXT(fi->fh));
+      printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "FREE", path, op);
       if (op->buf) 
       { 
          /* XXX clean up */
@@ -2157,11 +2301,15 @@ rar2_release(const char *path, struct fuse_file_info *fi)
    return 0;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_read(const char *path, char *buffer, size_t size, off_t offset,
           struct fuse_file_info *fi)
 {
-   tprintf ("read %s:%zu:%llu fh=%llu\n", path, size, offset, fi->fh);
+   ENTER_("%s   size=%zu, offset=%llu, fh=%llu", path, size, offset, fi->fh);
 
    dir_elem_t* entry_p;
    pthread_mutex_lock(&file_access_mutex);
@@ -2170,45 +2318,53 @@ rar2_read(const char *path, char *buffer, size_t size, off_t offset,
    if (!entry_p)
    {
       char* root;
-      tprintf("%d calling lread() for %s\n", getpid(), path);
       ABS_ROOT(root, path);
       return lread(root, buffer, size, offset, fi);
    }
    if (entry_p->flags.fake_iso)
    {
       char* root;
-      tprintf("%d calling lread() for %s\n", getpid(), entry_p->file_p);
       ABS_ROOT(root, entry_p->file_p);
       return lread(root, buffer, size, offset, fi);
    }
    if (entry_p->offset && !entry_p->flags.mmap)
    {
-      tprintf("%d calling lread_raw() for %s\n", getpid(), path);
       return lread_raw(buffer, size, offset, fi); 
    }
-   tprintf("%d calling lread_rar() for %s\n", getpid(), path);
    return lread_rar(buffer, size, offset, fi);
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_truncate(const char* path, off_t offset)
 {
-   tprintf("truncate %s\n", path);
+   ENTER_("%s", path);
    char* root;
    ABS_ROOT(root, path);
    return truncate(root, offset);
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_write(const char* path, const char *buffer, size_t size, off_t offset,
           struct fuse_file_info *fi)
 {
-   tprintf("write %s\n", path);
+   ENTER_("%s", path);
    char* root;
    ABS_ROOT(root, path);
    return pwrite(FH_TOFD(fi->fh), buffer, size, offset);
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static inline int
 access_chk(const char* path, int new_file)
 {
@@ -2234,10 +2390,14 @@ access_chk(const char* path, int new_file)
     return e?1:0;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_chmod(const char* path, mode_t mode)
 {
-   tprintf("chmod %s\n", path);
+   ENTER_("%s", path);
    if (!access_chk(path, 0))
    {
       char* root;
@@ -2249,10 +2409,14 @@ rar2_chmod(const char* path, mode_t mode)
    return -EPERM;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_chown(const char* path, uid_t uid, gid_t gid)
 {
-   tprintf("chown %s\n", path);
+   ENTER_("%s", path);
    if (!access_chk(path, 0))
    {
       char* root;
@@ -2264,10 +2428,14 @@ rar2_chown(const char* path, uid_t uid, gid_t gid)
    return -EPERM;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 {
-   tprintf("create %s\n", path);
+   ENTER_("%s", path);
    /* Only allow creation of "regular" files this way */
    if (S_ISREG(mode)) 
    {
@@ -2285,16 +2453,24 @@ rar2_create(const char* path, mode_t mode, struct fuse_file_info* fi)
    return -EPERM;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_eperm_stub()
 {
    return -EPERM;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_rename(const char* oldpath, const char* newpath)
 {
-   tprintf("rename %s\n", oldpath);
+   ENTER_("%s", oldpath);
    /* We can not move things out of- or from RAR archives */
    if (!access_chk(newpath, 1) &&
        !access_chk(oldpath, 0))
@@ -2310,10 +2486,14 @@ rar2_rename(const char* oldpath, const char* newpath)
    return -EPERM;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_mknod(const char* path, mode_t mode, dev_t dev)
 {
-   tprintf("mknod %s\n", path);
+   ENTER_("%s", path);
    if (!access_chk(path, 1))
    {
       char* root;
@@ -2325,10 +2505,14 @@ rar2_mknod(const char* path, mode_t mode, dev_t dev)
    return -EPERM;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int 
 rar2_unlink(const char* path)
 {
-   tprintf("unlink %s\n", path);
+   ENTER_("%s", path);
    if (!access_chk(path, 0))
    {
       char* root;
@@ -2340,10 +2524,14 @@ rar2_unlink(const char* path)
    return -EPERM;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_mkdir(const char* path, mode_t mode)
 {
-   tprintf("mkdir %s\n", path);
+   ENTER_("%s", path);
    if (!access_chk(path, 1))
    {
       char* root;
@@ -2355,10 +2543,14 @@ rar2_mkdir(const char* path, mode_t mode)
    return -EPERM;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int 
 rar2_rmdir(const char* path)
 {
-   tprintf("rmdir %s\n", path);
+   ENTER_("%s", path);
    if (!access_chk(path, 0))
    {
       char* root;
@@ -2370,19 +2562,32 @@ rar2_rmdir(const char* path)
    return -EPERM;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_utime_deprecated(const char* path, struct utimbuf* ut)
 {
-   tprintf("utime_deprecated %s\n", path);
+   ENTER_("%s", path);
    return 0;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 rar2_utime(const char* path, const struct timespec tv[2])
 {
-   tprintf("utime %s\n", path);
+   ENTER_("%s", path);
    return 0;
 }
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 
 #define CONSUME_LONG_ARG() { \
    int i;\
@@ -2580,4 +2785,7 @@ main(int argc, char* argv[])
    rar2_operations.chown    = mount_type == MOUNT_FOLDER ? rar2_chown    : (void*)rar2_eperm_stub; 
    return fuse_main(args.argc, args.argv, &rar2_operations, NULL);
 }
+
+#undef CONSUME_LONG_ARG
+
 
