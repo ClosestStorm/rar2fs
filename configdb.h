@@ -57,6 +57,7 @@
 #define OBJ_UNRAR_PATH    (10)
 #define OBJ_NO_LIB_CHECK  (11)
 #define OBJ_HIST_SIZE     (12)
+#define OBJ_BUFF_SIZE     (13)
 
 typedef struct
 {
