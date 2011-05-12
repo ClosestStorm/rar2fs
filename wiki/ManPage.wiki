@@ -150,7 +150,6 @@ OPTIONS
               ing buffer size. There is no cap on the size itself. The only requirement is that it is a
               'power of 2' Megabytes, eg. 1,2,4,8, etc. The default size is 4MiB.
 
-
        --hist-size=n
               tune the size of I/O buffer history
 
