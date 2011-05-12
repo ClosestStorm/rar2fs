@@ -83,7 +83,7 @@ OPTIONS
               number of open/search/close requests can be reduced.
 
        --seek-depth=n
-              set number of levels down RAR files are parsed inside main archive [0=0ff]
+              set number of levels down RAR files are parsed inside main archive [0=Off]
 
               Currently only a depth of one (1) is supported. Setting seek depth  to  anything  greater
               than this has no effect.
@@ -156,9 +156,9 @@ OPTIONS
 
               The I/O buffer history is a sliding window within the I/O buffer that  is  guaranteed  to
               never  be  overwritten  until future data has been consumed passed this limit. This means
-              that, eventhough an extraction process can never be reversed, this part of the buffer can
+              that, even though an extraction process can never be reversed, this part of the buffer can
               still  deliver  "historic"  data  within this window (eg. skipping backwards during movie
-              playback). The size of the history buffer is expressed as a percentange of the total  I/O
+              playback). The size of the history buffer is expressed as a percentage  of the total  I/O
               buffer  size between 0% and 75%. Specifying 0 here will completely disable this function.
               The default size is 50% of the total I/O buffer size.
 
