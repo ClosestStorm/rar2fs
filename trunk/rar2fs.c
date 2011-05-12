@@ -337,7 +337,7 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
   {
      close(out_pipe[0]);
      close(out_pipe[1]);
-     /* The fork failed.  Report failure.  */
+     /* The fork failed. Report failure. */
      return MAP_FAILED;
   }
 
@@ -942,19 +942,6 @@ rar2_getattr(const char *path, struct stat *stbuf)
 {
    ENTER_("%s", path);
    
-#if 0
-   memset(stbuf, 0, sizeof(struct stat));
-   if(strcmp(path, "/") == 0) 
-   {
-      stbuf->st_mode = S_IFDIR | 0755;
-      stbuf->st_nlink = 2;
-      /* Hardcoded defaults. Just cosmetics really. */
-      stbuf->st_size = 4096;
-      stbuf->st_blocks = 8;
-      return 0;
-   }
-#endif
-
    pthread_mutex_lock(&file_access_mutex);
    if (cache_path(path, stbuf))
    {
@@ -1604,30 +1591,17 @@ sync_dir(const char *dir)
             int i = 0;
             while (i < n)
             {
-#if 0
-               if (!f)
+               int vno =  get_vformat(namelist[i]->d_name, !(f-1), NULL, NULL);
+               if (!OBJ_INT(OBJ_SEEK_LENGTH,0) ||
+                   vno <= OBJ_INT(OBJ_SEEK_LENGTH,0))
                {
-                  char* file;
-                  ABS_MP(file, dir, namelist[i]->d_name); 
-                  pthread_mutex_lock(&file_access_mutex);
-                  (void)cache_path(file, NULL);
-                  pthread_mutex_unlock(&file_access_mutex);
-               }
-               else
-#endif
-               {
-                  int vno =  get_vformat(namelist[i]->d_name, !(f-1), NULL, NULL);
-                  if (!OBJ_INT(OBJ_SEEK_LENGTH,0) ||
-                      vno <= OBJ_INT(OBJ_SEEK_LENGTH,0))
+                  char* arch;
+                  ABS_MP(arch, root, namelist[i]->d_name);
+                  if (vno == 1) /* first file */
                   {
-                     char* arch;
-                     ABS_MP(arch, root, namelist[i]->d_name);
-                     if (vno == 1) /* first file */
-                     {
-                        password = getArcPassword(arch, tmpbuf);
-                     }
-                     (void)listrar(dir, NULL, arch, password);
+                     password = getArcPassword(arch, tmpbuf);
                   }
+                  (void)listrar(dir, NULL, arch, password);
                }
                free(namelist[i]);
                ++i;
@@ -1731,13 +1705,6 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
             {
                if (!f)
                {
-#if 0
-                  char* file;
-                  ABS_MP(file, path, namelist[i]->d_name);
-                  pthread_mutex_lock(&file_access_mutex);
-                  (void)cache_path(file, NULL);
-                  pthread_mutex_unlock(&file_access_mutex);
-#endif
                   char* tmp = strdup(namelist[i]->d_name);
                   if (OBJ_SET(OBJ_FAKE_ISO))
                   {
@@ -2208,13 +2175,11 @@ rar2_init(struct fuse_conn_info *conn)
 
    struct sigaction act;
 
-#if 1
    /* Avoid child zombies for SIGCHLD */
    sigaction(SIGCHLD, NULL, &act);
    act.sa_handler = SIG_FUNC_ sig_handler;
    act.sa_flags |= SA_NOCLDWAIT;
    sigaction(SIGCHLD, &act, NULL);
-#endif
 
    sigaction(SIGUSR1, NULL, &act);
    sigemptyset(&act.sa_mask);
@@ -2731,35 +2696,22 @@ main(int argc, char* argv[])
          consume = 0;
       if (consume) CONSUME_LONG_ARG();
    }
+
    if(argc<3 || !argv[optind])
    {
       usage(*argv);
       return -1;
    }
+
    /* Validate I/O buffer and history size */
    {
       unsigned int bsz = OBJ_INT(OBJ_BUFF_SIZE, 0);
       unsigned int hsz = OBJ_INT(OBJ_HIST_SIZE, 0);
-      if ((bsz & (bsz -1)) ||
+      if ((OBJ_SET(OBJ_BUFF_SIZE) && !bsz) ||
+          (bsz & (bsz -1)) ||
           (OBJ_SET(OBJ_HIST_SIZE) && (hsz > 75)))
       {
          usage(*argv);
-         return -1;
-      }
-   }
-
-   if (!OBJ_SET(OBJ_NO_LIB_CHECK))
-   {
-      if (RARGetDllVersion() < RAR_DLL_VERSION)
-      {
-         printf("libunrar.so (v%d.%d%s) or compatible library not found\n",
-            RARVER_MAJOR, RARVER_MINOR, !RARVER_BETA ? "" : " beta");
-         return -1;
-      }
-      if (fuse_version() < FUSE_VERSION)
-      {
-         printf("libfuse.so.%d.%d or compatible library not found\n",
-            FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
          return -1;
       }
    }
@@ -2788,6 +2740,22 @@ main(int argc, char* argv[])
       }
       /* Do not try to use 'a1' after this call since dirname() will destroy it! */
       src_path = mount_type == MOUNT_FOLDER ? strdup(a1) : strdup(dirname(a1));
+   }
+
+   if (!OBJ_SET(OBJ_NO_LIB_CHECK))
+   {
+      if (RARGetDllVersion() < RAR_DLL_VERSION)
+      {
+         printf("libunrar.so (v%d.%d%s) or compatible library not found\n",
+            RARVER_MAJOR, RARVER_MINOR, !RARVER_BETA ? "" : " beta");
+         return -1;
+      }
+      if (fuse_version() < FUSE_VERSION)
+      {
+         printf("libfuse.so.%d.%d or compatible library not found\n",
+            FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
+         return -1;
+      }
    }
 
    filecache_init();
@@ -2835,7 +2803,7 @@ main(int argc, char* argv[])
       .read    = rar2_read,
       .flush   = rar2_flush
    };
-   /* The below depends on mount mode */
+   /* The below callbacks depend on mount type */
    rar2_operations.getattr  = mount_type == MOUNT_FOLDER ? rar2_getattr  : rar2_getattr2; 
    rar2_operations.readdir  = mount_type == MOUNT_FOLDER ? rar2_readdir  : rar2_readdir2; 
    rar2_operations.create   = mount_type == MOUNT_FOLDER ? rar2_create   : (void*)rar2_eperm_stub; 
@@ -2848,6 +2816,7 @@ main(int argc, char* argv[])
    rar2_operations.truncate = mount_type == MOUNT_FOLDER ? rar2_truncate : (void*)rar2_eperm_stub; 
    rar2_operations.chmod    = mount_type == MOUNT_FOLDER ? rar2_chmod    : (void*)rar2_eperm_stub; 
    rar2_operations.chown    = mount_type == MOUNT_FOLDER ? rar2_chown    : (void*)rar2_eperm_stub; 
+
    return fuse_main(args.argc, args.argv, &rar2_operations, NULL);
 }
 
