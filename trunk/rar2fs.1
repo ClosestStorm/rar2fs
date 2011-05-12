@@ -74,7 +74,7 @@ Normally the RAR specific header(s) describing the files contained in a volume i
 The lower the value (starting from 1) the faster the display of folders containing a lot of RAR volumes (or volumes with a lot of files) will become since the number of open/search/close requests can be reduced.
 .TP
 .B --seek-depth=n
-set number of levels down RAR files are parsed inside main archive [0=0ff]
+set number of levels down RAR files are parsed inside main archive [0=Off]
 .br
 
 Currently only a depth of one (1) is supported. Setting seek depth to anything greater than this has no effect.
@@ -126,6 +126,17 @@ and
 .I libunrar.so
 are compatible/consistent with what was used during compilation.
 Use this option to by-pass this check, eg. if rar2fs is linked statically. Other use of this option is discouraged. 
+.TP
+.B --iob-size=n
+tune the size of the I/O buffer
+
+The I/O buffer is used to prefetch data at extraction of compressed or encrypted archives to make sure streaming is possible without delay due to disk or network I/O. Depending on the current system resources and network latency this buffer might need to be adjusted. A small buffer takes less resources but increase the chance that rar2fs must wait for data to arrive during a read request. On the other hand, a large buffer will increase memory footprint which may not always be desired. Also keep in mind that every file being extracted requires its own buffer. So the total memory resources required are always the buffer size multiplied by the number of active extraction threads. Be careful when choosing buffer size. There is no cap on the size itself. The only requirement is that it is a 'power of 2' Megabytes, eg. 1,2,4,8, etc. The default size is 4MiB.
+.TP
+.B --hist-size=n
+tune the size of I/O buffer history 
+
+The I/O buffer history is a sliding window within the I/O buffer that is guaranteed to never be overwritten until future data has been consumed passed this limit. This means that, even though an extraction process can never be reversed, this part of the buffer can still deliver "historic" data within this window (eg. skipping backwards during movie playback). The size of the history buffer is expressed as a percentage of the total I/O buffer size between 0% and 75%. Specifying 0 here will completely disable this function. The default size is 50% of the total I/O buffer size.
+
 .br
 .SH BUGS
 .br
