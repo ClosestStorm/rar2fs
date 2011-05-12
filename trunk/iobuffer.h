@@ -35,8 +35,14 @@
 #include "common.h"
 
 #define FHD_SZ                   (512*1024)
-#define IOB_SZ                   (4*1024*1024)
+#define IOB_SZ_DEFAULT           (4*1024*1024)
+#ifdef USE_STATIC_IOB_
+#define IOB_SZ                   IOB_SZ_DEFAULT
+#define IOB_HIST_SZ              (IOB_SZ/2)
+#else
+#define IOB_SZ                   (iob_sz)
 #define IOB_HIST_SZ              (iob_hist_sz)
+#endif
 
 #define IOB_NO_HIST 0
 #define IOB_SAVE_HIST 1
@@ -52,7 +58,6 @@ typedef struct
 
 typedef struct
 {
-   char data_p[IOB_SZ];
 #ifdef USE_STATIC_WINDOW
    char sbuf_p[FHD_SZ];
 #endif
@@ -61,6 +66,7 @@ typedef struct
    volatile size_t ri;
    volatile size_t wi;
    size_t used;
+   char data_p[];
 } IoBuf;
 
 
@@ -74,6 +80,7 @@ size_t
 copyFrom(char* dest, IoBuf* src, size_t size, size_t pos);
 
 extern size_t iob_hist_sz;
+extern size_t iob_sz;
 
 void
 iobuffer_init();

@@ -216,7 +216,7 @@ struct IOContext
    short vno;
    dir_elem_t* entry_p;
    VolHandle* volHdl;
-   int pfd[2];
+   int pfd1[2];
    int pfd2[2];
    volatile int terminate;
    pthread_t thread;
@@ -774,7 +774,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
          /* Take control of reader thread */
          do {
              errno = 0;
-             WAKE_THREAD(op->pfd, 2);
+             WAKE_THREAD(op->pfd1, 2);
              WAIT_THREAD(op->pfd2);
          } while (errno==EINTR);
 
@@ -793,7 +793,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
       int off = offset - op->pos;
       n += readFrom(buf, op->buf, size, off);
       op->pos += (off + n);
-      if (!op->terminate) WAKE_THREAD(op->pfd, 0);
+      if (!op->terminate) WAKE_THREAD(op->pfd1, 0);
    }
    printd(3, "RETURN %d\n", errno ? -errno : n);
    return errno ? -errno : n;
@@ -1894,7 +1894,7 @@ reader_task(void* arg)
 
    printd(4, "Reader thread started, fp=%p\n", FH_TOFP(op->fh));
 
-   int fd = op->pfd[0];
+   int fd = op->pfd1[0];
    int nfsd = fd+1;
    while(!op->terminate)
    {
@@ -1975,6 +1975,11 @@ preload_index(IoBuf* buf, const char* path)
       buf->idx.mmap = 1;
    } else {
       buf->idx.data_p = malloc(sizeof(IdxData));
+      if (!buf->idx.data_p) 
+      {
+         buf->idx.data_p = MAP_FAILED;
+         return;
+      }
       no_warn_result_ read(fd, buf->idx.data_p, sizeof(IdxHead));
       buf->idx.mmap = 0;
    }
@@ -2086,20 +2091,30 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    if (!FH_ISSET(fi->fh))
    {
       /* Open PIPE(s) and create child process */
-      pid_t pid;
+
+      pid_t pid = 0;
+      FILE* fp = NULL;
+      IoBuf* buf = NULL;
+      IOContext* op = NULL;
       void* mmap_addr = NULL;
       FILE* mmap_fp = NULL;
       int mmap_fd = 0;
-      FILE* fp = _popen(entry_p, &pid, &mmap_addr, &mmap_fp, &mmap_fd);
+
+      buf = malloc(sizeof(IoBuf)+IOB_SZ);
+      if (!buf) 
+         goto open_error;
+      IOB_RST(buf);
+
+      op = malloc(sizeof(IOContext));
+      if (!op) 
+         goto open_error;
+
+      fp = _popen(entry_p, &pid, &mmap_addr, &mmap_fp, &mmap_fd);
       if (fp!=NULL)
       {
-         IoBuf* buf = malloc(sizeof(IoBuf));
-         IOB_RST(buf);
          buf->idx.data_p = MAP_FAILED;
          buf->idx.fd = -1;
          preload_index(buf, path);
-// XXX check for error from preload_index and release memory
-         IOContext* op = malloc(sizeof(IOContext));
          op->mmap_addr = mmap_addr;
          op->mmap_fp = mmap_fp;
          op->mmap_fd = mmap_fd;
@@ -2120,27 +2135,41 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          memcpy(op->buf->sbuf_p, op->buf->data_p, size);
 #endif
 
-         /* Create pipe to be used between threads.
+         /* Create pipes to be used between threads.
           * Both these pipes are used for communication between 
           * parent (this thread) and reader thread. One pipe is for 
           * requests (w->r) and the other is for responses (r<-w). */
-         if (pipe(op->pfd) == -1) { perror("pipe"); return -EIO; }
-         if (pipe(op->pfd2) == -1) { perror("pipe"); return -EIO; }
-// XXX check for error release memory
+         op->pfd1[0] = 0;
+         op->pfd1[1] = 0;
+         op->pfd2[0] = 0;
+         op->pfd2[1] = 0;
+         if (pipe(op->pfd1) == -1) { perror("pipe"); goto open_error; }
+         if (pipe(op->pfd2) == -1) { perror("pipe"); goto open_error; }
 
          /* Create reader thread */
          op->terminate = 1;
          pthread_create(&op->thread, NULL,reader_task,(void*)op);
          while (op->terminate);
-         WAKE_THREAD(op->pfd, 0);
+         WAKE_THREAD(op->pfd1, 0);
+         return 0;
       }
-      else 
+
+open_error:
+      if (buf) free(buf);
+      if (fp)  _pclose(fp, pid);
+      if (op)  
       {
-         /* This is the best we can return here. So many different things
-          * might go wrong and errno can actually be set to something that
-          * FUSE is accepting and thus proceeds with next operation! */
-         return -EIO;
+         if (op->pfd1[0]) close(op->pfd1[0]);
+         if (op->pfd1[1]) close(op->pfd1[1]);
+         if (op->pfd2[0]) close(op->pfd2[0]);
+         if (op->pfd2[1]) close(op->pfd2[1]);
+         free(op);
       }
+
+      /* This is the best we can return here. So many different things
+       * might go wrong and errno can actually be set to something that
+       * FUSE is accepting and thus proceeds with next operation! */
+      return -EIO;
    }
    return 0;
 }
@@ -2235,7 +2264,7 @@ rar2_release(const char *path, struct fuse_file_info *fi)
       if (!op->terminate)
       {
          op->terminate = 1;
-         WAKE_THREAD(op->pfd, 2);
+         WAKE_THREAD(op->pfd1, 2);
          pthread_join(op->thread, NULL);
       }
       if (FH_TOFP(op->fh))
@@ -2256,8 +2285,8 @@ rar2_release(const char *path, struct fuse_file_info *fi)
          } 
          else
          {
-            close(op->pfd[0]);
-            close(op->pfd[1]);
+            close(op->pfd1[0]);
+            close(op->pfd1[1]);
             close(op->pfd2[0]);
             close(op->pfd2[1]);
             if (_pclose(FH_TOFP(op->fh), op->pid) == -1) perror("pclose");
@@ -2623,7 +2652,10 @@ main(int argc, char* argv[])
 #endif
       {"img-type",      required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
       {"no-lib-check",  no_argument,       NULL, OBJ_ADDR(OBJ_NO_LIB_CHECK)},
+#ifndef USE_STATIC_IOB_
       {"hist-size",     required_argument, NULL, OBJ_ADDR(OBJ_HIST_SIZE)},
+      {"iob-size",      required_argument, NULL, OBJ_ADDR(OBJ_BUFF_SIZE)},
+#endif
       {"version",       no_argument,       NULL, 'V'},
       {"help",          no_argument,       NULL, 'h'},
       {NULL,0,NULL,0}
@@ -2672,7 +2704,10 @@ main(int argc, char* argv[])
          printf("    --unrar-path=PATH\t    path to external unrar binary (overide libunrar)\n");
          printf("    --no-password\t    disable password file support\n");
          printf("    --no-lib-check\t    disable validation of library version(s)\n");
+#ifndef USE_STATIC_IOB_
+         printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MB (1,2,4,8, ...) [4]\n");
          printf("    --hist-size=n\t    I/O buffer history size as a percentage (25-75) of total buffer size [50]\n");
+#endif
 #if defined ( __linux ) && defined ( __cpu_set_t_defined )
          printf("    --no-smp\t\t    disable SMP support (bind to CPU #0)\n");
 #endif
@@ -2688,10 +2723,12 @@ main(int argc, char* argv[])
       usage(*argv);
       return -1;
    }
-   /* Validate I/O buffer history size */
+   /* Validate I/O buffer and history size */
    {
+      int bsz = OBJ_INT(OBJ_BUFF_SIZE, 0);
       int hsz = OBJ_INT(OBJ_HIST_SIZE, 0);
-      if (hsz && (hsz < 25 || hsz > 75)) 
+      if ((bsz & (bsz -1)) ||
+          (hsz && (hsz < 25 || hsz > 75)))
       {
          usage(*argv);
          return -1;
