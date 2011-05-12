@@ -2699,13 +2699,13 @@ main(int argc, char* argv[])
          printf("    --fake-iso[=E1[;E2...]] fake .iso extension for specified image file types\n");
          printf("    --exclude=F1[;F2...]    exclude file filter\n");
          printf("    --seek-length=n\t    set number of volume files that are traversed in search for headers [0=All]\n");
-         printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [0=0ff]\n");
+         printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [0=Off]\n");
          printf("    --no-idx-mmap\t    use direct file I/O instead of mmap() for .r2i files\n");
          printf("    --unrar-path=PATH\t    path to external unrar binary (overide libunrar)\n");
          printf("    --no-password\t    disable password file support\n");
          printf("    --no-lib-check\t    disable validation of library version(s)\n");
 #ifndef USE_STATIC_IOB_
-         printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MB (1,2,4,8, ...) [4]\n");
+         printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MiB (1,2,4,8, etc.) [4]\n");
          printf("    --hist-size=n\t    I/O buffer history size as a percentage (0-75) of total buffer size [50]\n");
 #endif
 #if defined ( __linux ) && defined ( __cpu_set_t_defined )
