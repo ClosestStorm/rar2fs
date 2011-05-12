@@ -161,10 +161,11 @@ struct dir_entry_list
    (l)->entry.st = NULL;}
 #define DIR_ENTRY_ADD(l, n, s) \
 {  (l)->next = malloc(sizeof(dir_entry_list_t));\
-   (l)=(l)->next;\
-   (l)->entry.name=strdup(n);\
-   (l)->entry.st=(s);\
-   (l)->next = NULL;}
+   if ((l)->next){\
+      (l)=(l)->next;\
+      (l)->entry.name=strdup(n);\
+      (l)->entry.st=(s);\
+      (l)->next = NULL;}}
 #define DIR_LIST_EMPTY(l) (!(l)->next)
 #define DIR_LIST_FREE(l)\
 {  dir_entry_list_t* next = (l)->next;\
@@ -2038,6 +2039,12 @@ rar2_open(const char *path, struct fuse_file_info *fi)
       ABS_ROOT(root, entry_p->file_p);
       return lopen(root, fi);
    }
+
+   FILE* fp = NULL;
+   IoBuf* buf = NULL;
+   IOContext* op = NULL;
+   pid_t pid = 0;
+
    if (entry_p->offset != 0 && !entry_p->flags.mmap)
    {
       if (!FH_ISSET(fi->fh))
@@ -2045,8 +2052,11 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          FILE* fp = fopen(entry_p->rar_p, "r");
          if (fp != NULL)
          {
+            op = malloc(sizeof(IOContext));
+            if (!op) 
+               goto open_error;
+
             printd(3, "Opened %s\n", entry_p->rar_p);
-            IOContext* op = malloc(sizeof(IOContext));
             FH_SETFP(&op->fh, fp);
             FH_SETCONTEXT(&fi->fh, op);
             printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
@@ -2064,38 +2074,37 @@ rar2_open(const char *path, struct fuse_file_info *fi)
                int i = entry_p->vno_base;
                int j = i - 1;
                op->volHdl = malloc(MAX_NOF_OPEN_VOL * sizeof(VolHandle));
-               memset(op->volHdl, 0, MAX_NOF_OPEN_VOL * sizeof(VolHandle));
-               for (;j<MAX_NOF_OPEN_VOL;j++)
+               if (op->volHdl)
                {
-                  char* tmp = get_vname(op->entry_p->vtype, op->entry_p->rar_p, i++, op->entry_p->vlen, op->entry_p->vpos);
-                  FILE* fp_ = fopen(tmp, "r");
-                  if (fp_ == NULL) 
+                  memset(op->volHdl, 0, MAX_NOF_OPEN_VOL * sizeof(VolHandle));
+                  for (;j<MAX_NOF_OPEN_VOL;j++)
                   {
+                     char* tmp = get_vname(op->entry_p->vtype, op->entry_p->rar_p, i++, op->entry_p->vlen, op->entry_p->vpos);
+                     FILE* fp_ = fopen(tmp, "r");
+                     if (fp_ == NULL) 
+                     {
+                        free(tmp);
+                        break;
+                     }
+                     printd(3, "Pre-open %s\n", tmp);
                      free(tmp);
-                     break;
+                     op->volHdl[j].fp = fp_;
+                     op->volHdl[j].pos = VOL_REAL_SZ - VOL_FIRST_SZ;
+                     printd(3, "SEEK src_off = %llu\n", op->volHdl[j].pos);
+                     fseeko(fp_, op->volHdl[j].pos, SEEK_SET);
                   }
-                  printd(3, "Pre-open %s\n", tmp);
-                  free(tmp);
-                  op->volHdl[j].fp = fp_;
-                  op->volHdl[j].pos = VOL_REAL_SZ - VOL_FIRST_SZ;
-                  printd(3, "SEEK src_off = %llu\n", op->volHdl[j].pos);
-                  fseeko(fp_, op->volHdl[j].pos, SEEK_SET);
-               }
+               } else printd(1, "Failed to allocate resource (%u)\n", __LINE__);
             }
             else op->volHdl = NULL;
+            goto open_end;
          }
-         else return -errno;
+         goto open_error;
       }
-      return 0;
    }
    if (!FH_ISSET(fi->fh))
    {
       /* Open PIPE(s) and create child process */
 
-      pid_t pid = 0;
-      FILE* fp = NULL;
-      IoBuf* buf = NULL;
-      IOContext* op = NULL;
       void* mmap_addr = NULL;
       FILE* mmap_fp = NULL;
       int mmap_fd = 0;
@@ -2151,26 +2160,30 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          pthread_create(&op->thread, NULL,reader_task,(void*)op);
          while (op->terminate);
          WAKE_THREAD(op->pfd1, 0);
-         return 0;
+         goto open_end;
       }
+      goto open_error;
+   }
+   goto open_end;
 
 open_error:
-      if (buf) free(buf);
-      if (fp)  _pclose(fp, pid);
-      if (op)  
-      {
-         if (op->pfd1[0]) close(op->pfd1[0]);
-         if (op->pfd1[1]) close(op->pfd1[1]);
-         if (op->pfd2[0]) close(op->pfd2[0]);
-         if (op->pfd2[1]) close(op->pfd2[1]);
-         free(op);
-      }
-
-      /* This is the best we can return here. So many different things
-       * might go wrong and errno can actually be set to something that
-       * FUSE is accepting and thus proceeds with next operation! */
-      return -EIO;
+   if (buf) free(buf);
+   if (fp)  _pclose(fp, pid);
+   if (op)
+   {
+      if (op->pfd1[0]) close(op->pfd1[0]);
+      if (op->pfd1[1]) close(op->pfd1[1]);
+      if (op->pfd2[0]) close(op->pfd2[0]);
+      if (op->pfd2[1]) close(op->pfd2[1]);
+      free(op);
    }
+
+   /* This is the best we can return here. So many different things
+    * might go wrong and errno can actually be set to something that
+    * FUSE is accepting and thus proceeds with next operation! */
+   return -EIO;
+
+open_end:
    return 0;
 }
 
