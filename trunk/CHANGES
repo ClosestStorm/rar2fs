@@ -1,5 +1,9 @@
     CHANGE LOG
 
+    1.11.20     o Bugfix: Corrected some more malloc() calls that could fail
+                  and pass unnotised.
+                o Update: Option --hist-size now ranges from 0-75. Use a value
+                  of 0 to turn this function off. Man page updated accordingly.
     1.11.19     o Update: Added option --iob-size that can be used to tune the
                   total size of the I/O buffer. Default size is 4MiB.
                   It is also possible to keep the old hardcoded buffer and 
