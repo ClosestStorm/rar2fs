@@ -131,6 +131,6 @@ void iobuffer_init()
 {
    int bsz = OBJ_INT(OBJ_BUFF_SIZE,0);
    iob_sz = bsz?(bsz*1024*1024):IOB_SZ_DEFAULT;
-   int hsz = OBJ_INT(OBJ_HIST_SIZE,0);
-   iob_hist_sz = IOB_SZ*((hsz?hsz:50)/100.0);
+   int hsz = OBJ_SET(OBJ_HIST_SIZE)?OBJ_INT(OBJ_HIST_SIZE,0):50;
+   iob_hist_sz = IOB_SZ*((hsz)/100.0);
 }

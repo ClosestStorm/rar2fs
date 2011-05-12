@@ -2706,7 +2706,7 @@ main(int argc, char* argv[])
          printf("    --no-lib-check\t    disable validation of library version(s)\n");
 #ifndef USE_STATIC_IOB_
          printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MB (1,2,4,8, ...) [4]\n");
-         printf("    --hist-size=n\t    I/O buffer history size as a percentage (25-75) of total buffer size [50]\n");
+         printf("    --hist-size=n\t    I/O buffer history size as a percentage (0-75) of total buffer size [50]\n");
 #endif
 #if defined ( __linux ) && defined ( __cpu_set_t_defined )
          printf("    --no-smp\t\t    disable SMP support (bind to CPU #0)\n");
@@ -2725,10 +2725,10 @@ main(int argc, char* argv[])
    }
    /* Validate I/O buffer and history size */
    {
-      int bsz = OBJ_INT(OBJ_BUFF_SIZE, 0);
-      int hsz = OBJ_INT(OBJ_HIST_SIZE, 0);
+      unsigned int bsz = OBJ_INT(OBJ_BUFF_SIZE, 0);
+      unsigned int hsz = OBJ_INT(OBJ_HIST_SIZE, 0);
       if ((bsz & (bsz -1)) ||
-          (hsz && (hsz < 25 || hsz > 75)))
+          (OBJ_SET(OBJ_HIST_SIZE) && (hsz > 75)))
       {
          usage(*argv);
          return -1;
