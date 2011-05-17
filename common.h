@@ -33,6 +33,34 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#ifdef __APPLE__
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <architecture/byte_order.h>
+#define CONST_DIRENT_
+#define __LITTLE_ENDIAN 1234
+#define __BIG_ENDIAN 4321
+#ifdef __LITTLE_ENDIAN__
+#define __BYTE_ORDER __LITTLE_ENDIAN
+#else
+#ifdef __BIG_ENDIAN__
+#define __BYTE_ORDER __BIG_ENDIAN
+#endif
+#endif
+#endif
+#ifdef __FreeBSD__
+#define CONST_DIRENT_
+#define __BYTE_ORDER _BYTE_ORDER
+#define __LITTLE_ENDIAN _LITTLE_ENDIAN
+#define __BIG_ENDIAN _BIG_ENDIAN
+#endif
+#ifdef __linux
+#define CONST_DIRENT_ const
+#endif
+#ifndef __BYTE_ORDER
+#error __BYTE_ORDER not defined
+#endif
+
 #if defined ( DEBUG_ ) && DEBUG_ > 5
 #undef DEBUG_
 #endif
@@ -71,6 +99,9 @@
 #warning Check code for MB() on current platform
 #define MB() 
 #endif
+
+extern long page_size;
+#define P_ALIGN_(a) (((a)+page_size)&~(page_size-1))
 
 typedef struct
 {

@@ -27,35 +27,6 @@
 */
 
 #include <sys/types.h>
-
-#ifdef __APPLE__
-#include <sys/param.h>
-#include <sys/mount.h>
-#include <architecture/byte_order.h>
-#define CONST_DIRENT_
-#define __LITTLE_ENDIAN 1234
-#define __BIG_ENDIAN 4321
-#ifdef __LITTLE_ENDIAN__
-#define __BYTE_ORDER __LITTLE_ENDIAN
-#else
-#ifdef __BIG_ENDIAN__
-#define __BYTE_ORDER __BIG_ENDIAN
-#endif
-#endif
-#endif
-#ifdef __FreeBSD__
-#define CONST_DIRENT_
-#define __BYTE_ORDER _BYTE_ORDER
-#define __LITTLE_ENDIAN _LITTLE_ENDIAN
-#define __BIG_ENDIAN _BIG_ENDIAN
-#endif
-#ifdef __linux
-#define CONST_DIRENT_ const
-#endif
-#ifndef __BYTE_ORDER
-#error __BYTE_ORDER not defined 
-#endif
-
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <unistd.h>
@@ -85,8 +56,6 @@
 #include "filecache.h"
 #include "iobuffer.h"
 #include "configdb.h"
-
-#define P_ALIGN_(a) (((a)+page_size)&~(page_size-1))
 
 #if defined ( __UCLIBC__ ) || !defined ( __linux )
 #define stack_trace(a,b,c)
@@ -255,7 +224,7 @@ struct IOContext
 }
 
 char* src_path = NULL;
-static long page_size;
+long page_size = 0;
 static int mount_type;
 dir_entry_list_t arch_list_root;    /* internal list root */
 dir_entry_list_t* arch_list = &arch_list_root;
