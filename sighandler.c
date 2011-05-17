@@ -48,9 +48,6 @@
 static void
 stack_trace(int sig, siginfo_t *info, void *secret)
 {
-  void *trace[30];
-  char **messages = (char **)NULL;
-  int i, trace_size = 0;
   ucontext_t *uc = (ucontext_t *)secret;
 
   /* Do something useful with siginfo_t */
@@ -61,19 +58,25 @@ stack_trace(int sig, siginfo_t *info, void *secret)
   printf("%s\n", buf);
   syslog(LOG_INFO, "%s", buf);
 #if 1
-  trace_size = backtrace(trace, 30);
-  /* overwrite sigaction with caller's address */
-  trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP];
-  messages = backtrace_symbols(trace, trace_size);
-  if (messages)
   {
-     /* skip first stack frame (points here) */
-     for (i=1; i<trace_size; ++i)
+     void *trace[30];
+     char **messages = (char **)NULL;
+     int i, trace_size = 0;
+
+     trace_size = backtrace(trace, 30);
+     /* overwrite sigaction with caller's address */
+     trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP];
+     messages = backtrace_symbols(trace, trace_size);
+     if (messages)
      {
-        printf("%s\n", messages[i]);
-        syslog(LOG_INFO, "%s", messages[i]);
+        /* skip first stack frame (points here) */
+        for (i=1; i<trace_size; ++i)
+        {
+           printf("%s\n", messages[i]);
+           syslog(LOG_INFO, "%s", messages[i]);
+        }
+        free(messages);
      }
-     free(messages);
   }
 #else
   void *pc0 = __builtin_return_address(0);
@@ -81,10 +84,10 @@ stack_trace(int sig, siginfo_t *info, void *secret)
   void *pc2 = __builtin_return_address(2);
   void *pc3 = __builtin_return_address(3);
 
-  printf("Frame 0: PC=%08p\n", pc0);
-  printf("Frame 1: PC=%08p\n", pc1);
-  printf("Frame 2: PC=%08p\n", pc2);
-  printf("Frame 3: PC=%08p\n", pc3);
+  printf("Frame 0: PC=%p\n", pc0);
+  printf("Frame 1: PC=%p\n", pc1);
+  printf("Frame 2: PC=%p\n", pc2);
+  printf("Frame 3: PC=%p\n", pc3);
 #endif
 }
 #endif
