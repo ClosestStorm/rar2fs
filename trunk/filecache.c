@@ -32,6 +32,7 @@
 #include "configdb.h"
 
 extern char* src_path;
+pthread_mutex_t file_access_mutex;
 
 #define PATH_CACHE_SZ  (1024)
 static dir_elem_t path_cache[PATH_CACHE_SZ];
@@ -226,4 +227,5 @@ void
 filecache_init()
 {
    memset(path_cache, 0, sizeof(dir_elem_t)*PATH_CACHE_SZ);
+   pthread_mutex_init(&file_access_mutex, NULL);
 }

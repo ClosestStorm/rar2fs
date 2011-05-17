@@ -31,6 +31,7 @@
 
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <pthread.h>
 
 typedef struct dir_elem dir_elem;
 __extension__
@@ -57,7 +58,8 @@ struct dir_elem
       unsigned int image:1;
       unsigned int fake_iso:1;
       unsigned int mmap:2;
-      unsigned int :28;
+      unsigned int :27;
+      unsigned test_ok : 1;
    } flags;
    struct dir_elem* next_p;
 };
@@ -79,6 +81,8 @@ typedef struct dir_elem dir_elem_t;
       if (l##line##_ && path[l##line##_ - 1] != '/') strcat((s), "/"); \
       strcat((s), file)
 
+extern pthread_mutex_t file_access_mutex;
+
 dir_elem_t*
 cache_path_alloc(const char* path);
 
@@ -93,5 +97,6 @@ inval_cache_path(const char* path);
 
 void
 filecache_init();
+
 
 #endif
