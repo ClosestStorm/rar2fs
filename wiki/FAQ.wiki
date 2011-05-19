@@ -44,7 +44,7 @@ A: No. It can not. The RAR archives are internally treated as read only. The RAR
 ===Q 2.5. Does rar2fs support writing to the underlying file system?===
 A: Yes and no. There are plans of adding that feature. Too early to say when it will be officially supported though. But some limited experimental write support was added to version 1.11.13. Feel free to try it out.
 
-===Q 2.6. Can I change contents of RAR files while mounted?===
+===Q 2.6. Can I change the contents of a RAR file while mounted?===
 A: Yes, you can. But it is not recommended to change information behind the back of rar2fs like that. A lot of information about each file inside an archive is cached for faster lookup. Since rar2fs currently does not subscribe to file system events through eg. the inotify or dnotify interfaces there is no way for rar2fs to detect the change and invalidate the cache accordingly. Thus, depending on the change made, this could lead to unexpected behaviour. If you really need to change the contents of a RAR file on a live file system, make sure you reset the cache before attempting to access the archive. This can be achieved by sending a signal to the parent rar2fs process:
 {{{
    kill -USR1 <pid>
