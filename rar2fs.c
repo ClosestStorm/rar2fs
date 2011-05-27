@@ -36,7 +36,6 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <dirent.h>
 #include <libgen.h>
 #include <fuse.h>
@@ -50,7 +49,6 @@
 #include <pthread.h>
 #include <ctype.h>
 #include <sched.h>
-#include <signal.h>
 #include "common.h"
 #include "version.h"
 #include "dllwrapper.h"
@@ -178,8 +176,12 @@ long page_size = 0;
 static int mount_type;
 dir_entry_list_t arch_list_root;    /* internal list root */
 dir_entry_list_t* arch_list = &arch_list_root;
+pthread_attr_t thread_attr;
 
 static void sync_dir(const char *dir);
+
+static void 
+extract_rar(char* arch, const char* file, char* passwd, FILE* fp, void* arg);
 
 /*!
  *****************************************************************************
@@ -190,7 +192,7 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
 {
   ENTER_("%s", file);
 
-  int out_pipe[2];
+  int out_pipe[2] = {-1,-1};
   if(pipe(out_pipe) != 0 ) {          /* make a pipe */
     return MAP_FAILED;
   }
@@ -200,12 +202,8 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
   if (pid == 0)
   {
      close(out_pipe[0]);
-     fflush(stdout);
-     dup2(out_pipe[1], STDOUT_FILENO);   /* redirect stdout to the pipe */
-
-     /* anything sent to stdout should now go down the pipe */
-     RARExtractToStdout(entry_p->rar_p, file, entry_p->password_p, fp);
-     fflush(stdout);
+     extract_rar(entry_p->rar_p, file, entry_p->password_p, fp, (void*)out_pipe[1]);
+     close(out_pipe[1]);
      _exit(EXIT_SUCCESS);
   }
   else if (pid < 0)
@@ -267,7 +265,7 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
 #define UNRAR_ unrar_path, unrar_path
 
 static FILE*
-_popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp, int* mmap_fd)
+popen_(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp, int* mmap_fd)
 {
    char* maddr = MAP_FAILED;
    FILE* fp = NULL;
@@ -330,11 +328,13 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
    {
       setpgid(getpid(), 0);
       close(pfd[0]);          /* Close unused read end */
-      fflush(stdout);
-      dup2(pfd[1], STDOUT_FILENO);
+
       /* This is the child process.  Execute the shell command. */
       if (unrar_path && !entry_p->flags.mmap)
       {
+         fflush(stdout);
+         dup2(pfd[1], STDOUT_FILENO);
+         /* anything sent to stdout should now go down the pipe */
          if (entry_p->password_p)
          {
             char parg[MAXPASSWORD+2];
@@ -348,9 +348,8 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
          /* Should never come here! */
          _exit (EXIT_FAILURE);
       }
-      /* anything sent to stdout should now go down the pipe */
-      RARExtractToStdout(entry_p->rar_p, entry_p->flags.mmap ? basename(entry_p->name_p) : entry_p->file_p, entry_p->password_p, fp);
-      fflush(stdout);	/* flush any pending data */
+      extract_rar(entry_p->rar_p, entry_p->flags.mmap ? basename(entry_p->name_p) : entry_p->file_p, entry_p->password_p, fp, (void*)pfd[1]);
+      close(pfd[1]);
       _exit(EXIT_SUCCESS);
    }
    else if (pid < 0)
@@ -369,7 +368,7 @@ _popen(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
  *
  ****************************************************************************/
 static int
-_pclose(FILE* fp, pid_t pid)
+pclose_(FILE* fp, pid_t pid)
 {
    int status;
 
@@ -601,13 +600,6 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
       /* Check for backward read */
       if (offset < op->pos)
       {
-#ifdef USE_STATIC_WINDOW
-         if ((offset + size) < FHD_SZ)
-         {
-            memcpy(buf, op->buf->sbuf_p+(size_t)offset, size);
-            return size;
-         }
-#endif
          off_t delta = op->pos - offset;
          if (delta <= IOB_HIST_SZ)
          {
@@ -621,7 +613,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
          }
          else 
          {
-            printd(1, "I/O ERROR %d\n", op->terminate);
+            printd(1, "read: I/O error\n");
             return -EIO;
          }
       }
@@ -644,7 +636,6 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
       if (((offset+size)-op->buf->offset) > 100000000 &&
           op->buf->idx.data_p == MAP_FAILED) return -EIO;
 #endif
-
       if (!op->terminate) /* make sure thread is running */
       {
          /* Take control of reader thread */
@@ -653,7 +644,6 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
              WAKE_THREAD(op->pfd1, 2);
              WAIT_THREAD(op->pfd2);
          } while (errno==EINTR);
-
          while(!feof(FH_TOFP(op->fh)) && (offset+size)>op->buf->offset)
          {
             /* consume buffer */
@@ -661,6 +651,10 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
             op->buf->ri = op->buf->wi;
             (void)readTo(op->buf, FH_TOFP(op->fh), IOB_NO_HIST);
          }
+            op->buf->ri += (offset - op->pos);
+            op->buf->ri &= (IOB_SZ-1);
+            op->buf->used -= (offset - op->pos);
+            op->pos = offset;
       }
    }
 
@@ -671,7 +665,9 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
       op->pos += (off + n);
       if (!op->terminate) WAKE_THREAD(op->pfd1, 0);
    }
-   printd(3, "RETURN %d\n", errno ? -errno : n);
+   printd(3, "read: RETURN %d\n", errno ? -errno : n);
+
+   if (errno) perror("read"); 
    return errno ? -errno : n;
 }
 
@@ -722,6 +718,7 @@ lopen(const char *path,
       struct fuse_file_info *fi)
 {
    ENTER_("%s", path);
+fi->keep_cache = 1;
    int fd = open(path, fi->flags);
    if (fd == -1)
       return -errno;
@@ -955,12 +952,88 @@ get_vformat(const char* s, int t, int* l, int* p)
 
 #define IS_RAR(s)  (!strcmp(&(s)[strlen((s))-4], ".rar"))
 #define IS_RXX(s)  (is_rxx_vol(s))
+#if 0
 #define IS_RAR_DIR(l) ((l)->HostOS != HOST_UNIX && (l)->HostOS != HOST_BEOS \
    ? (l)->FileAttr & 0x10 : (l)->FileAttr & S_IFDIR)
+#else
+/* Unless we need to support RAR version < 2.0 this is good enough */
+#define IS_RAR_DIR(l) (((l)->Flags&LHD_DIRECTORY)==LHD_DIRECTORY)
+#endif
 #define GET_RAR_MODE(l) ((l)->HostOS != HOST_UNIX && (l)->HostOS != HOST_BEOS \
    ? IS_RAR_DIR(l) ? (S_IFDIR|0755) : (S_IFREG|0644) : (l)->FileAttr)
 #define GET_RAR_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->UnpSizeHigh * 0x100000000ULL) | (l)->UnpSize))
 #define GET_RAR_PACK_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->PackSizeHigh * 0x100000000ULL) | (l)->PackSize))
+ 
+/*!
+ ****************************************************************************
+ *
+ ****************************************************************************/
+static int CALLBACK
+extract_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2)
+{
+   if (msg == UCM_PROCESSDATA)
+   {
+      /* We do not need to handle the case that not all data is written
+       * after return from write() since the pipe is not opened using the
+       * O_NONBLOCK flag. */
+      int fd = UserData ? UserData : STDOUT_FILENO;
+      if (write(fd, (void*)P1, P2) == -1)
+      {
+         /* Do not treat EPIPE as an error. It is the normal case
+          * when the process is terminted, ie. the pipe is closed
+          * since SIGPIPE is not handled. */
+         if (errno != EPIPE)
+            perror("cb:write");
+         return -1;
+      }
+   }
+   if (msg == UCM_CHANGEVOLUME)
+   {
+       return access((char*)P1, F_OK);
+   }
+   return 0;
+}
+ 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static void 
+extract_rar(char* arch, const char* file, char* passwd, FILE* fp, void* arg)
+{
+    struct RAROpenArchiveData d = {arch, RAR_OM_EXTRACT, ERAR_EOPEN, NULL, 0, 0, 0};
+    struct RARHeaderData header;
+    HANDLE hdl = fp?RARInitArchive(&d, fp):RAROpenArchive(&d);
+    if (!hdl || d.OpenResult)
+        goto extract_error;;
+ 
+    if (passwd && strlen(passwd))
+        RARSetPassword(hdl, passwd);
+ 
+    header.CmtBufSize = 0;
+ 
+    RARSetCallback(hdl, extract_callback, (LPARAM)(arg));
+    while (1)
+    {
+        if (RARReadHeader(hdl, &header))
+           break;
+ 
+        /* We won't extract subdirs */
+        if (IS_RAR_DIR(&header) ||
+            strcmp(header.FileName, file))
+        {
+            if (RARProcessFile(hdl, RAR_SKIP, NULL, NULL))
+                break;
+        }
+        else
+        {
+            (void)RARProcessFile(hdl, RAR_TEST, NULL, NULL);
+            break;
+        }
+    }
+extract_error:
+    if (!fp) RARCloseArchive(hdl);
+}
 
 /*!
  *****************************************************************************
@@ -1865,14 +1938,10 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          return -ENOENT;
       }
    }
-   if ((fi->flags & O_RDONLY) != O_RDONLY)
+   if ((fi->flags & O_RDONLY) != O_RDONLY ||
+       entry_p == LOCAL_FS_ENTRY)
    {
       /* XXX Do we need to handle O_TRUNC specifically here? */
-      ABS_ROOT(root, path);
-      return lopen(root, fi);
-   }
-   if (entry_p == LOCAL_FS_ENTRY)
-   {
       ABS_ROOT(root, path);
       return lopen(root, fi);
    }
@@ -1883,7 +1952,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    }
 
    FILE* fp = NULL;
-   IoBuf* buf = NULL;
+   IoBuf* buf = MAP_FAILED;
    IOContext* op = NULL;
    pid_t pid = 0;
 
@@ -1945,22 +2014,24 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    }
    if (!FH_ISSET(fi->fh))
    {
-      /* Open PIPE(s) and create child process */
+fi->keep_cache = 1;
 
       void* mmap_addr = NULL;
       FILE* mmap_fp = NULL;
       int mmap_fd = 0;
 
-      buf = malloc(sizeof(IoBuf)+IOB_SZ);
+      buf = malloc(P_ALIGN_(sizeof(IoBuf)+IOB_SZ));
       if (!buf) 
          goto open_error;
-      IOB_RST(buf);
+      IOB_RST(buf); 
 
       op = malloc(sizeof(IOContext));
       if (!op) 
          goto open_error;
+      op->buf = buf;
 
-      fp = _popen(entry_p, &pid, &mmap_addr, &mmap_fp, &mmap_fd);
+      /* Open PIPE(s) and create child process */
+      fp = popen_(entry_p, &pid, &mmap_addr, &mmap_fp, &mmap_fd);
       if (fp!=NULL)
       {
          buf->idx.data_p = MAP_FAILED;
@@ -1971,35 +2042,36 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          op->mmap_fd = mmap_fd;
          op->entry_p = entry_p;
          op->seq = 0;
-         op->buf = buf;
          op->pos = 0;
          FH_SETCONTEXT(&fi->fh, op);
          printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
          FH_SETFP(&op->fh, fp);
          op->pid = pid;
          printd(4, "PIPE %p created towards child %d\n", FH_TOFP(op->fh), pid);
-#ifdef USE_STATIC_WINDOW 
-         /* Prefetch buffer and possible file header cache */
-         size_t size = readTo(op->buf, fp, IOB_NO_HIST);
-         size = size > FHD_SZ-1 ? FHD_SZ-1 : size;
-         printd(3, "Copying %zu bytes to static window @ %p\n", size, op->buf->sbuf_p);
-         memcpy(op->buf->sbuf_p, op->buf->data_p, size);
-#endif
+
+         /* Disable flushing the cache of the file contents on every open().
+          * This is important to make sure FUSE does not force read from 
+          * offset 0 if a RAR file is opened multiple times. It will break
+          * the logic for compressed/encrypted archives since the I/O context
+          * will become out-of-sync.
+          * This should only be enabled on files, where the file data is never
+          * changed externally (not through the mounted FUSE filesystem). */
+         fi->keep_cache = 1;
 
          /* Create pipes to be used between threads.
           * Both these pipes are used for communication between 
           * parent (this thread) and reader thread. One pipe is for 
           * requests (w->r) and the other is for responses (r<-w). */
-         op->pfd1[0] = 0;
-         op->pfd1[1] = 0;
-         op->pfd2[0] = 0;
-         op->pfd2[1] = 0;
+         op->pfd1[0] = -1;
+         op->pfd1[1] = -1;
+         op->pfd2[0] = -1;
+         op->pfd2[1] = -1;
          if (pipe(op->pfd1) == -1) { perror("pipe"); goto open_error; }
          if (pipe(op->pfd2) == -1) { perror("pipe"); goto open_error; }
 
          /* Create reader thread */
          op->terminate = 1;
-         pthread_create(&op->thread, NULL,reader_task,(void*)op);
+         pthread_create(&op->thread, &thread_attr, reader_task, (void*)op);
          while (op->terminate);
          WAKE_THREAD(op->pfd1, 0);
          goto open_end;
@@ -2009,20 +2081,21 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    goto open_end;
 
 open_error:
-   if (buf) free(buf);
-   if (fp)  _pclose(fp, pid);
+   if (fp)                pclose_(fp, pid);
    if (op)
    {
-      if (op->pfd1[0]) close(op->pfd1[0]);
-      if (op->pfd1[1]) close(op->pfd1[1]);
-      if (op->pfd2[0]) close(op->pfd2[0]);
-      if (op->pfd2[1]) close(op->pfd2[1]);
+      if (op->pfd1[0]>=0) close(op->pfd1[0]);
+      if (op->pfd1[1]>=0) close(op->pfd1[1]);
+      if (op->pfd2[0]>=0) close(op->pfd2[0]);
+      if (op->pfd2[1]>=0) close(op->pfd2[1]);
       free(op);
    }
+   if (buf) free(buf);
 
    /* This is the best we can return here. So many different things
     * might go wrong and errno can actually be set to something that
     * FUSE is accepting and thus proceeds with next operation! */
+   printd(1, "open: I/O error\n");
    return -EIO;
 
 open_end:
@@ -2039,6 +2112,8 @@ rar2_init(struct fuse_conn_info *conn)
 {
    ENTER_();
 
+   filecache_init();
+   iobuffer_init();
    sighandler_init();
 
 #ifdef HAS_GLIBC_CUSTOM_STREAMS_
@@ -2051,6 +2126,10 @@ rar2_init(struct fuse_conn_info *conn)
    }
 #endif
 
+   /* For portability, explicitly create threads in a joinable state */
+   pthread_attr_init(&thread_attr);
+   pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+
    return NULL;
 }
 
@@ -2062,7 +2141,12 @@ static void
 rar2_destroy(void *data)
 {
    ENTER_();
+
    if (src_path) free(src_path);
+   pthread_attr_destroy(&thread_attr);
+   iobuffer_destroy();
+   filecache_destroy();
+   sighandler_destroy();
 }
 
 /*!
@@ -2124,7 +2208,7 @@ rar2_release(const char *path, struct fuse_file_info *fi)
             close(op->pfd1[1]);
             close(op->pfd2[0]);
             close(op->pfd2[1]);
-            if (_pclose(FH_TOFP(op->fh), op->pid) == -1) perror("pclose");
+            if (pclose_(FH_TOFP(op->fh), op->pid) == -1) perror("pclose");
             else printd(4, "PIPE %p closed towards child %05d\n", FH_TOFP(op->fh), op->pid);
             if (op->entry_p->flags.mmap)
             {
@@ -2171,7 +2255,6 @@ rar2_read(const char *path, char *buffer, size_t size, off_t offset,
           struct fuse_file_info *fi)
 {
    ENTER_("%s   size=%zu, offset=%llu, fh=%llu", path, size, offset, fi->fh);
-
    dir_elem_t* entry_p;
    pthread_mutex_lock(&file_access_mutex);
    entry_p = cache_path_get(path);
@@ -2205,7 +2288,7 @@ rar2_truncate(const char* path, off_t offset)
    ENTER_("%s", path);
    char* root;
    ABS_ROOT(root, path);
-   return truncate(root, offset);
+   return -truncate(root, offset);
 }
 
 /*!
@@ -2219,7 +2302,8 @@ rar2_write(const char* path, const char *buffer, size_t size, off_t offset,
    ENTER_("%s", path);
    char* root;
    ABS_ROOT(root, path);
-   return pwrite(FH_TOFD(fi->fh), buffer, size, offset);
+   size_t n = pwrite(FH_TOFD(fi->fh), buffer, size, offset);
+   return n>=0?n:-errno;
 }
 
 /*!
@@ -2236,7 +2320,7 @@ access_chk(const char* path, int new_file)
     * will tell if operation should be permitted or not.
     * Simply, if the file/folder is in the cache, forget it!
     *   This works fine in most cases but due to a FUSE bug(!?)
-    * is does not work for 'touch'. A touch seems to result in
+    * it is does not work for 'touch'. A touch seems to result in
     * a getattr() callback even if -EPERM is returned which
     * will eventually render a "No such file or directory"
     * type of error/message. */
@@ -2604,9 +2688,6 @@ main(int argc, char* argv[])
          return -1;
       }
    }
-
-   filecache_init();
-   iobuffer_init();
 
    long ps = -1;
 #if defined ( _SC_PAGE_SIZE )

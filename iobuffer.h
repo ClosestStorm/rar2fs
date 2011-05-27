@@ -34,7 +34,6 @@
 #include <stdio.h>
 #include "common.h"
 
-#define FHD_SZ                   (512*1024)
 #define IOB_SZ_DEFAULT           (4*1024*1024)
 #ifdef USE_STATIC_IOB_
 #define IOB_SZ                   IOB_SZ_DEFAULT
@@ -47,7 +46,7 @@
 #define IOB_NO_HIST 0
 #define IOB_SAVE_HIST 1
 
-#define IOB_RST(b)  (memset((b), 0, sizeof(IoBuf)))
+#define IOB_RST(b)  (memset((b), 0, sizeof(IoBuf)+IOB_SZ))
 
 typedef struct
 {
@@ -58,9 +57,6 @@ typedef struct
 
 typedef struct
 {
-#ifdef USE_STATIC_WINDOW
-   char sbuf_p[FHD_SZ];
-#endif
    IdxInfo idx;
    off_t offset;
    volatile size_t ri;
@@ -84,6 +80,9 @@ extern size_t iob_sz;
 
 void
 iobuffer_init();
+
+void
+iobuffer_destroy();
 
 #endif
 

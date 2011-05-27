@@ -31,6 +31,10 @@
 
 extern int glibc_test;
 
-void sighandler_init();
+void
+sighandler_init();
+
+void 
+sighandler_destroy();
 
 #endif

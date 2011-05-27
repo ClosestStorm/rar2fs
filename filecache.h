@@ -98,5 +98,7 @@ inval_cache_path(const char* path);
 void
 filecache_init();
 
+void
+filecache_destroy();
 
 #endif

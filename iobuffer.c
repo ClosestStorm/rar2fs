@@ -127,10 +127,17 @@ copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
    return tot;
 }
 
-void iobuffer_init()
+void
+iobuffer_init()
 {
    int bsz = OBJ_INT(OBJ_BUFF_SIZE,0);
    iob_sz = bsz?(bsz*1024*1024):IOB_SZ_DEFAULT;
    int hsz = OBJ_SET(OBJ_HIST_SIZE)?OBJ_INT(OBJ_HIST_SIZE,0):50;
    iob_hist_sz = IOB_SZ*((hsz)/100.0);
 }
+
+void
+iobuffer_destroy()
+{
+}
+
