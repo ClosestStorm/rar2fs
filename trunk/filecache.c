@@ -229,3 +229,9 @@ filecache_init()
    memset(path_cache, 0, sizeof(dir_elem_t)*PATH_CACHE_SZ);
    pthread_mutex_init(&file_access_mutex, NULL);
 }
+
+void
+filecache_destroy()
+{
+   pthread_mutex_destroy(&file_access_mutex);
+}

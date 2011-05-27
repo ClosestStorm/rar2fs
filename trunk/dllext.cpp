@@ -28,7 +28,6 @@
 
 #include <iostream>
 #include "rar.hpp"
-#include "extractext.hpp"
 #include "dllext.hpp"
 using namespace std;
 
@@ -229,26 +228,6 @@ void PASCAL RARFreeListEx(HANDLE* hArcData, RARArchiveListEx* L)
        N = N->next;
        delete tmp;
    }
-}
-
-
-void PASCAL RARExtractToStdout(const char* ArcName, const char* FileName, const char* Password, FileHandle FH)
-{
-   CommandData Cmd;
-   Cmd.AddArcName((char*)ArcName, NULL);
-   Cmd.FileArgs->AddString(FileName);
-
-   GetWideName(Password,NULL,Cmd.Password,ASIZE(Cmd.Password));
-
-   // P
-   Cmd.Command[0]='P';
-
-   // -inul
-   InitConsoleOptions(MSG_NULL,false);
-   ErrHandler.SetSilent(true);
-
-   CmdExtractExt Extract;
-   Extract.DoExtract(&Cmd, FH);
 }
 
 

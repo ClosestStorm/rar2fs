@@ -1,5 +1,15 @@
     CHANGE LOG
 
+    1.12.1      o Update: The code has been adapted to utilize the unrar API
+                  as intended for extraction of compressed/encryped archives. 
+                  This will remove the need for some of the previously added
+                  extensions to the API. It will reduce the dependency to what
+                  version of the API is used, but will instead add some memory
+                  overhead added by the original API callback interface.
+                o Update: Additional code clean up.
+                o Bugfix: Corrected a problem with extraction of 
+                  compressed/encrypted archives that could fail if the same 
+                  file is opened during the extraction process. 
     1.12.0      o Stable release.
     1.11.20     o Bugfix: Corrected some more malloc() calls that could fail
                   and pass unnotised.

@@ -29,6 +29,7 @@
 #ifndef _UNRAR_DLLEXT_
 #define _UNRAR_DLLEXT_
 
+#include <stdbool.h>
 #include "raros.hpp"
 #include "rardefs.hpp"
 #include "version.hpp"
@@ -172,7 +173,6 @@ HANDLE       PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *ArchiveData, F
 int          PASCAL RARFreeArchive(HANDLE hArcData);
 int          PASCAL RARListArchive(HANDLE hArcData, RARArchiveList* fList);
 int          PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* fList);
-void         PASCAL RARExtractToStdout(const char* ArcName, const char* FileName, const char* Password, FileHandle);
 void         PASCAL RARFreeList(RARArchiveList* fList);
 void         PASCAL RARFreeListEx(HANDLE* hArcData, RARArchiveListEx* fList);
 unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData);

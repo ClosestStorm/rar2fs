@@ -149,7 +149,8 @@ sig_handler(int signum, siginfo_t *info, void* secret)
 #define SIG_FUNC_ (__sighandler_t)
 #endif
 
-void sighandler_init()
+void
+sighandler_init()
 {
    struct sigaction act;
 
@@ -169,6 +170,11 @@ void sighandler_init()
    act.sa_handler = SIG_FUNC_ sig_handler;
    act.sa_flags = SA_RESTART | SA_SIGINFO;
    sigaction(SIGSEGV, &act, NULL);
+}
+
+void
+sighandler_destroy()
+{
 }
 
 #undef SIG_FUNC_
