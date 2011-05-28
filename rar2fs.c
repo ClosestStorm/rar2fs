@@ -718,7 +718,6 @@ lopen(const char *path,
       struct fuse_file_info *fi)
 {
    ENTER_("%s", path);
-fi->keep_cache = 1;
    int fd = open(path, fi->flags);
    if (fd == -1)
       return -errno;
@@ -983,7 +982,7 @@ extract_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2)
           * when the process is terminted, ie. the pipe is closed
           * since SIGPIPE is not handled. */
          if (errno != EPIPE)
-            perror("cb:write");
+            perror("write");
          return -1;
       }
    }
@@ -2014,8 +2013,6 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    }
    if (!FH_ISSET(fi->fh))
    {
-fi->keep_cache = 1;
-
       void* mmap_addr = NULL;
       FILE* mmap_fp = NULL;
       int mmap_fd = 0;
