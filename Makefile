@@ -40,16 +40,20 @@ ifeq ("$(MAKE)", "")
 MAKE := make
 endif
 
+ifneq ("$(FUSE_SRC)", "")
+INCLUDES+=-I$(FUSE_SRC)
+endif
 DEFINES+=-D_GNU_SOURCE
 CFLAGS+=-std=c99 -Wall
 
-C_COMPILE=$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(DEFINES) $(CONF) -DRARDLL -DFUSE_USE_VERSION=27
-CXX_COMPILE=$(CXX) $(CXXFLAGS) $(EXTRA_CXXFLAGS) $(DEFINES) -DRARDLL
+C_COMPILE=$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(DEFINES) $(CONF) -DRARDLL -DFUSE_USE_VERSION=27 $(INCLUDES)
+CXX_COMPILE=$(CXX) $(CXXFLAGS) $(EXTRA_CXXFLAGS) $(DEFINES) -DRARDLL 
 LINK=$(CC)
-ifneq ("$(FUSE_LIB)", "")
-LIB_DIR=-L$(UNRAR_LIB) -L$(FUSE_LIB)
-else
+ifneq ("$(UNRAR_LIB)", "")
 LIB_DIR=-L$(UNRAR_LIB)
+endif
+ifneq ("$(FUSE_LIB)", "")
+LIB_DIR+=-L$(FUSE_LIB)
 endif
 
 OBJECTS=dllext.o configdb.o filecache.o iobuffer.o sighandler.o rar2fs.o
