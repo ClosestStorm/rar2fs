@@ -30,6 +30,7 @@
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -881,7 +882,6 @@ is_rxx_vol(const char* name)
       }
    }
    return 0;
-
 }
 
 /*!
@@ -2312,12 +2312,12 @@ access_chk(const char* path, int new_file)
 {
    void* e;
 
-   /* To produce a more correct fault code if an attempt is
+   /* To return a more correct fault code if an attempt is
     * made to create/remove a file in a RAR folder, a cache lookup
     * will tell if operation should be permitted or not.
     * Simply, if the file/folder is in the cache, forget it!
     *   This works fine in most cases but due to a FUSE bug(!?)
-    * it is does not work for 'touch'. A touch seems to result in
+    * it does not work for 'touch'. A touch seems to result in
     * a getattr() callback even if -EPERM is returned which
     * will eventually render a "No such file or directory"
     * type of error/message. */
