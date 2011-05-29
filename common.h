@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <stdint.h>   /* C99 uintptr_t */
 
 #ifdef __APPLE__
 #include <sys/param.h>
@@ -90,7 +91,7 @@
 #if defined ( __GNUC__ ) &&  defined ( __APPLE__ )
 #define no_warn_result_ 
 #else
-#define no_warn_result_ void*ignore_result_;ignore_result_=(void*)
+#define no_warn_result_ void*ignore_result_;ignore_result_=(void*)(uintptr_t)
 #endif
 
 #ifdef __GNUC__

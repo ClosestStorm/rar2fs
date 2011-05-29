@@ -1,5 +1,7 @@
     CHANGE LOG
 
+    1.12.3      o Update: Got rid of some integer to pointer conversion
+                  warnings for 64-bit platforms.
     1.12.2      o Bufix: Fixed broken build for FreeBSD and non x86 based
                   Linux platforms.
     1.12.1      o Update: The code has been adapted to utilize the unrar API

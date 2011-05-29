@@ -203,7 +203,7 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
   if (pid == 0)
   {
      close(out_pipe[0]);
-     extract_rar(entry_p->rar_p, file, entry_p->password_p, fp, (void*)out_pipe[1]);
+     extract_rar(entry_p->rar_p, file, entry_p->password_p, fp, (void*)(uintptr_t)out_pipe[1]);
      close(out_pipe[1]);
      _exit(EXIT_SUCCESS);
   }
@@ -349,7 +349,7 @@ popen_(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
          /* Should never come here! */
          _exit (EXIT_FAILURE);
       }
-      extract_rar(entry_p->rar_p, entry_p->flags.mmap ? basename(entry_p->name_p) : entry_p->file_p, entry_p->password_p, fp, (void*)pfd[1]);
+      extract_rar(entry_p->rar_p, entry_p->flags.mmap ? basename(entry_p->name_p) : entry_p->file_p, entry_p->password_p, fp, (void*)(uintptr_t)pfd[1]);
       close(pfd[1]);
       _exit(EXIT_SUCCESS);
    }
