@@ -33,7 +33,7 @@
 #include "common.h"
 #include "filecache.h"
 
-#if defined ( __UCLIBC__ ) || !defined ( __linux )
+#if defined ( __UCLIBC__ ) || !defined ( __linux ) || !defined ( __i386 )
 #define stack_trace(a,b,c)
 #else
 #include <execinfo.h>
