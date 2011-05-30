@@ -1,8 +1,13 @@
     CHANGE LOG
 
-    1.12.3      o Update: Got rid of some integer to pointer conversion
-                  warnings for 64-bit platforms.
-    1.12.2      o Bufix: Fixed broken build for FreeBSD and non x86 based
+    1.12.4      o [I5]: Added support for FUSE 'statfs' callback. 
+                  It was required to avoid a crash (signal 8) in afpd when
+                  rar2fs was mounted across a Netatalk/AFP network.
+                  There are however still issues with getting Netatalk to 
+                  work as expected.
+    1.12.3      o [I3]: Got rid of some integer to pointer conversion warnings
+                  for 64-bit platforms.
+    1.12.2      o [I2,I3]: Fixed broken build for FreeBSD and non x86 based
                   Linux platforms.
     1.12.1      o Update: The code has been adapted to utilize the unrar API
                   as intended for extraction of compressed/encryped archives. 
