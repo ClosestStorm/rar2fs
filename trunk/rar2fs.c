@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h> 
 #include <sys/select.h>
 #include <sys/wait.h>
 #include <signal.h>
@@ -1937,8 +1938,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          return -ENOENT;
       }
    }
-   if ((fi->flags & O_RDONLY) != O_RDONLY ||
-       entry_p == LOCAL_FS_ENTRY)
+   if (entry_p == LOCAL_FS_ENTRY)
    {
       /* XXX Do we need to handle O_TRUNC specifically here? */
       ABS_ROOT(root, path);
@@ -2156,6 +2156,20 @@ rar2_flush(const char *path, struct fuse_file_info *fi)
    ENTER_("%s", path);
    printd(3, "(%05d) %-8s%s [%-16p][called from %05d]\n", getpid(), "FLUSH", path, FH_TOCONTEXT(fi->fh), fuse_get_context()->pid);
    return lflush(path, fi);
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static int
+rar2_statfs(const char *path, struct statvfs* vfs)
+{
+   ENTER_("%s", path);
+   (void)path;   /* touch */
+   if (!statvfs(src_path, vfs))
+      return 0;
+   return -errno;
 }
 
 /*!
@@ -2719,6 +2733,7 @@ main(int argc, char* argv[])
    /* Mapping of FUSE file system operations */
    static struct fuse_operations rar2_operations = {
       .init    = rar2_init,
+      .statfs  = rar2_statfs,
       .utime   = rar2_utime_deprecated,
       .utimens = rar2_utime,
       .destroy = rar2_destroy,
