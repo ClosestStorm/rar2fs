@@ -49,4 +49,8 @@ A: Yes, you can. But it is not recommended to change information behind the back
 {{{
    kill -USR1 <pid>
 }}}
-This will purge all entries in the cache. The cache will then have to be populated again from scratch which means you might initially experience some extra delay during display of archive contents. 
+This will purge all entries in the cache. The cache will then have to be populated again from scratch which means you might initially experience some extra delay during display of archive contents.
+
+===Q 2.7. I can't run rar2fs as user, I get: mount_fusefs: /dev/fuse0 on ???: Operation not permitted===
+A: There seems to be some fuse distributions/packages that are not correctly configured for user mounts, except from the root account. Most commonly this is because the ownership of the fuse device is not set properly. In those cases try to mount your rar2fs file system as root instead, and if needed, use the fuse options _uid_, _gid_ and _umask_ to assign the effective user/group of the calling process.
+ 
