@@ -1608,18 +1608,6 @@ sort_dir(dir_entry_list_t* root)
  *
  ****************************************************************************/
 static int
-rar2_opendir(const char *path, struct fuse_file_info *fi)
-{
-   ENTER_("%s", path);
-   /* Always permitted */
-   return 0;
-}
-
-/*!
- *****************************************************************************
- *
- ****************************************************************************/
-static int
 rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
              off_t offset, struct fuse_file_info *fi)
 {
@@ -1935,7 +1923,12 @@ rar2_open(const char *path, struct fuse_file_info *fi)
       }
       if (entry_p == NULL)
       {
-         return -ENOENT;
+         /* This should not really be needed. According to API the O_CREAT
+            flag is never set in open() calls. */
+         if (fi->flags & O_CREAT)
+            entry_p = LOCAL_FS_ENTRY;
+         else
+            return -ENOENT;
       }
    }
    if (entry_p == LOCAL_FS_ENTRY)
@@ -1949,6 +1942,9 @@ rar2_open(const char *path, struct fuse_file_info *fi)
       ABS_ROOT(root, entry_p->file_p);
       return lopen(root, fi);
    }
+   /* For files inside RAR archives create() type of calls are not permitted */
+   if (fi->flags & (O_CREAT|O_WRONLY|O_RDWR|O_TRUNC))
+      return -EACCES;
 
    FILE* fp = NULL;
    IoBuf* buf = MAP_FAILED;
@@ -2097,6 +2093,35 @@ open_error:
 
 open_end:
    return 0;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static inline int
+access_chk(const char* path, int new_file)
+{
+   void* e;
+
+   /* To return a more correct fault code if an attempt is
+    * made to create/remove a file in a RAR folder, a cache lookup
+    * will tell if operation should be permitted or not.
+    * Simply, if the file/folder is in the cache, forget it!
+    *   This works fine in most cases but due to a FUSE bug(!?)
+    * it does not work for 'touch'. A touch seems to result in
+    * a getattr() callback even if -EPERM is returned which
+    * will eventually render a "No such file or directory"
+    * type of error/message. */
+    if (new_file)
+    {
+       char* p = strdup(path);
+       char* tmp = p;   /* In case p is destroyed by dirname() */
+       e = (void*)cache_path_get(dirname(p));
+       free(tmp);
+    }
+    else e = (void*)cache_path_get(path);
+    return e?1:0;
 }
 
 /*!
@@ -2321,35 +2346,6 @@ rar2_write(const char* path, const char *buffer, size_t size, off_t offset,
  *****************************************************************************
  *
  ****************************************************************************/
-static inline int
-access_chk(const char* path, int new_file)
-{
-   void* e;
-
-   /* To return a more correct fault code if an attempt is
-    * made to create/remove a file in a RAR folder, a cache lookup
-    * will tell if operation should be permitted or not.
-    * Simply, if the file/folder is in the cache, forget it!
-    *   This works fine in most cases but due to a FUSE bug(!?)
-    * it does not work for 'touch'. A touch seems to result in
-    * a getattr() callback even if -EPERM is returned which
-    * will eventually render a "No such file or directory"
-    * type of error/message. */
-    if (new_file)
-    {
-       char* p = strdup(path);
-       char* tmp = p;   /* In case p is destroyed by dirname() */
-       e = (void*)cache_path_get(dirname(p));
-       free(tmp);
-    }
-    else e = (void*)cache_path_get(path);
-    return e?1:0;
-}
-
-/*!
- *****************************************************************************
- *
- ****************************************************************************/
 static int
 rar2_chmod(const char* path, mode_t mode)
 {
@@ -2564,6 +2560,7 @@ usage(char* prog)
 int
 main(int argc, char* argv[])
 {
+   int res;
    int opt;
    char *helpargv[2]={NULL,"-h"};
 
@@ -2737,7 +2734,6 @@ main(int argc, char* argv[])
       .utime   = rar2_utime_deprecated,
       .utimens = rar2_utime,
       .destroy = rar2_destroy,
-      .opendir = rar2_opendir,
       .open    = rar2_open,
       .release = rar2_release,
       .read    = rar2_read,
@@ -2757,7 +2753,11 @@ main(int argc, char* argv[])
    rar2_operations.chmod    = mount_type == MOUNT_FOLDER ? rar2_chmod    : (void*)rar2_eperm_stub; 
    rar2_operations.chown    = mount_type == MOUNT_FOLDER ? rar2_chown    : (void*)rar2_eperm_stub; 
 
-   return fuse_main(args.argc, args.argv, &rar2_operations, NULL);
+   res = fuse_main(args.argc, args.argv, &rar2_operations, NULL);
+
+   fuse_opt_free_args(&args);
+
+   return res;
 }
 
 #undef CONSUME_LONG_ARG
