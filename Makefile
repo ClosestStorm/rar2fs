@@ -12,17 +12,25 @@ endif
 UNAME := $(shell uname)
 MAKE := $(shell which gmake)
 
-LIBS=-lunrar -pthread
+LIBS=-lunrar -pthread -lrt
 
 ifeq ($(UNAME), Darwin)
 LIBS+=-lstdc++
 # Is _DARWIN_C_SOURCE really needed ?
 DEFINES+=-D_DARWIN_C_SOURCE
 ifeq ($(USE_OSX_64_BIT_INODES), n)
+ifeq "$(wildcard $(FUSE_LIB)/fuse4x.dylib)" ""
 LIBS+=-lfuse
+else
+LIBS+=-lfuse4x
+endif
 DEFINES+=-D_DARWIN_NO_64_BIT_INODE
 else
+ifeq "$(wildcard $(FUSE_LIB)/fuse4x.dylib)" ""
 LIBS+=-lfuse_ino64
+else
+LIBS+=-lfuse4x
+endif
 DEFINES+=-D_DARWIN_USE_64_BIT_INODE
 endif
 else
@@ -56,7 +64,7 @@ ifneq ("$(FUSE_LIB)", "")
 LIB_DIR+=-L$(FUSE_LIB)
 endif
 
-OBJECTS=dllext.o configdb.o filecache.o iobuffer.o sighandler.o rar2fs.o
+OBJECTS=dllext.o configdb.o filecache.o iobuffer.o sighandler.o rar2fs.o 
 DEPS=.deps
 
 all:	rar2fs mkr2i
