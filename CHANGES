@@ -1,5 +1,7 @@
     CHANGE LOG
 
+    1.12.5      o Update: All dynamic settings are now accessed through the
+                  data base including source and destination path.
     1.12.4      o [I5]: Added support for FUSE 'statfs' callback. 
                   It was required to avoid a crash (signal 8) in afpd when
                   rar2fs was mounted across a Netatalk/AFP network.
@@ -12,16 +14,17 @@
     1.12.1      o Update: The code has been adapted to utilize the unrar API
                   as intended for extraction of compressed/encryped archives. 
                   This will remove the need for some of the previously added
-                  extensions to the API. It will reduce the dependency to what
-                  version of the API is used, but will instead add some memory
-                  overhead added by the original API callback interface.
+                  API extensions and will reduce the dependency to what
+                  version of the API is used. However, this will inflict some 
+                  extra memory overhead added by the original API callback 
+                  interface.
                 o Update: Additional code clean up.
                 o Bugfix: Corrected a problem with extraction of 
                   compressed/encrypted archives that could fail if the same 
                   file is opened during the extraction process. 
     1.12.0      o Stable release.
     1.11.20     o Bugfix: Corrected some more malloc() calls that could fail
-                  and pass unnotised.
+                  and pass unnoticed.
                 o Update: Option --hist-size now ranges from 0-75. Use a value
                   of 0 to turn this function off. Man page updated accordingly.
     1.11.19     o Update: Added option --iob-size that can be used to tune the
@@ -97,7 +100,7 @@
     1.09 beta   o Built against unrarlib v4.0.7 
                 o Minor modification of backward jump (history) logic for
                   compressed/encrypted archives.
-    1.08        o Stable release checkpoint.
+    1.08        o Stable release.
     1.08 beta   o Fixed a crash (SEGV) issue if some volume files were missing.
                 o Added new option --img-type.
                 o Changed option --fake-iso to now accept a list of file

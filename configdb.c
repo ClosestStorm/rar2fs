@@ -35,9 +35,11 @@
 #include "common.h"
 #include "configdb.h"
 
-#define MAX_NOF_CFG_OBJ (14)
+#define MAX_NOF_CFG_OBJ (16)
 static CfgObj config_objects[MAX_NOF_CFG_OBJ] = 
 {
+   {{NULL,}, 0, 0, 0, 0, 0},
+   {{NULL,}, 0, 0, 0, 0, 0},
    {{NULL,}, 0, 0, 0, 1, 0},
    {{NULL,}, 0, 0, 0, 0, 0},
    {{NULL,}, 0, 0, 0, 0, 0},
@@ -81,7 +83,8 @@ CfgObj* config_objects_ = &config_objects[0];
 #define IS_INT_(o) (OBJ_(o)->type)
 #define IS_STR_(o) (!OBJ_(o)->type)
 
-int collect_obj(int obj, char* s)
+int
+collect_obj(int obj, char* s)
 {
    char* s1 = NULL;
 
@@ -124,6 +127,10 @@ int collect_obj(int obj, char* s)
       case OBJ_HIST_SIZE:
          ADD_OBJ_(obj, s1, OBJ_INT_);
          break; 
+      case OBJ_SRC:
+      case OBJ_DST:
+         ADD_OBJ_(obj, s1, OBJ_STR_);
+         break; 
       default:
       {
          /* One could easily have used strsep() here but I choose not to:
@@ -160,28 +167,40 @@ int collect_obj(int obj, char* s)
    return 0;
 }
 
-void reset_obj(int obj)
+static void 
+reset_obj(int obj, int init)
 {
    if (obj < 0 || obj>=MAX_NOF_CFG_OBJ) return;
 
    CLR_OBJ_(obj);
-   switch (obj)
+   if (init)
    {
-      case OBJ_IMG_TYPE:
-         OBJ_(OBJ_IMG_TYPE)->is_set = 1;
-         ADD_OBJ_(OBJ_IMG_TYPE, ".iso", OBJ_STR_);
-         ADD_OBJ_(OBJ_IMG_TYPE, ".img", OBJ_STR_);
-         ADD_OBJ_(OBJ_IMG_TYPE, ".nrg", OBJ_STR_);
-         break;
+      switch (obj)
+      {
+         case OBJ_IMG_TYPE:
+            OBJ_(OBJ_IMG_TYPE)->is_set = 1;
+            ADD_OBJ_(OBJ_IMG_TYPE, ".iso", OBJ_STR_);
+            ADD_OBJ_(OBJ_IMG_TYPE, ".img", OBJ_STR_);
+            ADD_OBJ_(OBJ_IMG_TYPE, ".nrg", OBJ_STR_);
+            break;
       default:
-         break;
+            break;
+      }
    }
 }
 
-void configdb_init()
+void 
+configdb_init()
 {
    int i = MAX_NOF_CFG_OBJ;
-   while (i--) reset_obj(i);
+   while (i--) reset_obj(i, 1);
+}
+
+void
+configdb_destroy()
+{
+   int i = MAX_NOF_CFG_OBJ;
+   while (i--) reset_obj(i, 0);
 }
 
 #undef ADD_OBJ_

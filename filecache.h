@@ -68,8 +68,8 @@ typedef struct dir_elem dir_elem_t;
 
 
 #define ABS_ROOT(s, path) \
-      (s) = alloca(strlen(path) + strlen(src_path) + 1); \
-      strcpy((s), src_path); \
+      (s) = alloca(strlen(path) + strlen(OBJ_STR2(OBJ_SRC,0)) + 1); \
+      strcpy((s), OBJ_STR2(OBJ_SRC,0)); \
       strcat((s), path)
 
 #define ABS_MP(s, path, file)         ABS_MP1_((s), (path), (file), __LINE__)

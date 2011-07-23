@@ -44,20 +44,22 @@
 #define OBJ_ADDR(o) ((o)+1000)
 #define OBJ_BASE(a) ((a)-1000)
 
-#define OBJ_EXCLUDE       (0)
-#define OBJ_FAKE_ISO      (1)
-#define OBJ_IMG_TYPE      (2)
-#define OBJ_PREOPEN_IMG   (3)
-#define OBJ_SHOW_COMP_IMG (4)
-#define OBJ_NO_IDX_MMAP   (5)
-#define OBJ_SEEK_LENGTH   (6)
-#define OBJ_SEEK_DEPTH    (7)
-#define OBJ_NO_PASSWD     (8)
-#define OBJ_NO_SMP        (9)
-#define OBJ_UNRAR_PATH    (10)
-#define OBJ_NO_LIB_CHECK  (11)
-#define OBJ_HIST_SIZE     (12)
-#define OBJ_BUFF_SIZE     (13)
+#define OBJ_SRC           (0)
+#define OBJ_DST           (1)
+#define OBJ_EXCLUDE       (2)
+#define OBJ_FAKE_ISO      (3)
+#define OBJ_IMG_TYPE      (4)
+#define OBJ_PREOPEN_IMG   (5)
+#define OBJ_SHOW_COMP_IMG (6)
+#define OBJ_NO_IDX_MMAP   (7)
+#define OBJ_SEEK_LENGTH   (8)
+#define OBJ_SEEK_DEPTH    (9)
+#define OBJ_NO_PASSWD     (10)
+#define OBJ_NO_SMP        (11)
+#define OBJ_UNRAR_PATH    (12)
+#define OBJ_NO_LIB_CHECK  (13)
+#define OBJ_HIST_SIZE     (14)
+#define OBJ_BUFF_SIZE     (15)
 
 typedef struct
 {
@@ -74,16 +76,17 @@ typedef struct
   int type;
 } CfgObj;
 
-#define OBJ_CNT(o)    (config_objects_[(o)].n_elem)
-#define OBJ_STR(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:NULL)
-#define OBJ_INT(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_int[(n)]:0)
-#define OBJ_SET(o)    (config_objects_[(o)].is_set)
+#define OBJ_CNT(o)     (config_objects_[(o)].n_elem)
+#define OBJ_STR(o, n)  (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:NULL)
+#define OBJ_STR2(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:"")
+#define OBJ_INT(o, n)  (OBJ_SET(o)?config_objects_[(o)].u.v_arr_int[(n)]:0)
+#define OBJ_SET(o)     (config_objects_[(o)].is_set)
 
 extern CfgObj* config_objects_;
 
 int collect_obj(int obj, char*);
-void reset_obj(int obj);
 int chk_obj(int obj, char*);
 void configdb_init();
+void configdb_destroy();
 
 #endif
