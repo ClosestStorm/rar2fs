@@ -173,7 +173,6 @@ struct IOContext
    if (write((pfd)[1], buf, 1) != 1) perror("write"); \
 }
 
-char* src_path = NULL;
 long page_size = 0;
 static int mount_type;
 dir_entry_list_t arch_list_root;    /* internal list root */
@@ -1201,7 +1200,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
          rar_root = strdup(dirname(rar_root));
          free(tmp2);
          tmp2 = rar_root;
-         rar_root += strlen(src_path);
+         rar_root += strlen(OBJ_STR2(OBJ_SRC,0));
          if (!strcmp(rar_root, path) || !strcmp("/", path))
          { 
             if (!strcmp(".", rar_name)) display = 1;
@@ -1790,7 +1789,7 @@ rar2_readdir2(const char *path, void *buffer, fuse_fill_dir_t filler,
  *****************************************************************************
  *
  ****************************************************************************/
-void*
+static void*
 reader_task(void* arg)
 {
    IOContext* op = (IOContext*)arg;
@@ -2164,7 +2163,6 @@ rar2_destroy(void *data)
 {
    ENTER_();
 
-   if (src_path) free(src_path);
    pthread_attr_destroy(&thread_attr);
    iobuffer_destroy();
    filecache_destroy();
@@ -2192,7 +2190,7 @@ rar2_statfs(const char *path, struct statvfs* vfs)
 {
    ENTER_("%s", path);
    (void)path;   /* touch */
-   if (!statvfs(src_path, vfs))
+   if (!statvfs(OBJ_STR2(OBJ_SRC,0), vfs))
       return 0;
    return -errno;
 }
@@ -2540,6 +2538,174 @@ rar2_utime(const char* path, const struct timespec tv[2])
  *****************************************************************************
  *
  ****************************************************************************/
+static void 
+usage(char* prog)
+{
+   const char* P_ = basename(prog);
+   printf("Usage: %s [options] source target\n", P_);
+   printf("Try `%s -h' or `%s --help' for more information.\n", P_, P_);
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+int
+check_paths(char* src_path_in, char* dst_path_in,
+            char** src_path_out, char** dst_path_out,
+            int verbose)
+{
+   char p1[PATH_MAX];
+   char p2[PATH_MAX];
+   char* a1 = realpath(src_path_in, p1);
+   char* a2 = realpath(dst_path_in, p2);
+   if (!a1||!a2||!strcmp(a1,a2))
+   {
+      if (verbose) printf("invalid source and/or mount point\n");
+      return -1;
+   }
+   DIR_LIST_RST(arch_list);
+   struct stat st;
+   (void)stat(a1, &st);
+   mount_type = S_ISDIR(st.st_mode) ? MOUNT_FOLDER : MOUNT_ARCHIVE;
+   /* Check path type(s), destination path *must* be a folder */
+   (void)stat(a2, &st);
+   if (!S_ISDIR(st.st_mode) || (mount_type == MOUNT_ARCHIVE && !collect_files(a1, arch_list)))
+   {
+      if (verbose) printf("invalid source and/or mount point\n");
+      return -1;
+   }
+   /* Do not try to use 'a1' after this call since dirname() will destroy it! */
+   *src_path_out = mount_type == MOUNT_FOLDER ? strdup(a1) : strdup(dirname(a1));
+   *dst_path_out = strdup(a2);
+
+   return 0;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+int
+check_iob(char* bname, int verbose)
+{
+   unsigned int bsz = OBJ_INT(OBJ_BUFF_SIZE, 0);
+   unsigned int hsz = OBJ_INT(OBJ_HIST_SIZE, 0);
+   if ((OBJ_SET(OBJ_BUFF_SIZE) && !bsz) ||
+       (bsz & (bsz -1)) ||
+       (OBJ_SET(OBJ_HIST_SIZE) && (hsz > 75)))
+   {
+      if (verbose) usage(bname);
+      return -1;
+   }
+   return 0;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+int
+check_libunrar(int verbose)
+{
+   if (RARGetDllVersion() < RAR_DLL_VERSION)
+   {
+      if (verbose) printf("libunrar.so (v%d.%d%s) or compatible library not found\n",
+         RARVER_MAJOR, RARVER_MINOR, !RARVER_BETA ? "" : " beta");
+      return -1;
+   }
+   return 0;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+int
+check_libfuse(int verbose)
+{
+   if (fuse_version() < FUSE_VERSION)
+   {
+      if (verbose) printf("libfuse.so.%d.%d or compatible library not found\n",
+         FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
+      return -1;
+   }
+   return 0;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+
+/* Mapping of static/non-configurable FUSE file system operations. */
+static struct fuse_operations rar2_operations = {
+   .init    = rar2_init,
+   .statfs  = rar2_statfs,
+   .utime   = rar2_utime_deprecated,
+   .utimens = rar2_utime,
+   .destroy = rar2_destroy,
+   .open    = rar2_open,
+   .release = rar2_release,
+   .read    = rar2_read,
+   .flush   = rar2_flush
+};
+
+static int
+work(struct fuse_args* args)
+{
+      int res = -1;
+
+#if defined ( __linux ) && defined ( __cpu_set_t_defined )
+      cpu_set_t cpu_mask_saved;
+      if (OBJ_SET(OBJ_NO_SMP))
+      {
+              cpu_set_t cpu_mask;
+              CPU_ZERO(&cpu_mask);
+              CPU_SET(1, &cpu_mask);
+              if (sched_getaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved)) {
+                      perror("sched_getaffinity");
+              }
+              else {
+                      if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask)) {
+                              perror("sched_setaffinity");
+                      }
+              }
+      }
+#endif
+
+      /* The below callbacks depend on mount type */
+      rar2_operations.getattr  = mount_type == MOUNT_FOLDER ? rar2_getattr  : rar2_getattr2;
+      rar2_operations.readdir  = mount_type == MOUNT_FOLDER ? rar2_readdir  : rar2_readdir2;
+      rar2_operations.create   = mount_type == MOUNT_FOLDER ? rar2_create   : (void*)rar2_eperm_stub;
+      rar2_operations.rename   = mount_type == MOUNT_FOLDER ? rar2_rename   : (void*)rar2_eperm_stub;
+      rar2_operations.mknod    = mount_type == MOUNT_FOLDER ? rar2_mknod    : (void*)rar2_eperm_stub;
+      rar2_operations.unlink   = mount_type == MOUNT_FOLDER ? rar2_unlink   : (void*)rar2_eperm_stub;
+      rar2_operations.mkdir    = mount_type == MOUNT_FOLDER ? rar2_mkdir    : (void*)rar2_eperm_stub;
+      rar2_operations.rmdir    = mount_type == MOUNT_FOLDER ? rar2_rmdir    : (void*)rar2_eperm_stub;
+      rar2_operations.write    = mount_type == MOUNT_FOLDER ? rar2_write    : (void*)rar2_eperm_stub;
+      rar2_operations.truncate = mount_type == MOUNT_FOLDER ? rar2_truncate : (void*)rar2_eperm_stub;
+      rar2_operations.chmod    = mount_type == MOUNT_FOLDER ? rar2_chmod    : (void*)rar2_eperm_stub;
+      rar2_operations.chown    = mount_type == MOUNT_FOLDER ? rar2_chown    : (void*)rar2_eperm_stub;
+
+      res = fuse_main(args->argc, args->argv, &rar2_operations, NULL);
+
+#if defined ( __linux ) && defined ( __cpu_set_t_defined )
+      if (OBJ_SET(OBJ_NO_SMP))
+      {
+         if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved)) {
+                 perror("sched_setaffinity");
+         }
+      }
+#endif
+
+   return res;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 
 #define CONSUME_LONG_ARG() { \
    int i;\
@@ -2549,153 +2715,13 @@ rar2_utime(const char* path, const struct timespec tv[2])
       argv[i] = argv[i+1];}\
 }
 
-static void 
-usage(char* prog)
-{
-   const char* P_ = basename(prog);
-   printf("Usage: %s [options] source target\n", P_);
-   printf("Try `%s -h' or `%s --help' for more information.\n", P_, P_);
-}
-
 int
 main(int argc, char* argv[])
 {
-   int res;
-   int opt;
-   char *helpargv[2]={NULL,"-h"};
+   int res = 0;
 
-   struct option longopts[] = {
-      {"show-comp-img", no_argument,       NULL, OBJ_ADDR(OBJ_SHOW_COMP_IMG)},
-      {"preopen-img",   no_argument,       NULL, OBJ_ADDR(OBJ_PREOPEN_IMG)},
-      {"no-idx-mmap",   no_argument,       NULL, OBJ_ADDR(OBJ_NO_IDX_MMAP)},
-      {"fake-iso",      optional_argument, NULL, OBJ_ADDR(OBJ_FAKE_ISO)},
-      {"exclude",       required_argument, NULL, OBJ_ADDR(OBJ_EXCLUDE)},
-      {"seek-length",   required_argument, NULL, OBJ_ADDR(OBJ_SEEK_LENGTH)},
-      {"unrar-path",    required_argument, NULL, OBJ_ADDR(OBJ_UNRAR_PATH)},
-      {"no-password",   no_argument,       NULL, OBJ_ADDR(OBJ_NO_PASSWD)},
-      {"seek-depth",    required_argument, NULL, OBJ_ADDR(OBJ_SEEK_DEPTH)},
-#if defined ( __linux ) && defined ( __cpu_set_t_defined )
-      {"no-smp",        no_argument,       NULL, OBJ_ADDR(OBJ_NO_SMP)},
-#endif
-      {"img-type",      required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
-      {"no-lib-check",  no_argument,       NULL, OBJ_ADDR(OBJ_NO_LIB_CHECK)},
-#ifndef USE_STATIC_IOB_
-      {"hist-size",     required_argument, NULL, OBJ_ADDR(OBJ_HIST_SIZE)},
-      {"iob-size",      required_argument, NULL, OBJ_ADDR(OBJ_BUFF_SIZE)},
-#endif
-      {"version",       no_argument,       NULL, 'V'},
-      {"help",          no_argument,       NULL, 'h'},
-      {NULL,0,NULL,0}
-   };
-
+   /*openlog("rarfs2",LOG_CONS|LOG_NDELAY|LOG_PERROR|LOG_PID,LOG_DAEMON);*/
    configdb_init();
-
-   //openlog("rarfs2",LOG_CONS|LOG_NDELAY|LOG_PERROR|LOG_PID,LOG_DAEMON);
-   opterr=0;
-   while((opt=getopt_long(argc,argv,"Vhfo:",longopts,NULL))!=-1)
-   {
-      if(opt=='V'){
-         printf("rar2fs v%u.%u.%u (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
-            RAR2FS_MAJOR_VER,
-            RAR2FS_MINOR_VER,
-            RAR2FS_PATCH_LVL,
-            RARGetDllVersion(),
-            FUSE_VERSION);
-         printf("This program comes with ABSOLUTELY NO WARRANTY.\n"
-                "This is free software, and you are welcome to redistribute it under\n"
-                "certain conditions; see <http://www.gnu.org/licenses/> for details.\n");
-         return 0;
-      }
-      if(opt=='h'){
-         helpargv[0]=argv[0];
-         fuse_main(2,helpargv,(const struct fuse_operations*)NULL,NULL);
-         printf("\nrar2fs options:\n");
-         printf("    --img-type=E1[;E2...]   additional image file type extensions beyond the default [.iso;.img;.nrg]\n");
-         printf("    --show-comp-img\t    show image file types also for compressed archives\n");
-         printf("    --preopen-img\t    prefetch volume file descriptors for image file types\n");
-         printf("    --fake-iso[=E1[;E2...]] fake .iso extension for specified image file types\n");
-         printf("    --exclude=F1[;F2...]    exclude file filter\n");
-         printf("    --seek-length=n\t    set number of volume files that are traversed in search for headers [0=All]\n");
-         printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [0=Off]\n");
-         printf("    --no-idx-mmap\t    use direct file I/O instead of mmap() for .r2i files\n");
-         printf("    --unrar-path=PATH\t    path to external unrar binary (overide libunrar)\n");
-         printf("    --no-password\t    disable password file support\n");
-         printf("    --no-lib-check\t    disable validation of library version(s)\n");
-#ifndef USE_STATIC_IOB_
-         printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MiB (1,2,4,8, etc.) [4]\n");
-         printf("    --hist-size=n\t    I/O buffer history size as a percentage (0-75) of total buffer size [50]\n");
-#endif
-#if defined ( __linux ) && defined ( __cpu_set_t_defined )
-         printf("    --no-smp\t\t    disable SMP support (bind to CPU #0)\n");
-#endif
-         return 0;
-      }
-      int consume = 1;
-      if (collect_obj(OBJ_BASE(opt), optarg))
-         consume = 0;
-      if (consume) CONSUME_LONG_ARG();
-   }
-
-   if(argc<3 || !argv[optind])
-   {
-      usage(*argv);
-      return -1;
-   }
-
-   /* Validate I/O buffer and history size */
-   {
-      unsigned int bsz = OBJ_INT(OBJ_BUFF_SIZE, 0);
-      unsigned int hsz = OBJ_INT(OBJ_HIST_SIZE, 0);
-      if ((OBJ_SET(OBJ_BUFF_SIZE) && !bsz) ||
-          (bsz & (bsz -1)) ||
-          (OBJ_SET(OBJ_HIST_SIZE) && (hsz > 75)))
-      {
-         usage(*argv);
-         return -1;
-      }
-   }
-
-   /* Validate src/dst path */
-   {
-      char p1[PATH_MAX];
-      char p2[PATH_MAX];
-      char* a1 = realpath(argv[optind], p1);
-      char* a2 = realpath(argv[optind+1], p2);
-      if (!a1||!a2||!strcmp(a1,a2)) 
-      {
-         printf("invalid source and/or mount point\n");
-         exit(-1);
-      }
-      DIR_LIST_RST(arch_list);
-      struct stat st;
-      (void)stat(a1, &st);
-      mount_type = S_ISDIR(st.st_mode) ? MOUNT_FOLDER : MOUNT_ARCHIVE;
-      /* Check path type(s), destination path *must* be a folder */
-      (void)stat(a2, &st);
-      if (!S_ISDIR(st.st_mode) || (mount_type == MOUNT_ARCHIVE && !collect_files(a1, arch_list)))
-      {
-         printf("invalid source and/or mount point\n");
-         exit(-1);
-      }
-      /* Do not try to use 'a1' after this call since dirname() will destroy it! */
-      src_path = mount_type == MOUNT_FOLDER ? strdup(a1) : strdup(dirname(a1));
-   }
-
-   if (!OBJ_SET(OBJ_NO_LIB_CHECK))
-   {
-      if (RARGetDllVersion() < RAR_DLL_VERSION)
-      {
-         printf("libunrar.so (v%d.%d%s) or compatible library not found\n",
-            RARVER_MAJOR, RARVER_MINOR, !RARVER_BETA ? "" : " beta");
-         return -1;
-      }
-      if (fuse_version() < FUSE_VERSION)
-      {
-         printf("libfuse.so.%d.%d or compatible library not found\n",
-            FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
-         return -1;
-      }
-   }
 
    long ps = -1;
 #if defined ( _SC_PAGE_SIZE )
@@ -2706,56 +2732,141 @@ main(int argc, char* argv[])
    if (ps != -1) page_size = ps;
    else          page_size = 4096;
 
-#if defined ( __linux ) && defined ( __cpu_set_t_defined )
-   if (OBJ_SET(OBJ_NO_SMP))
+   if (1)
    {
-      cpu_set_t cpu_mask;
-      CPU_ZERO(&cpu_mask);
-      CPU_SET(1, &cpu_mask);
-      if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask)) {
-         perror("sched_setaffinity");
-         exit(-1);
+      int opt;
+      char *helpargv[2]={NULL,"-h"};
+
+      struct option longopts[] = {
+         {"show-comp-img", no_argument,       NULL, OBJ_ADDR(OBJ_SHOW_COMP_IMG)},
+         {"preopen-img",   no_argument,       NULL, OBJ_ADDR(OBJ_PREOPEN_IMG)},
+         {"no-idx-mmap",   no_argument,       NULL, OBJ_ADDR(OBJ_NO_IDX_MMAP)},
+         {"fake-iso",      optional_argument, NULL, OBJ_ADDR(OBJ_FAKE_ISO)},
+         {"exclude",       required_argument, NULL, OBJ_ADDR(OBJ_EXCLUDE)},
+         {"seek-length",   required_argument, NULL, OBJ_ADDR(OBJ_SEEK_LENGTH)},
+         {"unrar-path",    required_argument, NULL, OBJ_ADDR(OBJ_UNRAR_PATH)},
+         {"no-password",   no_argument,       NULL, OBJ_ADDR(OBJ_NO_PASSWD)},
+         {"seek-depth",    required_argument, NULL, OBJ_ADDR(OBJ_SEEK_DEPTH)},
+#if defined ( __linux ) && defined ( __cpu_set_t_defined )
+         {"no-smp",        no_argument,       NULL, OBJ_ADDR(OBJ_NO_SMP)},
+#endif
+         {"img-type",      required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
+         {"no-lib-check",  no_argument,       NULL, OBJ_ADDR(OBJ_NO_LIB_CHECK)},
+#ifndef USE_STATIC_IOB_
+         {"hist-size",     required_argument, NULL, OBJ_ADDR(OBJ_HIST_SIZE)},
+         {"iob-size",      required_argument, NULL, OBJ_ADDR(OBJ_BUFF_SIZE)},
+#endif
+         {"version",       no_argument,       NULL, 'V'},
+         {"help",          no_argument,       NULL, 'h'},
+         {NULL,0,NULL,0}
+      };
+
+      opterr=0;
+      while((opt=getopt_long(argc,argv,"Vhfo:",longopts,NULL))!=-1)
+      {
+         if(opt=='V'){
+            printf("rar2fs v%u.%u.%u (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
+               RAR2FS_MAJOR_VER,
+               RAR2FS_MINOR_VER,
+               RAR2FS_PATCH_LVL,
+               RARGetDllVersion(),
+               FUSE_VERSION);
+            printf("This program comes with ABSOLUTELY NO WARRANTY.\n"
+                   "This is free software, and you are welcome to redistribute it under\n"
+                   "certain conditions; see <http://www.gnu.org/licenses/> for details.\n");
+            return 0;
+         }
+         if(opt=='h'){
+            helpargv[0]=argv[0];
+            fuse_main(2,helpargv,(const struct fuse_operations*)NULL,NULL);
+            printf("\nrar2fs options:\n");
+            printf("    --img-type=E1[;E2...]   additional image file type extensions beyond the default [.iso;.img;.nrg]\n");
+            printf("    --show-comp-img\t    show image file types also for compressed archives\n");
+            printf("    --preopen-img\t    prefetch volume file descriptors for image file types\n");
+            printf("    --fake-iso[=E1[;E2...]] fake .iso extension for specified image file types\n");
+            printf("    --exclude=F1[;F2...]    exclude file filter\n");
+            printf("    --seek-length=n\t    set number of volume files that are traversed in search for headers [0=All]\n");
+            printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [0=Off]\n");
+            printf("    --no-idx-mmap\t    use direct file I/O instead of mmap() for .r2i files\n");
+            printf("    --unrar-path=PATH\t    path to external unrar binary (overide libunrar)\n");
+            printf("    --no-password\t    disable password file support\n");
+            printf("    --no-lib-check\t    disable validation of library version(s)\n");
+#ifndef USE_STATIC_IOB_
+            printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MiB (1,2,4,8, etc.) [4]\n");
+            printf("    --hist-size=n\t    I/O buffer history size as a percentage (0-75) of total buffer size [50]\n");
+#endif
+#if defined ( __linux ) && defined ( __cpu_set_t_defined )
+            printf("    --no-smp\t\t    disable SMP support (bind to CPU #0)\n");
+#endif
+            return 0;
+         }
+         int consume = 1;
+         if (collect_obj(OBJ_BASE(opt), optarg))
+            consume = 0;
+         if (consume) CONSUME_LONG_ARG();
+      }
+
+      if(argc<3 || !argv[optind])
+      {
+         usage(*argv);
+         return -1;
+      }
+   
+      /* Check I/O buffer and history size */
+      if (check_iob(*argv, 1))
+      {
+         return -1;
+      }
+
+      /* Check src/dst path */
+      char* dst_path;
+      char* src_path;
+      if (check_paths(argv[optind], argv[optind+1], &src_path, &dst_path, 1))
+      {
+         return -1;
+      }
+      collect_obj(OBJ_SRC, src_path);
+      collect_obj(OBJ_DST, dst_path);
+      free(src_path);
+      free(dst_path);
+
+      /* Check library versions */
+      if (!OBJ_SET(OBJ_NO_LIB_CHECK))
+      {
+         if (check_libunrar(1) || check_libfuse(1))
+         {
+            return -1;
+         }
       }
    }
-#endif
+   else
+   {
+      /* Call external configuration domain here */
+   }
 
-   argv[optind]=argv[optind+1];
-   argc-=1;
-
+   if (argc >= 2)
+   {
+      argv[optind]=NULL;
+      argc-=2;
+   } 
+   else
+   {
+      argc = 0;
+   }
    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
    fuse_opt_parse(&args, NULL, NULL, NULL);
-   fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,subtype=rar2fs,default_permissions");
    fuse_opt_add_arg(&args, "-s");
+   fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,subtype=rar2fs,default_permissions");
+   fuse_opt_add_arg(&args, OBJ_STR(OBJ_DST,0));
+  
+   /* All static setup is ready, the rest is taken from the configuration.
+    * Continue in work() function which will not return until the process
+    * is about to terminate. */
+   res = work(&args);
 
-   /* Mapping of FUSE file system operations */
-   static struct fuse_operations rar2_operations = {
-      .init    = rar2_init,
-      .statfs  = rar2_statfs,
-      .utime   = rar2_utime_deprecated,
-      .utimens = rar2_utime,
-      .destroy = rar2_destroy,
-      .open    = rar2_open,
-      .release = rar2_release,
-      .read    = rar2_read,
-      .flush   = rar2_flush
-   };
-   /* The below callbacks depend on mount type */
-   rar2_operations.getattr  = mount_type == MOUNT_FOLDER ? rar2_getattr  : rar2_getattr2; 
-   rar2_operations.readdir  = mount_type == MOUNT_FOLDER ? rar2_readdir  : rar2_readdir2; 
-   rar2_operations.create   = mount_type == MOUNT_FOLDER ? rar2_create   : (void*)rar2_eperm_stub; 
-   rar2_operations.rename   = mount_type == MOUNT_FOLDER ? rar2_rename   : (void*)rar2_eperm_stub; 
-   rar2_operations.mknod    = mount_type == MOUNT_FOLDER ? rar2_mknod    : (void*)rar2_eperm_stub; 
-   rar2_operations.unlink   = mount_type == MOUNT_FOLDER ? rar2_unlink   : (void*)rar2_eperm_stub; 
-   rar2_operations.mkdir    = mount_type == MOUNT_FOLDER ? rar2_mkdir    : (void*)rar2_eperm_stub; 
-   rar2_operations.rmdir    = mount_type == MOUNT_FOLDER ? rar2_rmdir    : (void*)rar2_eperm_stub; 
-   rar2_operations.write    = mount_type == MOUNT_FOLDER ? rar2_write    : (void*)rar2_eperm_stub; 
-   rar2_operations.truncate = mount_type == MOUNT_FOLDER ? rar2_truncate : (void*)rar2_eperm_stub; 
-   rar2_operations.chmod    = mount_type == MOUNT_FOLDER ? rar2_chmod    : (void*)rar2_eperm_stub; 
-   rar2_operations.chown    = mount_type == MOUNT_FOLDER ? rar2_chown    : (void*)rar2_eperm_stub; 
-
-   res = fuse_main(args.argc, args.argv, &rar2_operations, NULL);
-
+   /* Clean up what has not already been taken care of */
    fuse_opt_free_args(&args);
+   configdb_destroy();
 
    return res;
 }

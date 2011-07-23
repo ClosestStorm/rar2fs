@@ -100,7 +100,6 @@ stack_trace(int sig, siginfo_t *info, void *secret)
 
 int glibc_test = 0;
 
-#include <sys/wait.h>
 static void
 sig_handler(int signum, siginfo_t *info, void* secret)
 {
