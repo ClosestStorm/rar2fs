@@ -12,7 +12,7 @@ endif
 UNAME := $(shell uname)
 MAKE := $(shell which gmake)
 
-LIBS=-lunrar -pthread -lrt
+LIBS=-lunrar -pthread
 
 ifeq ($(UNAME), Darwin)
 LIBS+=-lstdc++
