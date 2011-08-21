@@ -50,7 +50,18 @@
 #endif
 #endif
 #ifdef __FreeBSD__
+#if __FreeBSD__ >= 2
+#include <osreldate.h>
+/* 800501 8.0-STABLE after change of the scandir(3) and alphasort(3)
+   prototypes to conform to SUSv4. */
+#if __FreeBSD_version >= 800501
+#define CONST_DIRENT_ const
+#else
+#define CONST_DIRENT_ 
+#endif
+#else
 #define CONST_DIRENT_
+#endif
 #define __BYTE_ORDER _BYTE_ORDER
 #define __LITTLE_ENDIAN _LITTLE_ENDIAN
 #define __BIG_ENDIAN _BIG_ENDIAN
