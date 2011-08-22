@@ -19,6 +19,13 @@ A: The unrar source tree is needed because rar2fs is adding some features on top
 ===Q 1.5. How do I install it?===
 A: Well, there is no install target in the Makefile. Question is if there ever will be. There are only two files that are of interest really, the rar2fs binary and the rar2fs.1 man page. They can be placed anywhere you like.
 
+===Q 1.6. I get this error when compiling libunrar: relocation R_X86_64_32 can not be used when making a shared object; recompile with -fPIC===
+A: On some platforms, especially 64-bit versions, the compiler does not automatically produce shared libraries with placement independent code. Add the -fPIC option to the CXXFLAGS in makefile.unix to solve this error:
+{{{
+   CXXFLAGS=-O2 -fPIC
+}}}
+Note that this change is only required in the libunrar makefile(s). You do not have to change anything in rar2fs.
+
 ==2. Usage and Functionality==
 ===Q 2.1. Ok, so I built it, now how do I use it?===
 A: There are many options that can be fed to the program. The complete set of options are described in the rar2fs [http://code.google.com/p/rar2fs/wiki/ManPage man page]. But in its simplest form rar2fs is invoked like:
