@@ -1,7 +1,7 @@
     CHANGE LOG
 
     1.13.1      o Update: Fixed compilation warning about incompatible pointer
-                  type passed to scandir(3) for FreeBSD 8.1+ and later.
+                  type passed to scandir(3) for FreeBSD 8.0+ and later.
     1.13.0      o Stable release.
     1.12.5      o Update: All dynamic settings are now accessed through the
                   data base including source and destination path.
