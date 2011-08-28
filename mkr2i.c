@@ -27,6 +27,9 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 #include <arpa/inet.h>
+#ifdef __sun__
+#include <alloca.h>
+#endif
 #include "common.h"
 
 #define MAP_FAILED_   (0x1)
@@ -150,7 +153,11 @@ parse_ebml(IdxHead* h, FILE* fp, off_t sz)
 static char*
 map_file(int fd, size_t size)
 {
+#ifdef __sun__
+  if (lockf(fd, F_LOCK, 0) == -1) return NULL;
+#else
   if (flock(fd, LOCK_EX|LOCK_NB) == -1) return NULL;
+#endif
 
   /* Prepare the file */
   no_warn_result_ ftruncate(fd, size);

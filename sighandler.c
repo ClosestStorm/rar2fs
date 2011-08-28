@@ -144,6 +144,8 @@ sig_handler(int signum, siginfo_t *info, void* secret)
 #if defined ( __APPLE__ ) || defined ( __FreeBSD__ )
 /* This is such a big mess! Simply cast to void* to walk away from it. */
 #define SIG_FUNC_ (void*)
+#elif defined (__sun__)
+#define SIG_FUNC_
 #else
 #define SIG_FUNC_ (__sighandler_t)
 #endif

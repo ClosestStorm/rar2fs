@@ -34,6 +34,11 @@
 #include <sys/types.h>
 #include <stdint.h>   /* C99 uintptr_t */
 
+#ifdef __sun__
+#include <arpa/nameser_compat.h>
+#define __BYTE_ORDER BYTE_ORDER
+#define CONST_DIRENT_ const
+#endif
 #ifdef __APPLE__
 #include <sys/param.h>
 #include <sys/mount.h>

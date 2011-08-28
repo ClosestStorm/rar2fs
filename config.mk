@@ -18,7 +18,7 @@ UNRAR_LIB=
 # the FUSE development header files.
 # This can be left blank if the header files are already placed in
 # some default location such as /usr/include.
-FUSE_SRC=
+FUSE_SRC=/opt/include/fuse
 
 ##########################
 # This is the path (absolute or relative) to the folder containing
@@ -39,29 +39,28 @@ HAS_GLIBC_CUSTOM_STREAMS=y
 # version >= 10.6 (Snow Leopard) this is enabled by default in the
 # Darwin kernel so it would sort of make sense saying 'y' here too.
 # This option has no effect on any other OS so just leave it as is.
-USE_OSX_64_BIT_INODES=n
+USE_OSX_64_BIT_INODES=y
 
 
 ##########################
 # Change here to match your local platform or toolchain
 ifndef CROSS
-# Linux using GCC
+# Host/target platform using GCC
 CC=gcc
 CXX=g++
-CFLAGS+=-g -rdynamic -fno-omit-frame-pointer
-CXXFLAGS+=-g -rdynamic -fno-omit-frame-pointer
+CFLAGS+=-g -fno-omit-frame-pointer
+CXXFLAGS+=-g -fno-omit-frame-pointer
 DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 STRIP=strip
 LDFLAGS=
 else
-# Cross-compile
-# Linux using mipsel-linux-?
-CC=mipsel-linux-gcc
-CXX=mipsel-linux-g++
+# Cross-compile using GCC
+CC=$(CROSS)-gcc
+CXX=$(CROSS)-g++
 CFLAGS+=-g
 CXXFLAGS+=-g
 DEFINES=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
-STRIP=mipsel-linux-strip
+STRIP=$(CROSS)-strip
 LDFLAGS=
 endif
 
