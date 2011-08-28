@@ -51,6 +51,9 @@
 #include <pthread.h>
 #include <ctype.h>
 #include <sched.h>
+#ifdef __sun__
+#include <alloca.h>
+#endif
 #include "common.h"
 #include "version.h"
 #include "dllwrapper.h"
@@ -1868,8 +1871,8 @@ preload_index(IoBuf* buf, const char* path)
          return;
       }
       /* Map the file into address space (2st pass) */
-      buf->idx.data_p = mmap(NULL, P_ALIGN_(h->size), PROT_READ, MAP_SHARED, fd, 0);
-      munmap(h, sizeof(IdxHead));
+      buf->idx.data_p = (void*)mmap(NULL, P_ALIGN_(h->size), PROT_READ, MAP_SHARED, fd, 0);
+      munmap((void*)h, sizeof(IdxHead));
       if (buf->idx.data_p == MAP_FAILED)
       {
          close(fd);
@@ -2261,7 +2264,7 @@ rar2_release(const char *path, struct fuse_file_info *fi)
       { 
          /* XXX clean up */
          if (op->buf->idx.data_p != MAP_FAILED && op->buf->idx.mmap) 
-            munmap(op->buf->idx.data_p, P_ALIGN_(op->buf->idx.data_p->head.size));
+            munmap((void*)op->buf->idx.data_p, P_ALIGN_(op->buf->idx.data_p->head.size));
          if (op->buf->idx.data_p != MAP_FAILED && !op->buf->idx.mmap) 
             free(op->buf->idx.data_p);
          if (op->buf->idx.fd != -1) close(op->buf->idx.fd);

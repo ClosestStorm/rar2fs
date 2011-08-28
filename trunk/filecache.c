@@ -27,6 +27,10 @@
 */
 
 #include <memory.h>
+#include <string.h>
+#ifdef __sun__
+#include <alloca.h>
+#endif
 #include "common.h"
 #include "filecache.h"
 #include "configdb.h"

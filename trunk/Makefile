@@ -12,7 +12,12 @@ endif
 UNAME := $(shell uname)
 MAKE := $(shell which gmake)
 
-LIBS=-lunrar -pthread
+LIBS=-lunrar -lpthread
+
+# Try some default if path is not specified
+ifeq ($(FUSE_SRC),)
+FUSE_SRC=/usr/include/fuse
+endif
 
 ifeq ($(UNAME), Darwin)
 LIBS+=-lstdc++
@@ -34,6 +39,13 @@ endif
 DEFINES+=-D_DARWIN_USE_64_BIT_INODE
 endif
 else
+ifeq ($(UNAME), Linux)
+CFLAGS+=-rdynamic
+CXXFLAGS+=-rdynamic
+endif
+ifeq ($(UNAME), SunOS)
+DEFINES+=-D_REENTRANT -D__EXTENSIONS__ 
+endif
 LIBS+=-lfuse 
 endif
 
@@ -56,7 +68,7 @@ CFLAGS+=-std=c99 -Wall
 
 C_COMPILE=$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(DEFINES) $(CONF) -DRARDLL -DFUSE_USE_VERSION=27 $(INCLUDES)
 CXX_COMPILE=$(CXX) $(CXXFLAGS) $(EXTRA_CXXFLAGS) $(DEFINES) -DRARDLL 
-LINK=$(CC)
+LINK=$(CXX)
 ifneq ("$(UNRAR_LIB)", "")
 LIB_DIR=-L$(UNRAR_LIB)
 endif
