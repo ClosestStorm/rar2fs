@@ -4,7 +4,7 @@
 ##########################
 # This is the path (absolute or relative) to the folder containing
 # the full portable "Unrar C++ library" (libunrar) sources 
-UNRAR_SRC=./unrar
+UNRAR_SRC=
 
 ##########################
 # This is the path (absolute or relative) to the folder containing
@@ -18,7 +18,7 @@ UNRAR_LIB=
 # the FUSE development header files.
 # This can be left blank if the header files are already placed in
 # some default location such as /usr/include.
-FUSE_SRC=/opt/include/fuse
+FUSE_SRC=
 
 ##########################
 # This is the path (absolute or relative) to the folder containing
