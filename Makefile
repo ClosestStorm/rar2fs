@@ -12,7 +12,7 @@ endif
 UNAME := $(shell uname)
 MAKE := $(shell which gmake)
 
-LIBS=-lunrar -lpthread
+LIBS=-lstdc++ -lunrar -lpthread
 
 # Try some default if path is not specified
 ifeq ($(FUSE_SRC),)
@@ -20,7 +20,6 @@ FUSE_SRC=/usr/include/fuse
 endif
 
 ifeq ($(UNAME), Darwin)
-LIBS+=-lstdc++
 # Is _DARWIN_C_SOURCE really needed ?
 DEFINES+=-D_DARWIN_C_SOURCE
 ifeq ($(USE_OSX_64_BIT_INODES), n)
@@ -68,7 +67,7 @@ CFLAGS+=-std=c99 -Wall
 
 C_COMPILE=$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(DEFINES) $(CONF) -DRARDLL -DFUSE_USE_VERSION=27 $(INCLUDES)
 CXX_COMPILE=$(CXX) $(CXXFLAGS) $(EXTRA_CXXFLAGS) $(DEFINES) -DRARDLL 
-LINK=$(CXX)
+LINK=$(CC)
 ifneq ("$(UNRAR_LIB)", "")
 LIB_DIR=-L$(UNRAR_LIB)
 endif
