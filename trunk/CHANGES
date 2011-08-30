@@ -1,6 +1,6 @@
     CHANGE LOG
 
-    1.13.2      o Update: Ported to OpenSolaris / OpenIndiana (unstable)
+    1.13.2      o Update: Ported to OpenSolaris (i386 snv_126 baseline).
                 o Bugix: Corrected build problem when FUSE_SRC was not set in 
                   config.mk
     1.13.1      o Update: Fixed compilation warning about incompatible pointer
