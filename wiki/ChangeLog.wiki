@@ -1,4 +1,5 @@
 #summary Latest updates
+#labels Featured
 
 For a comprehensive list of latest updates check the following link<br>
 [https://code.google.com/p/rar2fs/source/browse/trunk/ChangeLog]
