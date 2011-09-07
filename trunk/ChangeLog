@@ -1,0 +1,160 @@
+rar2fs ChangeLog file.
+
+    1.13.2      o Update: Ported to OpenSolaris (i386 snv_126 baseline).
+                o Bugix: Corrected build problem when FUSE_SRC was not set in 
+                  config.mk
+    1.13.1      o Update: Fixed compilation warning about incompatible pointer
+                  type passed to scandir(3) for FreeBSD 8.0+ and later.
+    1.13.0      o Stable release.
+    1.12.5      o Update: All dynamic settings are now accessed through the
+                  data base including source and destination path.
+    1.12.4      o [I5]: Added support for FUSE 'statfs' callback. 
+                  It was required to avoid a crash (signal 8) in afpd when
+                  rar2fs was mounted across a Netatalk/AFP network.
+                  There are however still issues with getting Netatalk to 
+                  work as expected.
+    1.12.3      o [I3]: Got rid of some integer to pointer conversion warnings
+                  for 64-bit platforms.
+    1.12.2      o [I2,I3]: Fixed broken build for FreeBSD and non x86 based
+                  Linux platforms.
+    1.12.1      o Update: The code has been adapted to utilize the unrar API
+                  as intended for extraction of compressed/encryped archives. 
+                  This will remove the need for some of the previously added
+                  API extensions and will reduce the dependency to what
+                  version of the API is used. However, this will inflict some 
+                  extra memory overhead added by the original API callback 
+                  interface.
+                o Update: Additional code clean up.
+                o Bugfix: Corrected a problem with extraction of 
+                  compressed/encrypted archives that could fail if the same 
+                  file is opened during the extraction process. 
+    1.12.0      o Stable release.
+    1.11.20     o Bugfix: Corrected some more malloc() calls that could fail
+                  and pass unnoticed.
+                o Update: Option --hist-size now ranges from 0-75. Use a value
+                  of 0 to turn this function off. Man page updated accordingly.
+    1.11.19     o Update: Added option --iob-size that can be used to tune the
+                  total size of the I/O buffer. Default size is 4MiB.
+                  It is also possible to keep the old hardcoded buffer and 
+                  history size using the -DUSE_STATIC_IOB_ flag.
+                o Bugfix: Added some missing checks for memory allocation 
+                  failures during open() calls.
+    1.11.18     o Update: Added option --hist-size that can be used to tune the
+                  I/O buffer history size. The history can be set as a percentage
+                  (25-75) of the total buffer size. Default is half the size of 
+                  the total buffer, currently 2MiB.
+                o Update: Reinserted check of .avi and .mkv before attempting
+                  an index preload. This update some how got lost on the way.
+    1.11.17     o Bugfix: Should now work also on 64-bit platforms.
+                o Bugfix: Corrected an issue with dirname(3) usage that caused
+                  very strange behavior depending on what platform was used.
+    1.11.16     o Bugfix: Corrected a build problem in previous release.
+    1.11.15     o Bugfix: More minor bugs in write support fixed.
+                o Update: Added support for rename(), eg. 'mv' (move).
+    1.11.14     o Bugfix: Corrected some early "flaws" in the write support.
+                o Update: Added support for chmod() and chown().
+    1.11.13     o Update: Added some very basic write support to underlying
+                  file system. Very experimental.
+    1.11.12     o Update: Added support for mounting single RAR archives.
+    1.11.11     o Update: Improved logic in the volume part parser(s) to handle
+                  umlimited (in theory) number of volume files for old style 
+                  .rNN format.
+    1.11.10     o Update: Resolved some compilation warnings in mkr2i.c
+                  that was discovered when building on Ubuntu 10.10.
+                o Update: Files on the local/native file system are no longer 
+                  added to the cache. This means any changes to file system
+                  should now propagate properly also to the FUSE mount point.   
+                o Update: Picking up UID and GID from the calling process when
+                  setting up stat(2) information for files inside a RAR archives.
+                  Unless the FUSE options 'uid' and 'gid' where used, owner and
+                  group were always set to 0 (root). 
+                o Bugfix: Fixed a crash when invalidating an empty cache entry. 
+    1.11.9      o Bugfix: Added check to validate that source (root) and
+                  target folder (mount point) are in fact directories.
+                  This check will be relaxed for the source folder once 
+                  support for mounting of individual RAR archives is added.
+                o Bugfix: Several OS X and FreeBSD build issues corrected.
+                o Update: Added check that file is of type .avi or .mkv 
+                  before attempting an index preload.  
+    1.11.8      o Update: Build now forces C99. Also addded -Wall to identify
+                  and resolve a lot of warnings.
+    1.11.7      o Bugfix: Added missing display of "." and ".." for folders
+                  inside RAR archives.
+    1.11.6      o Update: Using tmp file for extraction of "rar inside rar" if
+                  glibc custom stream support is missing. This will provide 
+                  support for "rar inside rar" even if the encapsulating file 
+                  is compressed and/or encrypted. It might however perform a
+                  bit slow in some cases compared to using glibc custom streams.
+    1.11.5      o Update: FreeBSD port
+    1.11.4      o Update: Added option --no-lib-check
+    1.11.3      o Update: Code updated to support Mac OS X and MacFUSE.
+                  Note that this is still very experimental and only tested on
+                  one platform. Please report back any issues you find.
+                o Bugfix: Fixed an issue with folders inside a RAR file that did
+                  not show up if the root folder was not having an entry of its
+                  own in the file header (very rare).
+    1.11.2      o Added version.h
+    1.11.1      o New revisioning approach using Major.Minor.PatchLevel instead 
+                  of Major.Minor beta releases.
+                  Stable releases will be denoted by a patch level of 0. 
+                  Each stable release will then be archived using a compressed
+                  tarball and comitted to the project home page download section.
+                  <http://code.google.com/p/rar2fs/downloads/list>
+    1.11 beta   o Minor code/Makefile updates.
+    1.10 beta   o Fixed broken build for platforms not having the cpu_set_t
+                  type in sched.h (GNU extension).
+    1.09 beta   o Built against unrarlib v4.0.7 
+                o Minor modification of backward jump (history) logic for
+                  compressed/encrypted archives.
+    1.08        o Stable release.
+    1.08 beta   o Fixed a crash (SEGV) issue if some volume files were missing.
+                o Added new option --img-type.
+                o Changed option --fake-iso to now accept a list of file
+                  extensions/types as argument instead of having only hardcoded
+                  values of ".img" and ".nrg".
+                o Replaced the --no-filter option with --exclude.
+                  See manual page for details on how to use this new option.
+                  Be aware that due to this change .lock files are no longer
+                  filtered out by default.
+                o Fixed a bug in handling of WAIT_THREAD() that could result 
+                  in that data was not read properly in SMP mode.
+                o Added the option --no-smp to turn off SMP support and bind
+                  process(s) to CPU #0 (Linux only).
+                o Added HAS_GLIBC_CUSTOM_STREAMS_ to control the use of this GNU 
+                  extensions in glibc. This became necessary since many uClibc 
+                  distributions choose not to provide glibc custom stream support.
+                  Turning this feature off disables the support for "rar inside rar"
+                  if the encapsulating file is compressed and/or encrypted. 
+    1.07        o First official release (with source)
+    1.07 beta   o Built against unrarlib v4.0 beta 4
+                o Added a sliding window to the IO buffer to allow for at least
+                  some sort of backward read support.
+                  The window is currently hardcoded to half the I/O buffer size
+                  (4/2 = 2MiB) and for that reason the I/O buffer size had to be
+                  increased from 2MiB to 4MiB.
+                o Fixed permissions to now be handled by kernel instead
+                o Added limited support for "rar inside rar".
+                  Main archive or encapsulated RAR file must not be a volume
+                  (i.e. must be monolithic).
+                  Only one (1) level of depth is supported (--seek-depth > 0).
+                  Extracted file can be of any shape or form except for password
+                  protection which is currently not supported (inherits main
+                  archive password).
+                o Use of external unrar program no longer required.
+                  Can still be choosen instead of internal routines using the
+                  --unrar-path option.
+                o Minor memory leak fixed when parsing folders inside archives.
+                o Built against unrarlib v3.93
+                o Added support for password protected archives
+                  (raw read mode not yet supported).
+                o Some stability issues corrected.
+                o Fixed an off-by-one bug (!?) in date/time hour calculation.
+                o Changed 'blocks' calculation as returned by stat()
+                o Fixed some memory leaks in cache collision chain
+    1.06 beta   o Replaced the "Unique RAR File Library" (by Christian Scheurer)
+                  with the more complete "Unrar C++ Library" (by Alexander Roshal)
+                  and some extensions to it.
+                o Minor source code clean up. Still lots left to do.
+    <1.06       o First draft version(s) only published at opentvix.org and
+                  xtreamer.net (no source)
+
