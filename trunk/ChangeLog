@@ -6,8 +6,8 @@ rar2fs ChangeLog file.
                 o Bugfix: Corrected a problem when 'regular file' type was
                   not set in the archive according to the Linux definition of 
                   S_IFREG. This caused an I/O error when trying to access
-                  the file. Note that files of type S_IFREG or S_IFDIR is not
-                  supported by rar2fs.
+                  the file. Note that files of type other than S_IFREG or 
+                  S_IFDIR is not supported by rar2fs.
                 o Update: Changed default permission to 0777 and 0666 for 
                   directories and regular files respectively. The default
                   permission is applied only if the archive file header does
