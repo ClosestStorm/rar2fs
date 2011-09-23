@@ -167,7 +167,7 @@ int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N)
                IntToExt(Arc.NewLhd.FileName,Arc.NewLhd.FileName);
                strncpyz(N->FileName,Arc.NewLhd.FileName,ASIZE(N->FileName));
                if (*Arc.NewLhd.FileNameW)
-                  wcsncpy(N->FileNameW,Arc.NewLhd.FileNameW,sizeof(N->FileNameW));
+                  wcsncpy(N->FileNameW,Arc.NewLhd.FileNameW,ASIZE(N->FileNameW));
                else
                {
 #ifdef _WIN_ALL
