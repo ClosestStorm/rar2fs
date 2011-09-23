@@ -962,7 +962,7 @@ get_vformat(const char* s, int t, int* l, int* p)
 #define IS_RAR_DIR(l) (((l)->Flags&LHD_DIRECTORY)==LHD_DIRECTORY)
 #endif
 #define GET_RAR_MODE(l) ((l)->HostOS != HOST_UNIX && (l)->HostOS != HOST_BEOS \
-   ? IS_RAR_DIR(l) ? (S_IFDIR|0755) : (S_IFREG|0644) : (l)->FileAttr)
+   ? IS_RAR_DIR(l) ? (S_IFDIR|0777) : (S_IFREG|0666) : (l)->FileAttr)
 #define GET_RAR_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->UnpSizeHigh * 0x100000000ULL) | (l)->UnpSize))
 #define GET_RAR_PACK_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->PackSizeHigh * 0x100000000ULL) | (l)->PackSize))
  
@@ -1076,13 +1076,19 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
 {
    if (!force_dir)
    {
-      entry_p->stat.st_mode = GET_RAR_MODE(alist_p);
-      entry_p->stat.st_nlink = IS_RAR_DIR(alist_p) ? 2 : 1;
+      mode_t mode = GET_RAR_MODE(alist_p);
+      if (!S_ISDIR(mode))
+      {
+          /* Force file to be treated as a 'regular file' */
+          mode = (mode & ~S_IFMT) | S_IFREG;
+      }  
+      entry_p->stat.st_mode = mode;
+      entry_p->stat.st_nlink = S_ISDIR(mode) ? 2 : 1;
       entry_p->stat.st_size = GET_RAR_SZ(alist_p);
    }
    else
    {
-      entry_p->stat.st_mode = (S_IFDIR|0755);
+      entry_p->stat.st_mode = (S_IFDIR|0777); /* let -o umask=M decide */
       entry_p->stat.st_nlink = 2;
       entry_p->stat.st_size = 4096;
    }
