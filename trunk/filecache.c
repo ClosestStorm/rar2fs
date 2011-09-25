@@ -119,7 +119,7 @@ cache_path(const char* path, struct stat *stbuf)
       if (e_p && e_p->flags.fake_iso) inval_cache_path(path);
 
       ABS_ROOT(root, path);
-      if(!stat(root, stbuf?stbuf:&st))
+      if(!lstat(root, stbuf?stbuf:&st))
       {
          printd(3, "STAT retrieved for %s\n", root);
          return LOCAL_FS_ENTRY;
@@ -144,7 +144,7 @@ cache_path(const char* path, struct stat *stbuf)
                   if (l>4)
                      root1 = realloc(root1, strlen(root1)+1+(l-4));
                   strcpy(root1+(strlen(root1)-4), tmp?tmp:"");
-                  res = stat(root1, &st);
+                  res = lstat(root1, &st);
                   if (!res)
                   {
                      e_p = cache_path_alloc(path);

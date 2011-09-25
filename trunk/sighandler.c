@@ -32,6 +32,7 @@
 #include <sys/wait.h>
 #include "common.h"
 #include "filecache.h"
+#include "configdb.h"
 
 #if defined ( __UCLIBC__ ) || !defined ( __linux ) || !defined ( __i386 )
 #define stack_trace(a,b,c)
@@ -155,15 +156,20 @@ sighandler_init()
 {
    struct sigaction act;
 
-   /* Avoid child zombies for SIGCHLD */
-   sigaction(SIGCHLD, NULL, &act);
-   act.sa_handler = SIG_FUNC_ sig_handler;
-   act.sa_flags |= SA_NOCLDWAIT;
-   sigaction(SIGCHLD, &act, NULL);
+   if (OBJ_SET(OBJ_UNRAR_PATH))
+   {
+       /* Avoid child zombies for SIGCHLD */
+       sigaction(SIGCHLD, NULL, &act);
+       act.sa_handler = SIG_FUNC_ sig_handler;
+       act.sa_flags |= SA_NOCLDWAIT;
+       sigaction(SIGCHLD, &act, NULL);
+   }
 
    sigaction(SIGUSR1, NULL, &act);
    sigemptyset(&act.sa_mask);
    act.sa_handler = SIG_FUNC_ sig_handler;
+   /* make sure a system call is restarted to avoid exit */
+   act.sa_flags = SA_RESTART | SA_SIGINFO;
    sigaction(SIGUSR1, &act, NULL);
 
    sigaction(SIGSEGV, NULL, &act);

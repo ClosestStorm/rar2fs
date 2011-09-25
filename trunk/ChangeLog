@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+    1.13.4      o Update: Added support for symbolic links. Note that this
+                  update only affects the back-end file system and not files
+                  inside RAR archives for which symbolic links currently
+                  remain unsupported.
+                o Update: Minor code clean-up and improvements.
     1.13.3      o Update: Fixed a compilation warning about wcsncpy() being 
                   called with length bigger than size of destination buffer
                   when __wcsncpy_chk_warn is defined.
@@ -11,8 +16,8 @@ rar2fs ChangeLog file.
                 o Update: Changed default permission to 0777 and 0666 for 
                   directories and regular files respectively. The default
                   permission is applied only if the archive file header does
-                  not provide a Unix-style file mode. To change the actual
-                  applied value use the 'umask' FUSE option (-o umask=M).
+                  not provide a Unix-style file mode. To change the file mode
+                  for _all_ files use the 'umask' FUSE option.
     1.13.2      o Update: Ported to OpenSolaris (i386 snv_126 baseline).
                 o Bugix: Corrected build problem when FUSE_SRC was not set in 
                   config.mk
