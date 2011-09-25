@@ -50,6 +50,7 @@ struct dir_elem
    off_t vsize_real;
    off_t vsize_next;
    short vno_base;
+   short vno_max;
    short vlen;
    short vpos;
    short vtype;
@@ -58,8 +59,7 @@ struct dir_elem
       unsigned int image:1;
       unsigned int fake_iso:1;
       unsigned int mmap:2;
-      unsigned int :27;
-      unsigned test_ok : 1;
+      unsigned int :28;
    } flags;
    struct dir_elem* next_p;
 };
