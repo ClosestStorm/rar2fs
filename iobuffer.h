@@ -48,21 +48,19 @@
 
 #define IOB_RST(b)  (memset((b), 0, sizeof(IoBuf)+IOB_SZ))
 
-typedef struct
-{
-  int fd;
-  int mmap;
-  IdxData* data_p;
+typedef struct {
+        int fd;
+        int mmap;
+        IdxData* data_p;
 } IdxInfo;
 
-typedef struct
-{
-   IdxInfo idx;
-   off_t offset;
-   volatile size_t ri;
-   volatile size_t wi;
-   size_t used;
-   char data_p[];
+typedef struct {
+        IdxInfo idx;
+        off_t offset;
+        volatile size_t ri;
+        volatile size_t wi;
+        size_t used;
+        char data_p[];
 } IoBuf;
 
 

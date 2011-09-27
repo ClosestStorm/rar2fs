@@ -40,100 +40,94 @@ size_t iob_sz = 0;
 size_t
 readTo(IoBuf* dest, FILE* fp, int hist)
 {
-   unsigned tot = 0;
-   unsigned int lri = dest->ri;  /* read once */
-   unsigned int lwi = dest->wi;  /* read once */
-   int left = (int)SPACE_LEFT(lri, lwi)-1;   /* -1 to avoid wi = ri */
-   if (IOB_HIST_SZ && hist==IOB_SAVE_HIST)
-   {
-      left = left > IOB_HIST_SZ ? left-IOB_HIST_SZ : 0;
-      if (!left) return 0; /* quick exit */
-   }
-   unsigned int chunk = IOB_SZ-lwi;     /* assume one large chunk */
-   chunk = chunk < left ? chunk : left; /* reconsider assumption */
-   while (left>0)
-   {
-      size_t n = fread(dest->data_p+lwi, 1, chunk, fp);
-      if (n != chunk)
-      {
-         if (n==-1) {perror("read");break;}
-         if (!n)                    break;
-      }
-      left -= n;
-      lwi = (lwi + n) & (IOB_SZ-1);
-      tot += n;
-      chunk -= n;
-      chunk = !chunk ? left : chunk;
-   }
-   dest->offset += tot;
-   dest->wi = lwi;
-   MB();
-   dest->used = SPACE_USED(lri, lwi);
+        unsigned tot = 0;
+        unsigned int lri = dest->ri;  /* read once */
+        unsigned int lwi = dest->wi;  /* read once */
+        int left = (int)SPACE_LEFT(lri, lwi)-1;   /* -1 to avoid wi = ri */
+        if (IOB_HIST_SZ && hist==IOB_SAVE_HIST) {
+                left = left > IOB_HIST_SZ ? left-IOB_HIST_SZ : 0;
+                if (!left) return 0; /* quick exit */
+        }
+        unsigned int chunk = IOB_SZ-lwi;     /* assume one large chunk */
+        chunk = chunk < left ? chunk : left; /* reconsider assumption */
+        while (left>0) {
+                size_t n = fread(dest->data_p+lwi, 1, chunk, fp);
+                if (n != chunk) {
+                        if (n==-1) {perror("read");break;}
+                        if (!n)                    break;
+                }
+                left -= n;
+                lwi = (lwi + n) & (IOB_SZ-1);
+                tot += n;
+                chunk -= n;
+                chunk = !chunk ? left : chunk;
+        }
+        dest->offset += tot;
+        dest->wi = lwi;
+        MB();
+        dest->used = SPACE_USED(lri, lwi);
 
-   return tot;
+        return tot;
 }
 
 size_t
 readFrom(char* dest, IoBuf* src, size_t size, int off)
 {
-   size_t tot = 0;
-   unsigned int lri = src->ri; /* read once */
-   int used = src->used;
-   if (off)
-   {
-      /* consume offset */
-      off = off < used ? off : used;
-      lri = (lri + off) & (IOB_SZ-1);
-      used -= off;
-   }
-   size = size > used ? used : size;    /* can not read more than used */
-   unsigned int chunk = IOB_SZ - lri;   /* assume one large chunk */
-   chunk = chunk < size ? chunk : size; /* reconsider assumption */
-   while (size)
-   {
-      memcpy(dest, src->data_p+lri, chunk);
-      used -= chunk;
-      lri = (lri + chunk) & (IOB_SZ-1);
-      tot += chunk;
-      size -= chunk;
-      dest += chunk;
-      chunk = size;
-   }
-   src->ri = lri;
-   MB();
-   src->used = used;
+        size_t tot = 0;
+        unsigned int lri = src->ri; /* read once */
+        int used = src->used;
+        if (off) {
+                /* consume offset */
+                off = off < used ? off : used;
+                lri = (lri + off) & (IOB_SZ-1);
+                used -= off;
+        }
+        size = size > used ? used : size;    /* can not read more than used */
+        unsigned int chunk = IOB_SZ - lri;   /* assume one large chunk */
+        chunk = chunk < size ? chunk : size; /* reconsider assumption */
+        while (size) {
+                memcpy(dest, src->data_p+lri, chunk);
+                used -= chunk;
+                lri = (lri + chunk) & (IOB_SZ-1);
+                tot += chunk;
+                size -= chunk;
+                dest += chunk;
+                chunk = size;
+        }
+        src->ri = lri;
+        MB();
+        src->used = used;
 
-   return tot;
+        return tot;
 }
 
 size_t
 copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
 {
-   size_t used = src->used;
+        size_t used = src->used;
 
-   size_t tot = 0;
-   size = size > used ? used : size;    /* can not read more than used */
-   unsigned int chunk = IOB_SZ - pos;   /* assume one large chunk */
-   chunk = chunk < size ? chunk : size; /* reconsider assumption */
-   while (size)
-   {
-      memcpy(dest, src->data_p+pos, chunk);
-      pos = (pos + chunk) & (IOB_SZ-1);
-      tot += chunk;
-      size -= chunk;
-      dest += chunk;
-      chunk = size;
-   }
-   return tot;
+        size_t tot = 0;
+        size = size > used ? used : size;    /* can not read more than used */
+        unsigned int chunk = IOB_SZ - pos;   /* assume one large chunk */
+        chunk = chunk < size ? chunk : size; /* reconsider assumption */
+        while (size) {
+                memcpy(dest, src->data_p+pos, chunk);
+                pos = (pos + chunk) & (IOB_SZ-1);
+                tot += chunk;
+                size -= chunk;
+                dest += chunk;
+                chunk = size;
+        }
+        return tot;
 }
 
 void
 iobuffer_init()
 {
-   int bsz = OBJ_INT(OBJ_BUFF_SIZE,0);
-   iob_sz = bsz?(bsz*1024*1024):IOB_SZ_DEFAULT;
-   int hsz = OBJ_SET(OBJ_HIST_SIZE)?OBJ_INT(OBJ_HIST_SIZE,0):50;
-   iob_hist_sz = IOB_SZ*((hsz)/100.0);
+        int bsz = OBJ_INT(OBJ_BUFF_SIZE,0);
+        iob_sz = bsz?(bsz*1024*1024):IOB_SZ_DEFAULT;
+        int hsz = OBJ_SET(OBJ_HIST_SIZE)?OBJ_INT(OBJ_HIST_SIZE,0):50;
+        iob_hist_sz = IOB_SZ*((hsz)/100.0);
 }
 
 void

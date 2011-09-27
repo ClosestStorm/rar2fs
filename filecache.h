@@ -35,51 +35,50 @@
 
 typedef struct dir_elem dir_elem;
 __extension__
-struct dir_elem
-{
-   char* name_p;
-   char* rar_p;
-   char* file_p;
-   char* password_p;
-   struct stat stat;
-   off_t offset;     /* >0: offset in rar file (raw read) */
-   union {
-      off_t vsize;      /* >0: volume file size (raw read) */
-      off_t msize;      /* >0: mmap size */
-   };
-   off_t vsize_real;
-   off_t vsize_next;
-   short vno_base;
-   short vno_max;
-   short vlen;
-   short vpos;
-   short vtype;
-   struct Flags
-   {
-      unsigned int image:1;
-      unsigned int fake_iso:1;
-      unsigned int mmap:2;
-      unsigned int :28;
-   } flags;
-   struct dir_elem* next_p;
+struct dir_elem {
+        char* name_p;
+        char* rar_p;
+        char* file_p;
+        char* password_p;
+        struct stat stat;
+        off_t offset;     /* >0: offset in rar file (raw read) */
+        union {
+                off_t vsize;      /* >0: volume file size (raw read) */
+                off_t msize;      /* >0: mmap size */
+        };
+        off_t vsize_real;
+        off_t vsize_next;
+        short vno_base;
+        short vno_max;
+        short vlen;
+        short vpos;
+        short vtype;
+        struct Flags
+        {
+                unsigned int image:1;
+                unsigned int fake_iso:1;
+                unsigned int mmap:2;
+                unsigned int :28;
+        } flags;
+        struct dir_elem* next_p;
 };
 typedef struct dir_elem dir_elem_t;
+
 #define LOCAL_FS_ENTRY ((void*)-1)
 
-
 #define ABS_ROOT(s, path) \
-      (s) = alloca(strlen(path) + strlen(OBJ_STR2(OBJ_SRC,0)) + 1); \
-      strcpy((s), OBJ_STR2(OBJ_SRC,0)); \
-      strcat((s), path)
+        (s) = alloca(strlen(path) + strlen(OBJ_STR2(OBJ_SRC,0)) + 1); \
+        strcpy((s), OBJ_STR2(OBJ_SRC,0)); \
+        strcat((s), path)
 
 #define ABS_MP(s, path, file)         ABS_MP1_((s), (path), (file), __LINE__)
 #define ABS_MP1_(s, path, file, line) ABS_MP2_((s), (path), (file), line)
 #define ABS_MP2_(s, path, file, line) \
-      int l##line##_ = strlen(path);\
-      (s) = alloca(l##line##_ + strlen(file) + 3 + 2); /* add +2 in case of fake .iso */ \
-      strcpy((s), path); \
-      if (l##line##_ && path[l##line##_ - 1] != '/') strcat((s), "/"); \
-      strcat((s), file)
+        int l##line##_ = strlen(path);\
+        (s) = alloca(l##line##_ + strlen(file) + 3 + 2); /* add +2 in case of fake .iso */ \
+        strcpy((s), path); \
+        if (l##line##_ && path[l##line##_ - 1] != '/') strcat((s), "/"); \
+        strcat((s), file)
 
 extern pthread_mutex_t file_access_mutex;
 

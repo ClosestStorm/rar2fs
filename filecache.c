@@ -45,15 +45,14 @@ static dir_elem_t path_cache[PATH_CACHE_SZ];
 static unsigned int
 get_hash(const char* s)
 {
-   unsigned int hash = 5381;
-   int c;
+        unsigned int hash = 5381;
+        int c;
 
-   while((c = *s++))
-   {
-      /* hash = hash * 33 ^ c */
-      hash = ((hash << 5) + hash) ^ c;
-   }
-   return hash & (PATH_CACHE_SZ - 1);
+        while((c = *s++)) {
+                /* hash = hash * 33 ^ c */
+                hash = ((hash << 5) + hash) ^ c;
+        }
+        return hash & (PATH_CACHE_SZ - 1);
 }
 
 #define FREE_CACHE_MEM(e)\
@@ -67,175 +66,151 @@ get_hash(const char* s)
 dir_elem_t*
 cache_path_alloc(const char* path)
 {
-   dir_elem_t* p = &path_cache[get_hash(path)];
-   if (p->rar_p)
-   {
-      if (p->name_p && !strcmp(path, p->name_p)) return p;
-      while (p->next_p)
-      {
-         p = p->next_p;
-         if (p->name_p && !strcmp(path, p->name_p)) return p;
-      }
-      p->next_p = malloc(sizeof(dir_elem_t));
-      p = p->next_p;
-      memset(p, 0, sizeof(dir_elem_t));
-   }
-   return p;
+        dir_elem_t* p = &path_cache[get_hash(path)];
+        if (p->rar_p) {
+                if (p->name_p && !strcmp(path, p->name_p)) return p;
+                while (p->next_p) {
+                        p = p->next_p;
+                        if (p->name_p && !strcmp(path, p->name_p)) return p;
+                }
+                p->next_p = malloc(sizeof(dir_elem_t));
+                p = p->next_p;
+                memset(p, 0, sizeof(dir_elem_t));
+        }
+        return p;
 }
 
 dir_elem_t*
 cache_path_get(const char* path)
 {
-   int hash = get_hash(path);
-   dir_elem_t* p = &path_cache[hash];
-   while (p)
-   {
-      if (p->name_p && !strcmp(path, p->name_p)) return p;
-      p = p->next_p;
-   }
-   return NULL;
+        int hash = get_hash(path);
+        dir_elem_t* p = &path_cache[hash];
+        while (p) {
+                if (p->name_p && !strcmp(path, p->name_p)) return p;
+                p = p->next_p;
+        }
+        return NULL;
 }
 
 dir_elem_t*
 cache_path(const char* path, struct stat *stbuf)
 {
-   dir_elem_t* e_p = cache_path_get(path);
-   if (e_p && !e_p->flags.fake_iso)
-   {
-      if (stbuf)
-      {
-         memcpy(stbuf, &e_p->stat, sizeof(struct stat));
-      }
-      return e_p;
-   }
-   else /* CACHE MISS */
-   {
-      struct stat st;
-      char* root;
+        dir_elem_t* e_p = cache_path_get(path);
+        if (e_p && !e_p->flags.fake_iso) {
+                if (stbuf) {
+                        memcpy(stbuf, &e_p->stat, sizeof(struct stat));
+                }
+                return e_p;
+        } else  { /* CACHE MISS */
+                struct stat st;
+                char* root;
 
-      printd(3, "MISS    %s   (collision: %s)\n", path, (e_p && e_p->name_p) ? e_p->name_p : "no");
+                printd(3, "MISS    %s   (collision: %s)\n", path, (e_p && e_p->name_p) ? e_p->name_p : "no");
 
-      /* Do _NOT_ remember fake .ISO entries between eg. getattr() calls */
-      if (e_p && e_p->flags.fake_iso) inval_cache_path(path);
+                /* Do _NOT_ remember fake .ISO entries between eg. getattr() calls */
+                if (e_p && e_p->flags.fake_iso) inval_cache_path(path);
 
-      ABS_ROOT(root, path);
-      if(!lstat(root, stbuf?stbuf:&st))
-      {
-         printd(3, "STAT retrieved for %s\n", root);
-         return LOCAL_FS_ENTRY;
-      }
-      else
-      {
-         if (OBJ_SET(OBJ_FAKE_ISO))
-         {
-            /* Check if the missing file might be a fake .iso file */
-            if(IS_ISO(root))
-            {
-               int i;
-               int res;
-               int obj = OBJ_CNT(OBJ_FAKE_ISO) ? OBJ_FAKE_ISO : OBJ_IMG_TYPE;
+                ABS_ROOT(root, path);
+                if(!lstat(root, stbuf?stbuf:&st)) {
+                        printd(3, "STAT retrieved for %s\n", root);
+                        return LOCAL_FS_ENTRY;
+                } else {
+                        if (OBJ_SET(OBJ_FAKE_ISO) &&
+                            /* Check if the missing file might be a fake .iso file */
+                            IS_ISO(root)) {
+                                int i;
+                                int res;
+                                int obj = OBJ_CNT(OBJ_FAKE_ISO) ? OBJ_FAKE_ISO : OBJ_IMG_TYPE;
 
-               /* Try the image file extensions one by one */
-               for (i = 0; i < OBJ_CNT(obj); i++)
-               {
-                  char* tmp = (OBJ_STR(obj,i));
-                  int l = strlen(tmp?tmp:"");
-                  char* root1 = strdup(root);
-                  if (l>4)
-                     root1 = realloc(root1, strlen(root1)+1+(l-4));
-                  strcpy(root1+(strlen(root1)-4), tmp?tmp:"");
-                  res = lstat(root1, &st);
-                  if (!res)
-                  {
-                     e_p = cache_path_alloc(path);
-                     e_p->name_p = strdup(path);
-                     e_p->file_p = strdup(path);
-                     e_p->flags.fake_iso = 1;
-                     if (l>4)
-                        e_p->file_p = realloc(e_p->file_p, strlen(path)+1+(l-4));
-                     /* back-patch *real* file name */
-                     strncpy(e_p->file_p+(strlen(e_p->file_p)-4), tmp?tmp:"", l);
-                     *(e_p->file_p+(strlen(path)-4+l)) = 0;
-                     memcpy(&e_p->stat, &st, sizeof(struct stat));
-                     if (stbuf)
-                     {
-                        memcpy(stbuf, &st, sizeof(struct stat));
-                     }
-                     free(root1);
-                     return e_p;
-                  }
-                  free(root1);
-               }
-            }
-         }
-      }
-   }
-   return NULL;
+                                /* Try the image file extensions one by one */
+                                for (i = 0; i < OBJ_CNT(obj); i++) {
+                                        char* tmp = (OBJ_STR(obj,i));
+                                        int l = strlen(tmp?tmp:"");
+                                        char* root1 = strdup(root);
+                                        if (l>4) root1 = realloc(root1, strlen(root1)+1+(l-4));
+                                        strcpy(root1+(strlen(root1)-4), tmp?tmp:"");
+                                        res = lstat(root1, &st);
+                                        if (!res) {
+                                                e_p = cache_path_alloc(path);
+                                                e_p->name_p = strdup(path);
+                                                e_p->file_p = strdup(path);
+                                                e_p->flags.fake_iso = 1;
+                                                if (l>4)
+                                                        e_p->file_p = realloc(e_p->file_p, strlen(path)+1+(l-4));
+                                                /* back-patch *real* file name */
+                                                strncpy(e_p->file_p+(strlen(e_p->file_p)-4), tmp?tmp:"", l);
+                                                *(e_p->file_p+(strlen(path)-4+l)) = 0;
+                                                memcpy(&e_p->stat, &st, sizeof(struct stat));
+                                                if (stbuf) {
+                                                        memcpy(stbuf, &st, sizeof(struct stat));
+                                                }
+                                                free(root1);
+                                                return e_p;
+                                        }
+                                        free(root1);
+                                }
+                        }
+                }
+        }
+        return NULL;
 }
 
 void
 inval_cache_path(const char* path)
 {
-   int i;
-   if (path)
-   {
-      int hash = get_hash(path);
-      printd(3, "Invalidating cache path %s\n", path);
-      dir_elem_t* e_p = &path_cache[hash];
-      dir_elem_t* p = e_p;
-      /* Search collision chain */
-      while (p->next_p)
-      {
-         dir_elem_t* prev_p = p;
-         p = p->next_p;
-         if (p->name_p && !strcmp(path, p->name_p))
-         {
-            FREE_CACHE_MEM(p);
-            prev_p->next_p = p->next_p;
-            free(p);
-            /* Entry purged. We can leave now. */
-            return;
-         }
-      }
-      /* Entry not found in collision chain.
-       * Most likely it is in the bucket, but double check. */
-      if (e_p->name_p && !strcmp(e_p->name_p, path))
-      {
-         FREE_CACHE_MEM(e_p);
-         memset(e_p, 0, sizeof(dir_elem_t));
-      }
-   }
-   /* Invalidate entire cache */
-   else
-   {
-      printd(3, "Invalidating all cache entries\n");
-      for (i = 0; i < PATH_CACHE_SZ;i++)
-      {
-         dir_elem_t* e_p = &path_cache[i];
-         dir_elem_t* p = e_p;
+        int i;
+        if (path) {
+                int hash = get_hash(path);
+                printd(3, "Invalidating cache path %s\n", path);
+                dir_elem_t* e_p = &path_cache[hash];
+                dir_elem_t* p = e_p;
+                
+                /* Search collision chain */
+                while (p->next_p) {
+                        dir_elem_t* prev_p = p;
+                        p = p->next_p;
+                        if (p->name_p && !strcmp(path, p->name_p)) {
+                                FREE_CACHE_MEM(p);
+                                prev_p->next_p = p->next_p;
+                                free(p);
+                                /* Entry purged. We can leave now. */
+                                return;
+                        }
+                }
+                
+                /* Entry not found in collision chain.
+                 * Most likely it is in the bucket, but double check. */
+                if (e_p->name_p && !strcmp(e_p->name_p, path)) {
+                        FREE_CACHE_MEM(e_p);
+                        memset(e_p, 0, sizeof(dir_elem_t));
+                }
+        } else {
+                printd(3, "Invalidating all cache entries\n");
+                for (i = 0; i < PATH_CACHE_SZ;i++) {
+                        dir_elem_t* e_p = &path_cache[i];
+                        dir_elem_t* p = e_p;
 
-         /* Search collision chain */
-         while (p->next_p)
-         {
-            p = p->next_p;
-            FREE_CACHE_MEM(p);
-            free(p);
-         }
-         FREE_CACHE_MEM(e_p);
-         memset(e_p, 0, sizeof(dir_elem_t));
-      }
-   }
+                        /* Search collision chain */
+                        while (p->next_p) {
+                                p = p->next_p;
+                                FREE_CACHE_MEM(p);
+                                free(p);
+                        }
+                        FREE_CACHE_MEM(e_p);
+                        memset(e_p, 0, sizeof(dir_elem_t));
+                }
+        }
 }
 
 void
 filecache_init()
 {
-   memset(path_cache, 0, sizeof(dir_elem_t)*PATH_CACHE_SZ);
-   pthread_mutex_init(&file_access_mutex, NULL);
+        memset(path_cache, 0, sizeof(dir_elem_t)*PATH_CACHE_SZ);
+        pthread_mutex_init(&file_access_mutex, NULL);
 }
 
 void
 filecache_destroy()
 {
-   pthread_mutex_destroy(&file_access_mutex);
+        pthread_mutex_destroy(&file_access_mutex);
 }
