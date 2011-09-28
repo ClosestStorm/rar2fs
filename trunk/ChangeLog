@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+    1.13.5      o Update: Using the st_nlink (hard link count) field in 
+                  stat(2) structure to reveal current compression method.
+                  A 0 indicates store mode (-m0) upto a 6 (-m6) being best
+                  compression.
     1.13.4      o Update: Added support for symbolic links. Note that this
                   update only affects the back-end file system and not files
                   inside RAR archives for which symbolic links currently
