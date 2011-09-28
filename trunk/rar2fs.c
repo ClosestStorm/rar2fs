@@ -1088,7 +1088,7 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
           mode = (mode & ~S_IFMT) | S_IFREG;
       }  
       entry_p->stat.st_mode = mode;
-      entry_p->stat.st_nlink = S_ISDIR(mode) ? 2 : 1;
+      entry_p->stat.st_nlink = S_ISDIR(mode) ? 2 : alist_p->Method - 0x30;
       entry_p->stat.st_size = GET_RAR_SZ(alist_p);
    }
    else
@@ -1727,7 +1727,6 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
          do
          {
             printd(3, "Search for local directory in %s\n", tmp);
-            printf("Search for local directory in %s\n", tmp);
             if (vol == 1) /* first file */
             {
                password = getArcPassword(tmp, tmpbuf);
