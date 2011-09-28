@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+    1.13.6      o Bugfix: Fixed a problem seen in 1.13.5 when loading
+                  file properties on a Samba/CIFS export. 
+                  Seems st_nlink with a value of 0 turns the world 
+                  upside down for Windows. Using 1 for store mode now etc.
     1.13.5      o Update: Using the st_nlink (hard link count) field in 
                   stat(2) structure to reveal current compression method.
                   A 0 indicates store mode (-m0) upto a 6 (-m6) being best
