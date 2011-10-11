@@ -30,11 +30,19 @@
 #define _UNRAR_DLLEXT_
 
 #include <stdbool.h>
-#include "raros.hpp"
-#include "rardefs.hpp"
+#ifndef _UNIX
+#if defined ( __unix ) || defined ( __unix__ ) || defined ( unix )
+#define _UNIX
+#endif
+#endif
 #include "version.hpp"
-#include "fileext.hpp"
 #include "dll.hpp"
+
+#ifdef _UNIX
+#define FileHandle FILE*
+#else
+#define FileHandle HANDLE;
+#endif
 
 #ifndef __cplusplus
 /* These are defined here since headers.hpp can not be included from non C++ code */
@@ -112,7 +120,11 @@ enum HOST_SYSTEM {
    HOST_BEOS=5,HOST_MAX
 };
 
+#define MAXPASSWORD 128
+
 #endif
+
+#pragma pack(1)
 
 #ifdef __cplusplus
 extern "C" {
@@ -184,5 +196,9 @@ void         PASCAL RARNextVolumeName(char*, bool);
 #ifdef __cplusplus
 }
 #endif
+
+#pragma pack()
+
+#undef FileHandle
 
 #endif
