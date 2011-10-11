@@ -47,9 +47,9 @@ rar2fs ChangeLog file.
                   as intended for extraction of compressed/encryped archives. 
                   This will remove the need for some of the previously added
                   API extensions and will reduce the dependency to what
-                  version of the API is used. However, this will inflict some 
-                  extra memory overhead added by the original API callback 
-                  interface.
+                  version of the unrar source is used. However, this will 
+                  instead inflict some extra memory overhead added by the 
+                  original API callback interface.
                 o Update: Additional code clean up.
                 o Bugfix: Corrected a problem with extraction of 
                   compressed/encrypted archives that could fail if the same 
