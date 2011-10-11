@@ -29,7 +29,6 @@
 #ifndef _RAR_FILEEXT_
 #define _RAR_FILEEXT__
 
-#ifndef __cplusplus
 #ifdef _WIN_ALL
 typedef HANDLE FileHandle;
 #define BAD_HANDLE INVALID_HANDLE_VALUE
@@ -37,9 +36,7 @@ typedef HANDLE FileHandle;
 typedef FILE* FileHandle;
 #define BAD_HANDLE NULL
 #endif
-#endif
 
-#ifdef __cplusplus
 class FileExt
 {
   private:
@@ -68,6 +65,5 @@ class FileExt
     void SetHandle(FileHandle FH) {hFile=FH;};
     void SkipHandle() {SkipClose=true;};
 };
-#endif
 
 #endif
