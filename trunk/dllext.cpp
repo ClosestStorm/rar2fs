@@ -29,6 +29,7 @@
 #include <iostream>
 #include "rar.hpp"
 #include "dllext.hpp"
+#include "fileext.hpp"
 using namespace std;
 
 static int RarErrorToDll(int ErrCode);
