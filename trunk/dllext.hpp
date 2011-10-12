@@ -183,13 +183,12 @@ extern "C" {
 HANDLE       PASCAL RARInitArchive(struct RAROpenArchiveData *ArchiveData, FileHandle);
 HANDLE       PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *ArchiveData, FileHandle);
 int          PASCAL RARFreeArchive(HANDLE hArcData);
-int          PASCAL RARListArchive(HANDLE hArcData, RARArchiveList* fList);
-int          PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* fList);
+int          PASCAL RARListArchive(HANDLE hArcData, RARArchiveList* fList, off_t* FileDataEnd);
+int          PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* fList, off_t* FileDataEnd);
 void         PASCAL RARFreeList(RARArchiveList* fList);
 void         PASCAL RARFreeListEx(HANDLE* hArcData, RARArchiveListEx* fList);
 unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData);
 unsigned int PASCAL RARGetMainHeaderFlags(HANDLE hArcData);
-off_t        PASCAL RARGetRawFileDataEnd(HANDLE hArcData);
 FileHandle   PASCAL RARGetFileHandle(HANDLE hArcData);
 void         PASCAL RARNextVolumeName(char*, bool);
 
