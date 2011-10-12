@@ -9,6 +9,12 @@ CFLAGS+=-O2
 CXXFLAGS+=-O2
 endif
 
+# This assumes svn version >= 1.4
+SVNREV = $(shell awk '{if(NR==4){print $0;exit}}' .svn/entries 2>/dev/null)
+ifneq ($(SVNREV),)
+CFLAGS+=-DSVNREV=$(SVNREV)
+endif
+
 UNAME := $(shell uname)
 MAKE := $(shell which gmake)
 

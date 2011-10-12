@@ -45,22 +45,6 @@ struct DataSet
    DataSet():Arc(&Cmd) {}
 };
 
-struct DataSetEx
-{
-   DataSet* DataSetHandle;
-
-   /* These are extensions to DataSet which are only updated
-    * after RARListArchive()/Ex() has been called successfully. */
-   uint64 RawFileDataEnd;
-
-   DataSetEx(DataSet* H)
-   {
-      DataSetHandle = H;
-      RawFileDataEnd=0;
-   }
-   DataSet* DataSetH() { return DataSetHandle; }
-};
-
 HANDLE PASCAL RARInitArchive(struct RAROpenArchiveData *r, FileHandle fh)
 {
   RAROpenArchiveDataEx rx;
@@ -140,14 +124,12 @@ int PASCAL RARFreeArchive(HANDLE hArcData)
 }
 
 
-int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N)
+int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N, off_t* FileDataEnd)
 {
    uint FileCount=0;
    try {
-      DataSet* H = *(DataSet**)hArcData;
-      DataSetEx* HH = new DataSetEx(H);
-      *(DataSetEx**)hArcData = HH;
-      Archive& Arc = H->Arc;
+      DataSet *Data=*(DataSet**)hArcData;
+      Archive& Arc = Data->Arc;
       while(Arc.ReadHeader()>0)
       {
          int HeaderType=Arc.GetHeaderType();
@@ -195,7 +177,8 @@ int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N)
                N->NameSize = Arc.NewLhd.NameSize;
                N->Offset = Arc.CurBlockPos;
 
-               HH->RawFileDataEnd = Arc.NextBlockPos;
+               if (FileDataEnd) 
+                  *FileDataEnd = Arc.NextBlockPos;
                break;
 
             default:
@@ -219,9 +202,6 @@ int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N)
 
 void PASCAL RARFreeListEx(HANDLE* hArcData, RARArchiveListEx* L)
 {
-   DataSetEx* H = *(DataSetEx**)hArcData;
-   *(DataSet**)hArcData = H->DataSetH();
-   delete H;
    RARArchiveListEx* N = L?L->next:NULL;
    while (N)
    {
@@ -234,29 +214,22 @@ void PASCAL RARFreeListEx(HANDLE* hArcData, RARArchiveListEx* L)
 
 unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData)
 {
-   DataSetEx* H = (DataSetEx*)hArcData;
-   return H->DataSetH()->Arc.NewMhd.HeadSize;
+   DataSet *Data=(DataSet*)hArcData;
+   return Data->Arc.NewMhd.HeadSize;
 }
 
 
 unsigned int PASCAL RARGetMainHeaderFlags(HANDLE hArcData)
 {
-   DataSetEx* H = (DataSetEx*)hArcData;
-   return H->DataSetH()->Arc.NewMhd.Flags;
-}
-
-
-off_t PASCAL RARGetRawFileDataEnd(HANDLE hArcData)
-{
-   DataSetEx* HH = (DataSetEx*)hArcData;
-   return HH->RawFileDataEnd;
+   DataSet *Data=(DataSet*)hArcData;
+   return Data->Arc.NewMhd.Flags;
 }
 
 
 FileHandle PASCAL RARGetFileHandle(HANDLE hArcData)
 {
-   DataSetEx* H = (DataSetEx*)hArcData;
-   return H->DataSetH()->Arc.GetHandle()!=BAD_HANDLE?H->DataSetH()->Arc.GetHandle():NULL;
+   DataSet *Data=(DataSet*)hArcData;
+   return Data->Arc.GetHandle()!=BAD_HANDLE?Data->Arc.GetHandle():NULL;
 }
 
 

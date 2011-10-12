@@ -15,7 +15,7 @@ clean:
 clobber:
 	rm -rf *.o *.P *.d *~ *.a .deps
 
-stubs:	$(OBJECTS) $(UNRAR_OBJ)
+stubs:	$(OBJECTS)
 	$(AR) r fmemopen.a $(OBJECTS) 
 
 %.o : %.c

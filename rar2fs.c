@@ -1182,14 +1182,14 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
 
    if (Password) RARSetPassword(hdl, (char*)Password);
 
+   off_t FileDataEnd;
    RARArchiveListEx L;
    RARArchiveListEx* next = &L;
-   if (RARListArchiveEx(&hdl, next))
+   if (RARListArchiveEx(&hdl, next, &FileDataEnd))
    {
       char* last = strdup("");
       const unsigned int MainHeaderSize = RARGetMainHeaderSize(hdl);
       const unsigned int MainHeaderFlags = RARGetMainHeaderFlags(hdl);
-      const off_t RawFileDataEnd = RARGetRawFileDataEnd(hdl);
 
       while (next)
       {
@@ -1350,7 +1350,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   {
                      RARArchiveListEx LL;
                      RARArchiveListEx* next2 = &LL;
-		     if (RARListArchiveEx(&hdl2, next2))
+		     if (RARListArchiveEx(&hdl2, next2, NULL))
                      {
                         const unsigned int MHF = RARGetMainHeaderFlags(hdl2);
                         while (next2)
@@ -1430,9 +1430,9 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                      entry_p->offset = 1; /* Any value but 0 will do */
                      if (!IS_RAR_DIR(next))
                      {
-                        entry_p->vsize_real = RawFileDataEnd;
+                        entry_p->vsize_real = FileDataEnd;
                         entry_p->vsize_next =
-                           RawFileDataEnd - (SIZEOF_MARKHEAD + MainHeaderSize+next->HeadSize);
+                           FileDataEnd - (SIZEOF_MARKHEAD + MainHeaderSize+next->HeadSize);
                         entry_p->vsize = GET_RAR_PACK_SZ(next);
                      }
                      else
@@ -2676,7 +2676,7 @@ check_iob(char* bname, int verbose)
 int
 check_libunrar(int verbose)
 {
-   if (RARGetDllVersion() < RAR_DLL_VERSION)
+   if (RARGetDllVersion() != RAR_DLL_VERSION)
    {
       if (verbose) printf("libunrar.so (v%d.%d%s) or compatible library not found\n",
          RARVER_MAJOR, RARVER_MINOR, !RARVER_BETA ? "" : " beta");
@@ -2834,10 +2834,17 @@ main(int argc, char* argv[])
       while((opt=getopt_long(argc,argv,"Vhfo:",longopts,NULL))!=-1)
       {
          if(opt=='V'){
+#ifdef SVNREV
+            printf("rar2fs v%u.%u.%u build %d (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
+#else
             printf("rar2fs v%u.%u.%u (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
+#endif
                RAR2FS_MAJOR_VER,
                RAR2FS_MINOR_VER,
                RAR2FS_PATCH_LVL,
+#ifdef SVNREV
+               SVNREV,
+#endif
                RARGetDllVersion(),
                FUSE_VERSION);
             printf("This program comes with ABSOLUTELY NO WARRANTY.\n"
