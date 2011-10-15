@@ -64,5 +64,5 @@ A: There seems to be some fuse distributions/packages that are not correctly con
 ===Q 2.8. Loading of folders are slow. Is there something that I can do to overcome this?=== 
 A: Yes, of course there is. The most common reason for slow folder display is that too many volume files are searched for header information. Using the option _--seek-length_ should help in those cases. Also the _--exclude_ option may prove useful. Check the rar2fs man page for details on how to use these two options. The default value of seek length has been set to obtain highest possible level of compatibility rather than speed.
 
-===Q 2.9. rar2fs is supposed to support RARs inside RARs, but my VobSub packages does not work properly. Why is that?===
+===Q 2.9. rar2fs is supposed to support RARs inside RARs, but my !VobSub packages does not work properly. Why is that?===
 Check out the _--seek-depth_ option. It will most likely be the answer to your question. The rar2fs man page will tell you more.
