@@ -60,4 +60,6 @@ This will purge all entries in the cache. The cache will then have to be populat
 
 ===Q 2.7. I can't run rar2fs as user, I get: mount_fusefs: /dev/fuse0 on ???: Operation not permitted===
 A: There seems to be some fuse distributions/packages that are not correctly configured for user mounts, except from the root account. Most commonly this is because the ownership of the fuse device is not set properly. In those cases try to mount your rar2fs file system as root instead, and if needed, use the fuse options _uid_, _gid_ and _umask_ to assign the effective user/group of the calling process.
- 
+
+===Q 2.8. Loading of folders are slow. Is there something that I can do to overcome this?=== 
+A: Yes, of course there is. The most common reason for slow folder display is that too many volume files are searched for header information. Using the option _--seek-length_ should help in those cases. Also the _--exclude_ option may prove useful. Check the rar2fs man page for details on how to use these two options. The default value of seek length has been set to obtain highest possible level of compatibility rather than speed. But it most cases it is definitely too pessimistic.
