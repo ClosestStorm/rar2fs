@@ -114,7 +114,7 @@ endif
 
 %.o : %.c
 	@mkdir -p .deps
-	$(C_COMPILE) -MD -I$(UNRAR_SRC) -I$(FUSE_SRC) -c $<
+	$(C_COMPILE) -MD -I. -I$(UNRAR_SRC) -I$(FUSE_SRC) -c $<
 	@cp $*.d $*.P; \
 	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	-e '/^$$/ d' -e 's/$$/ :/' < $*.d >> $*.P; \
@@ -124,7 +124,7 @@ endif
 
 %.o : %.cpp
 	@mkdir -p .deps
-	$(CXX_COMPILE) -MD -I$(UNRAR_SRC) -c $<
+	$(CXX_COMPILE) -MD -I. -I$(UNRAR_SRC) -c $<
 	@cp $*.d $*.P; \
 	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	-e '/^$$/ d' -e 's/$$/ :/' < $*.d >> $*.P; \
