@@ -29,6 +29,11 @@
 #ifndef IOBUFFER_H
 #define IOBUFFER_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#else
+#include <compat.h>
+#endif
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>

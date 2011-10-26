@@ -15,6 +15,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#else
+#include <compat.h>
+#endif
 #include <locale.h>
 #include <stdio.h>
 #include <string.h>
@@ -60,7 +65,7 @@ parse_riff(IdxHead* h, FILE* fp, off_t sz)
         char s[256];
         char* needle = NULL;
         while (!needle && !feof(fp)) {
-                no_warn_result_ fgets(s, sizeof(s), fp);
+                NO_UNUSED_RESULT fgets(s, sizeof(s), fp);
                 needle = strstr(s, "idx1");
         }
         char* tmp = alloca(strlen(needle));
@@ -97,7 +102,7 @@ parse_ebml(IdxHead* h, FILE* fp, off_t sz)
         char s[256];
         char* needle = NULL;
         while (!needle && !feof(fp)) {
-                no_warn_result_ fgets(s, sizeof(s), fp);
+                NO_UNUSED_RESULT fgets(s, sizeof(s), fp);
                 needle = strstr(s, "Cues");
         }
         if (needle) {
@@ -149,7 +154,7 @@ map_file(int fd, size_t size)
 #endif
 
         /* Prepare the file */
-        no_warn_result_ ftruncate(fd, size);
+        NO_UNUSED_RESULT ftruncate(fd, size);
 
         /* Map the file into address space */
         char* addr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
@@ -183,7 +188,7 @@ int main(int argn, char* argv[])
 
         Mode mode;
         char dump_magic[10];
-        no_warn_result_ fscanf(fd_dump, "%s", dump_magic);
+        NO_UNUSED_RESULT fscanf(fd_dump, "%s", dump_magic);
         if (!strcmp(dump_magic, "EBML")) 
                 mode = M_EBML;
         else if (!strcmp(dump_magic+3, "RIFF")) 

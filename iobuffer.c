@@ -26,6 +26,11 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#else
+#include <compat.h>
+#endif
 #include <memory.h>
 #include "common.h"
 #include "iobuffer.h"
