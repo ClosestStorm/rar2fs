@@ -1,5 +1,7 @@
 rar2fs ChangeLog file.
 
+    1.13.7      o Update: Added autoconf build system. To build using the
+                  old style, update config.mk and do 'make -f Makefile.mk'.
     1.13.6      o Bugfix: Fixed a problem seen in 1.13.5 when loading
                   file properties on a Samba/CIFS export. 
                   Seems st_nlink with a value of 0 turns the world 
