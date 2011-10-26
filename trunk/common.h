@@ -34,52 +34,9 @@
 #include <sys/types.h>
 #include <stdint.h>   /* C99 uintptr_t */
 
-#ifdef __sun__
-#include <arpa/nameser_compat.h>
-#define __BYTE_ORDER BYTE_ORDER
-#define CONST_DIRENT_ const
-#endif
-#ifdef __APPLE__
-#include <sys/param.h>
-#include <sys/mount.h>
-#include <architecture/byte_order.h>
-#define CONST_DIRENT_
-#define __LITTLE_ENDIAN 1234
-#define __BIG_ENDIAN 4321
-#ifdef __LITTLE_ENDIAN__
-#define __BYTE_ORDER __LITTLE_ENDIAN
-#else
-#ifdef __BIG_ENDIAN__
-#define __BYTE_ORDER __BIG_ENDIAN
-#endif
-#endif
-#endif
-#ifdef __FreeBSD__
-#if __FreeBSD__ >= 2
-#include <osreldate.h>
-/* 800501 8.0-STABLE after change of the scandir(3) and alphasort(3)
-   prototypes to conform to SUSv4. */
-#if __FreeBSD_version >= 800501
-#define CONST_DIRENT_ const
-#else
-#define CONST_DIRENT_ 
-#endif
-#else
-#define CONST_DIRENT_
-#endif
-#define __BYTE_ORDER _BYTE_ORDER
-#define __LITTLE_ENDIAN _LITTLE_ENDIAN
-#define __BIG_ENDIAN _BIG_ENDIAN
-#endif
-#ifdef __linux
-#define CONST_DIRENT_ const
-#endif
-#ifndef __BYTE_ORDER
-#error __BYTE_ORDER not defined
-#endif
-
 #if defined ( DEBUG_ ) && DEBUG_ > 5
 #undef DEBUG_
+#define DEBUG_ 5
 #endif
 
 #if defined ( DEBUG_ ) 
@@ -101,13 +58,6 @@
 #define printd(l, fmt, ...) do{ if(l <= DEBUG_) fprintf(stderr, fmt, ##__VA_ARGS__); }while(0)
 #else
 #define printd(...)
-#endif
-
-/* MAC OS X version of gcc does not handle this properly!? */
-#if defined ( __GNUC__ ) &&  defined ( __APPLE__ )
-#define no_warn_result_ 
-#else
-#define no_warn_result_ void*ignore_result_;ignore_result_=(void*)(uintptr_t)
 #endif
 
 #ifdef __GNUC__

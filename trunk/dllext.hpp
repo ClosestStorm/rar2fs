@@ -29,7 +29,27 @@
 #ifndef _UNRAR_DLLEXT_
 #define _UNRAR_DLLEXT_
 
-#include <stdbool.h>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#else
+#include <compat.h>
+#endif
+#ifdef HAVE_STDBOOL_H
+# include <stdbool.h>
+#else
+# ifndef HAVE__BOOL
+#  ifdef __cplusplus
+typedef bool _Bool;
+#  else
+#   define _Bool signed char
+#  endif
+# endif
+# define bool _Bool
+# define false 0
+# define true 1
+# define __bool_true_false_are_defined 1
+#endif
+
 #ifndef _UNIX
 #if defined ( __unix ) || defined ( __unix__ ) || defined ( unix )
 #define _UNIX

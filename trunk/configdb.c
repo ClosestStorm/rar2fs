@@ -26,6 +26,11 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#else
+#include <compat.h>
+#endif
 #include <stdlib.h>
 #include <memory.h>
 #include <stdio.h>
@@ -102,7 +107,7 @@ collect_obj(int obj, char* s)
         if (s1)
         {
            s = s1;
-           no_warn_result_ fread(s1, 1, st.st_size, fp);
+           NO_UNUSED_RESULT fread(s1, 1, st.st_size, fp);
            while(*s1)
            {
               if(*s1=='\n') *s1=';';

@@ -19,13 +19,18 @@
 
     Unrar source may be used in any software to handle RAR archives
     without limitations free of charge, but cannot be used to re-create
-    the RAR compression algorithm, which is proprietary. Distribution
+    THE rAR compression algorithm, which is proprietary. Distribution
     of modified Unrar source in separate form or as a part of other
     software is permitted, provided that it is clearly stated in
     the documentation and source comments that the code may not be used
     to develop a RAR (WinRAR) compatible archiver.
 */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#else
+#include <compat.h>
+#endif
 #include <signal.h>
 #include <syslog.h>
 #include <pthread.h>
@@ -34,18 +39,24 @@
 #include "filecache.h"
 #include "configdb.h"
 
-#if defined ( __UCLIBC__ ) || !defined ( __linux ) || !defined ( __i386 )
+#ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
+#if !defined ( HAVE_EXECINFO_H ) || !defined ( HAVE_UCONTEXT_H )
 #define stack_trace(a,b,c)
 #else
 #include <execinfo.h>
-
-/* get REG_EIP from ucontext.h */
 #include <ucontext.h>
 
 /*!
  *****************************************************************************
  *
  ****************************************************************************/
+
+#ifndef REG_PC
+#ifdef REG_EIP
+#define REG_PC REG_EIP
+#endif
+#endif
+
 static void
 stack_trace(int sig, siginfo_t *info, void *secret)
 {
@@ -55,10 +66,14 @@ stack_trace(int sig, siginfo_t *info, void *secret)
         char buf[256];
         snprintf(buf, sizeof(buf), "Got signal %d, faulty address is 0x%p, "
                  "from 0x%p", sig, info->si_addr,
-                 (void*)uc->uc_mcontext.gregs[REG_EIP]);
+#ifdef REG_PC
+                 (void*)uc->uc_mcontext.gregs[REG_PC]);
+#else
+                 /* TODO: need to handle compilers other than GCC */
+                 __builtin_return_address(0));
+#endif
         printf("%s\n", buf);
         syslog(LOG_INFO, "%s", buf);
-#if 1
         {
                 void *trace[30];
                 char **messages = (char **)NULL;
@@ -66,7 +81,12 @@ stack_trace(int sig, siginfo_t *info, void *secret)
 
                 trace_size = backtrace(trace, 30);
                 /* overwrite sigaction with caller's address */
-                trace[1] = (void *) uc->uc_mcontext.gregs[REG_EIP];
+#ifdef REG_PC
+                trace[1] = (void *) uc->uc_mcontext.gregs[REG_PC];
+#else
+                /* TODO: need to handle compilers other than GCC */
+                trace[1] = __builtin_return_address(0);
+#endif
                 messages = backtrace_symbols(trace, trace_size);
                 if (messages) {
                         /* skip first stack frame (points here) */
@@ -77,18 +97,8 @@ stack_trace(int sig, siginfo_t *info, void *secret)
                         free(messages);
                 }
         }
-#else
-        void *pc0 = __builtin_return_address(0);
-        void *pc1 = __builtin_return_address(1);
-        void *pc2 = __builtin_return_address(2);
-        void *pc3 = __builtin_return_address(3);
-
-        printf("Frame 0: PC=%p\n", pc0);
-        printf("Frame 1: PC=%p\n", pc1);
-        printf("Frame 2: PC=%p\n", pc2);
-        printf("Frame 3: PC=%p\n", pc3);
-#endif
 }
+#endif
 #endif
 
 
@@ -99,8 +109,12 @@ stack_trace(int sig, siginfo_t *info, void *secret)
 
 int glibc_test = 0;
 
-static void
+static RETSIGTYPE
+#ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
 sig_handler(int signum, siginfo_t *info, void* secret)
+#else
+sig_handler(int signum)
+#endif
 {
         switch(signum)
         {
@@ -118,7 +132,9 @@ sig_handler(int signum, siginfo_t *info, void* secret)
                         if (!glibc_test)
                         {
                                 printd(4, "Caught signal SIGSEGV\n");
+#ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
                                 stack_trace(SIGSEGV, info, secret);
+#endif
                         }
                         else
                         {
@@ -132,21 +148,15 @@ sig_handler(int signum, siginfo_t *info, void* secret)
                         break;
                 }
         }
+#if RETSIGTYPE != void
+        return (RETSIGTYPE)0;
+#endif
 }
 
 /*!
  *****************************************************************************
  *
  ****************************************************************************/
-
-#if defined ( __APPLE__ ) || defined ( __FreeBSD__ )
-/* This is such a big mess! Simply cast to void* to walk away from it. */
-#define SIG_FUNC_ (void*)
-#elif defined (__sun__)
-#define SIG_FUNC_
-#else
-#define SIG_FUNC_ (__sighandler_t)
-#endif
 
 void
 sighandler_init()
@@ -156,22 +166,38 @@ sighandler_init()
         if (OBJ_SET(OBJ_UNRAR_PATH)) {
                 /* Avoid child zombies for SIGCHLD */
                 sigaction(SIGCHLD, NULL, &act);
-                act.sa_handler = SIG_FUNC_ sig_handler;
-                act.sa_flags |= SA_NOCLDWAIT;
+#ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
+                act.sa_sigaction = sig_handler;
+                act.sa_flags |= SA_SIGINFO;
+#else
+                act.sa_handler = sig_handler;
+#endif
+                act.sa_flags |= (SA_NOCLDWAIT);
                 sigaction(SIGCHLD, &act, NULL);
         }
 
         sigaction(SIGUSR1, NULL, &act);
         sigemptyset(&act.sa_mask);
-        act.sa_handler = SIG_FUNC_ sig_handler;
+#ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
+        act.sa_sigaction = sig_handler;
+        act.sa_flags = SA_SIGINFO;
+#else
+        act.sa_handler = sig_handler;
+        act.sa_flags = 0;
+#endif
         /* make sure a system call is restarted to avoid exit */
-        act.sa_flags = SA_RESTART | SA_SIGINFO;
+        act.sa_flags |= SA_RESTART;
         sigaction(SIGUSR1, &act, NULL);
 
         sigaction(SIGSEGV, NULL, &act);
         sigemptyset(&act.sa_mask);
-        act.sa_handler = SIG_FUNC_ sig_handler;
-        act.sa_flags = SA_RESTART | SA_SIGINFO;
+#ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
+        act.sa_sigaction = sig_handler;
+        act.sa_flags = SA_SIGINFO;
+#else
+        act.sa_handler = sig_handler;
+        act.sa_flags = 0;
+#endif
         sigaction(SIGSEGV, &act, NULL);
 }
 
@@ -179,6 +205,4 @@ void
 sighandler_destroy()
 {
 }
-
-#undef SIG_FUNC_
 

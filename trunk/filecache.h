@@ -29,6 +29,11 @@
 #ifndef FILECACHE_H
 #define FILECACHE_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#else
+#include <compat.h>
+#endif
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <pthread.h>
@@ -55,10 +60,12 @@ struct dir_elem {
         short vtype;
         struct Flags
         {
+                unsigned int raw:1;
+                unsigned int multipart:1;
                 unsigned int image:1;
                 unsigned int fake_iso:1;
                 unsigned int mmap:2;
-                unsigned int :28;
+                unsigned int :26;
         } flags;
         struct dir_elem* next_p;
 };
