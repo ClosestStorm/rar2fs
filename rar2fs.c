@@ -1436,7 +1436,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                           next2 = next2->next;
                         }
                      }
-                     RARFreeListEx(&hdl2, &LL);
+                     RARFreeListEx(&LL);
                      RARFreeArchive(hdl2);
                   }
                   if (fp) fclose(fp);
@@ -1558,7 +1558,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
          next = next->next;
       }
 
-      RARFreeListEx(&hdl, &L);
+      RARFreeListEx(&L);
       RARCloseArchive(hdl);
       free(last);
       pthread_mutex_unlock(&file_access_mutex);
@@ -2744,8 +2744,19 @@ check_libunrar(int verbose)
 {
    if (RARGetDllVersion() != RAR_DLL_VERSION)
    {
-      if (verbose) printf("libunrar.so (v%d.%d%s) or compatible library not found\n",
-         RARVER_MAJOR, RARVER_MINOR*10, !RARVER_BETA ? "" : " beta");
+      if (verbose) 
+      {
+          if (RARVER_BETA)
+          {
+             printf("libunrar.so (v%d.%d beta %d) or compatible library not found\n",
+                 RARVER_MAJOR, RARVER_MINOR, RARVER_BETA);
+          }
+          else
+          {
+             printf("libunrar.so (v%d.%d) or compatible library not found\n",
+                 RARVER_MAJOR, RARVER_MINOR);
+          }
+      }
       return -1;
    }
    return 0;

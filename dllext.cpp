@@ -200,7 +200,7 @@ int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N, off_t* FileDa
 }
 
 
-void PASCAL RARFreeListEx(HANDLE* hArcData, RARArchiveListEx* L)
+void PASCAL RARFreeListEx(RARArchiveListEx* L)
 {
    RARArchiveListEx* N = L?L->next:NULL;
    while (N)
