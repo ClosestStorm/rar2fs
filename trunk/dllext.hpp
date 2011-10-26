@@ -206,7 +206,7 @@ int          PASCAL RARFreeArchive(HANDLE hArcData);
 int          PASCAL RARListArchive(HANDLE hArcData, RARArchiveList* fList, off_t* FileDataEnd);
 int          PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* fList, off_t* FileDataEnd);
 void         PASCAL RARFreeList(RARArchiveList* fList);
-void         PASCAL RARFreeListEx(HANDLE* hArcData, RARArchiveListEx* fList);
+void         PASCAL RARFreeListEx(RARArchiveListEx* fList);
 unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData);
 unsigned int PASCAL RARGetMainHeaderFlags(HANDLE hArcData);
 FileHandle   PASCAL RARGetFileHandle(HANDLE hArcData);
