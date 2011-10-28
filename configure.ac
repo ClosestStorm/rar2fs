@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.67])
-AC_INIT([rar2fs], [1.13.7], [http://code.google.com/p/rar2fs])
+AC_INIT([rar2fs], [1.13.8], [http://code.google.com/p/rar2fs])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
@@ -66,6 +66,11 @@ AC_CHECK_FUNCS([mktime atexit dup3 fs_stat_dev ftruncate getcwd getpass lchown m
 # Check for GNU library extension fmemopen()
 #
 AC_CHECK_FUNC(fmemopen)
+
+# Check for lockf() and/or flock()
+# On eg. OpenSolaris there is only a POSIX lockf() function.
+# 
+AC_CHECK_FUNCS(lockf flock)
 
 # Check for mmap() system call
 #

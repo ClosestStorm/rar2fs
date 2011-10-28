@@ -28,8 +28,8 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef _UNRAR_DLLWRAPPER_
-#define _UNRAR_DLLWRAPPER_
+#ifndef _DLLWRAPPER_H_
+#define _DLLWRAPPER_H_
 
 #ifndef __cplusplus
 #include <wchar.h>

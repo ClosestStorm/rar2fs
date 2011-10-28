@@ -26,13 +26,10 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef COMMON_H
-#define COMMON_H 
+#ifndef DEBUG_H_
+#define DEBUG_H_
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <stdint.h>   /* C99 uintptr_t */
 
 #if defined ( DEBUG_ ) && DEBUG_ > 5
 #undef DEBUG_
@@ -59,30 +56,5 @@
 #else
 #define printd(...)
 #endif
-
-#ifdef __GNUC__
-#define MB() do{ __asm__ __volatile__ ("" ::: "memory"); } while(0)
-#else
-#warning Check code for MB() on current platform
-#define MB() 
-#endif
-
-extern long page_size;
-#define P_ALIGN_(a) (((a)+page_size)&~(page_size-1))
-
-typedef struct
-{
-   unsigned int magic;
-   unsigned short version;
-   unsigned short spare;
-   off_t offset;
-   size_t size;
-} IdxHead;
-
-typedef struct
-{
-   IdxHead head;
-   char bytes[1]; /* start of data bytes */
-} IdxData;
 
 #endif

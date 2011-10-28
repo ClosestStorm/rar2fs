@@ -26,11 +26,22 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef VERSION_H_
-#define VERSION_H_
+#ifndef INDEX_H_
+#define INDEX_H_
 
-#define RAR2FS_MAJOR_VER   1
-#define RAR2FS_MINOR_VER   13
-#define RAR2FS_PATCH_LVL   8
+typedef struct
+{
+   unsigned int magic;
+   unsigned short version;
+   unsigned short spare;
+   off_t offset;
+   size_t size;
+} IdxHead;
+
+typedef struct
+{
+   IdxHead head;
+   char bytes[1]; /* start of data bytes */
+} IdxData;
 
 #endif
