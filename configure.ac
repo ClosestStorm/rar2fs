@@ -1,17 +1,10 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-
+AC_INIT(rar2fs, 1.13.8, [http://code.google.com/p/rar2fs])
 AC_PREREQ([2.67])
-AC_INIT([rar2fs], [1.13.8], [http://code.google.com/p/rar2fs])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
-
-AM_CONDITIONAL([DARWIN],
-               [case $host_os in darwin*) true;; *) false;; esac])
-AM_CONDITIONAL([LINUX],
-               [case $host_os in linux*) true;; *) false;; esac])
-
 AC_CONFIG_MACRO_DIR(m4)
 AM_CONFIG_HEADER(config.h)
 
@@ -22,6 +15,7 @@ if test x"$GCC" != x"yes"; then
         Sorry, but $PACKAGE currently supports only \
 the GNU C/C++ compiler!]);
 fi
+
 AM_PROG_CC_C_O
 AC_PROG_CXX
 
@@ -210,7 +204,7 @@ if test x"$cross_compiling" = x"no"; then
         [AC_MSG_RESULT([yes])],
         [AC_MSG_RESULT([no])
         AC_MSG_FAILURE([
-    rar2fs requires FUSE 2.6 or newer.  Please check config.log for errors.
+    $PACKAGE requires FUSE 2.6 or newer.  Please check config.log for errors.
     If you cannot determine the problem, mail hans.beckerus@gmail.com
     and include the config.log file])
         ]
