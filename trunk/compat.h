@@ -32,18 +32,21 @@
 #include <stdint.h>   /* C99 uintptr_t */
 #include <sys/types.h>
 
-#define HAVE_STDLIB_H
-#define HAVE_MMAP
-#define HAVE_SCHED_H
-#define HAVE_DIRENT_H
-#define HAVE_UNISTD_H
-#define HAVE_ALLOCA_H
-#define HAVE_ALLOC
+#ifndef STDC_HEADERS
+#define STDC_HEADERS 1
+#endif
+#define HAVE_STDLIB_H 1
+#define HAVE_MMAP 1
+#define HAVE_SCHED_H 1
+#define HAVE_DIRENT_H 1
+#define HAVE_UNISTD_H 1
+#define HAVE_ALLOCA_H 1
+#define HAVE_ALLOC 1
 
 #define RETSIGTYPE void
 #include <signal.h>
 #ifdef SA_SIGACTION
-#define HAVE_STRUCT_SIGACTION_SA_SIGACTION
+#define HAVE_STRUCT_SIGACTION_SA_SIGACTION 1
 #endif
 
 #ifdef __sun__
@@ -94,21 +97,21 @@
 #endif
 
 #ifdef HAS_GLIBC_CUSTOM_STREAMS_
-#define HAVE_FMEMOPEN
+#define HAVE_FMEMOPEN 1
 #endif
 
 #if defined ( __UCLIBC__ ) || !defined ( __linux ) || !defined ( __i386 )
 #else
-#define HAVE_EXECINFO_H 
-#define HAVE_UCONTEXT_H 
+#define HAVE_EXECINFO_H 1
+#define HAVE_UCONTEXT_H 1
 #endif
 
 #if defined ( __linux ) 
-#define HAVE_SCHED_SETAFFINITY
+#define HAVE_SCHED_SETAFFINITY 1
 #endif
 #include <sched.h>
 #if defined ( __cpu_set_t_defined )
-#define HAVE_CPU_SET_T
+#define HAVE_CPU_SET_T 1
 #endif
 
 /* MAC OS X version of gcc does not handle this properly!? */
@@ -122,9 +125,9 @@
 #endif
 
 #ifdef __sun__
-#define HAVE_LOCKF
+#define HAVE_LOCKF 1
 #else
-#define HAVE_FLOCK
+#define HAVE_FLOCK 1
 #endif
 
 #endif
