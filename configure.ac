@@ -17,7 +17,7 @@ AM_CONFIG_HEADER(config.h)
 
 # Checks for programs.
 AC_PROG_CC_STDC
-if test "x$GCC" != "xyes"; then
+if test x"$GCC" != x"yes"; then
     AC_MSG_ERROR([
         Sorry, but $PACKAGE currently supports only \
 the GNU C/C++ compiler!]);
@@ -86,56 +86,58 @@ else
 fi
 
 withval=
-enableval=
 AC_ARG_WITH([fuse],
    [AS_HELP_STRING([--with-fuse=PATH],
                [search PATH to fuse header files]
    )],
    [], [])
-if test "x$withval" != "x"; then
-    if test "x$withval" != "xno"; then
-       if test "x$withval" != "xyes"; then
+if test x"$withval" != x; then
+    if test x"$withval" != x"no"; then
+       if test x"$withval" != x"yes"; then
            FUSE_CPPFLAGS="-I"$withval
        fi
     fi
 fi
+
 withval=
 AC_ARG_WITH([fuse-lib],
    [AS_HELP_STRING([--with-fuse-lib=PATH],
                [search PATH to fuse library]
    )],
    [], [])
-if test "x$withval" != "x"; then
-    if test "x$withval" != "xno"; then
-       if test "x$withval" != "xyes"; then
+if test x"$withval" != x; then
+    if test x"$withval" != x"no"; then
+       if test x"$withval" != x"yes"; then
            FUSE_LDFLAGS="-L"$withval
        fi
     fi
 fi
+
 withval=
 AC_ARG_WITH([unrar],
    [AS_HELP_STRING([--with-unrar=PATH],
                [search PATH to unrar source [PATH=./unrar]]
    )],
    [], [])
-if test "x$withval" != "x"; then
-    if test "x$withval" != "xno"; then
-        if test "x$withval" != "xyes"; then
+if test x"$withval" != x; then
+    if test x"$withval" != x"no"; then
+        if test x"$withval" != x"yes"; then
            UNRAR_CPPFLAGS="-I"$withval
         fi
     fi
 else
     UNRAR_CPPFLAGS="-I./unrar"
 fi
+
 withval=
 AC_ARG_WITH([unrar-lib],
    [AS_HELP_STRING([--with-unrar-lib=PATH],
                [search PATH to unrar library]
    )],
    [], [])
-if test "x$withval" != "x"; then
-    if test "x$withval" != "xno"; then
-       if test "x$withval" != "xyes"; then
+if test x"$withval" != x; then
+    if test x"$withval" != x"no"; then
+       if test x"$withval" != x"yes"; then
            UNRAR_LDFLAGS="-L"$withval
        fi
     fi
@@ -149,13 +151,13 @@ AC_SUBST(UNRAR_CXXFLAGS)
 AC_SUBST(FUSE_LDFLAGS)
 AC_SUBST(UNRAR_LDFLAGS)
 
-withval=
+enableval=
 AC_ARG_ENABLE([debug],
    [AS_HELP_STRING([--enable-debug[[=LEVEL]]],
                [enable debug mode [LEVEL=4]])],
    [], [])
-if test "x$enableval" != "xno"; then
-   if test "x$enableval" = "xyes"; then
+if test x"$enableval" != x"no"; then
+   if test x"$enableval" = x"yes"; then
        debug_level=4
    else
        debug_level=$enableval
@@ -166,7 +168,6 @@ if test "$debug_level" != ""; then
     : ${CXXFLAGS="-g -O0"}
     : ${CFLAGS="-g -O0"}
 fi
-enablearg=
 
 AX_PTHREAD
 AC_SUBST(PTHREAD_LIBS)
@@ -243,7 +244,7 @@ AC_SUBST(UNRAR_LIBS)
 # This assumes svn version >= 1.4
 AC_MSG_CHECKING(for source revision in SVN)
 SVNREV=`$AWK '{if(NR==4){print $0;exit}}' .svn/entries 2>/dev/null`
-if test "x$SVNREV" != "x"; then
+if test x"$SVNREV" != x; then
     CFLAGS="$CFLAGS -DSVNREV=$SVNREV"
     echo $SVNREV
 else
