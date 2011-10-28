@@ -29,10 +29,8 @@
 #ifndef COMPAT_H
 #define COMPAT_H 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
 #include <stdint.h>   /* C99 uintptr_t */
+#include <sys/types.h>
 
 #define HAVE_STDLIB_H
 #define HAVE_MMAP

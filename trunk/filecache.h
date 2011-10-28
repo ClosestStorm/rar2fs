@@ -30,7 +30,6 @@
 #define FILECACHE_H_
 
 #include <platform.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 #include <pthread.h>
 

@@ -19,9 +19,7 @@
 #include <locale.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -142,10 +140,10 @@ map_file(int fd, size_t size)
 {
 #ifdef HAVE_LOCKF
         if (lockf(fd, F_TLOCK, 0) == -1) return NULL;
-#elif HAVE_FLOCK
-        if (flock(fd, LOCK_EX|LOCK_NB) == -1) return NULL;
 #else
-        /* continue without locking */
+# ifdef HAVE_FLOCK
+        if (flock(fd, LOCK_EX|LOCK_NB) == -1) return NULL;
+# endif 
 #endif
 
         /* Prepare the file */

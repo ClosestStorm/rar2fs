@@ -27,7 +27,6 @@
 */
 
 #include <platform.h>
-#include <stdlib.h>
 #include <memory.h>
 #include <stdio.h>
 #include <sys/stat.h>

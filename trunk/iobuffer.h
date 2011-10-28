@@ -30,8 +30,6 @@
 #define IOBUFFER_H_
 
 #include <platform.h>
-#include <stdlib.h>
-#include <stddef.h>
 #include <stdio.h>
 #include "index.h"
 
