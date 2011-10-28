@@ -2,6 +2,10 @@ rar2fs ChangeLog file.
 
 2011-10-28  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Added missing include of inttypes.h/stdint.h in platform.h
+
+2011-10-28  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Replaced F_LOCK with F_TLOCK in call to lockf()
 
         * Added checks for lockf()/flock() and fixed a problem

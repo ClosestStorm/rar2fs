@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rar2fs, 1.13.8, [http://code.google.com/p/rar2fs])
+AC_INIT(rar2fs, 1.13.9, [http://code.google.com/p/rar2fs])
 AC_PREREQ([2.67])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_TARGET
