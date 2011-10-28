@@ -1,5 +1,14 @@
 rar2fs ChangeLog file.
 
+2011-10-28  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Replaced F_LOCK with F_TLOCK in call to lockf()
+
+        * Added checks for lockf()/flock() in configure.ac
+
+        * New files: debug.h, index.h, platform.h
+        * Deleted files: common.h
+
 2011-10-26  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added GNU Autotools build support. To build using the old method

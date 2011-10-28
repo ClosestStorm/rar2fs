@@ -26,18 +26,14 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#else
-#include <compat.h>
-#endif
+#include <platform.h>
 #include <stdlib.h>
 #include <memory.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <libgen.h>
-#include "common.h"
+#include "debug.h"
 #include "configdb.h"
 
 #define MAX_NOF_CFG_OBJ (16)

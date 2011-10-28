@@ -26,8 +26,8 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef CONFIGDB_H
-#define CONFIGDB_H
+#ifndef CONFIGDB_H_
+#define CONFIGDB_H_
 
 #define IS_IMG(s) \
    ((OBJ_CNT(OBJ_IMG_TYPE) && chk_obj(OBJ_IMG_TYPE, s)) || \

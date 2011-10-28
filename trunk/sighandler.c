@@ -26,16 +26,12 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#else
-#include <compat.h>
-#endif
+#include <platform.h>
 #include <signal.h>
 #include <syslog.h>
 #include <pthread.h>
 #include <sys/wait.h>
-#include "common.h"
+#include "debug.h"
 #include "filecache.h"
 #include "configdb.h"
 

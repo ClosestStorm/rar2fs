@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     This program take use of the freeware "Unrar C++ Library" (libunrar)
-    by Alexander Roshal and some extensions to it. 
+    by Alexander Roshal and some extensions to it.
 
     Unrar source may be used in any software to handle RAR archives
     without limitations free of charge, but cannot be used to re-create
@@ -26,11 +26,7 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#else
-#include <compat.h>
-#endif
+#include <platform.h>
 #include <stdio.h>
 #ifdef STDC_HEADERS
 # include <stdlib.h>
@@ -40,71 +36,36 @@
 #  include <stdlib.h>
 # endif
 #endif
-#ifdef HAVE_ALLOCA_H
-# include <alloca.h>
-#elif defined __GNUC__
-/* Some systems, eg. FreeBSD, define this already in stdlib.h */
-# ifndef alloca
-#  define alloca __builtin_alloca
-# endif
-#elif defined _AIX
-# define alloca __alloca
-#elif defined _MSC_VER
-# include <malloc.h>
-# define alloca _alloca
-#else
-# ifndef HAVE_ALLOCA
-#  ifdef  __cplusplus
-      extern "C"
-#  endif
-       void *alloca (size_t);
-# endif
-#endif
 #ifdef HAVE_UNISTD_H
 #include <sys/types.h>
 #include <unistd.h>
 #endif
 #include <sys/stat.h>
-#include <sys/statvfs.h> 
+#include <sys/statvfs.h>
 #include <sys/select.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
-#ifdef HAVE_DIRENT_H
-# include <dirent.h>
-# define NAMLEN(dirent) strlen ((dirent)->d_name)
-#else
-# define dirent direct
-# define NAMLEN(dirent) ((dirent)->d_namlen)
-# ifdef HAVE_SYS_NDIR_H
-#  include <sys/ndir.h>
-# endif
-# ifdef HAVE_SYS_DIR_H
-#  include <sys/dir.h>
-# endif
-# ifdef HAVE_NDIR_H
-#  include <ndir.h>
-# endif
-#endif
 #include <libgen.h>
 #include <fuse.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <syslog.h>
 #ifdef HAVE_MMAP
-#include <sys/mman.h>
+# include <sys/mman.h>
 #endif
 #include <limits.h>
 #include <time.h>
 #include <pthread.h>
 #include <ctype.h>
 #ifdef HAVE_SCHED_H
-#include <sched.h>
+# include <sched.h>
 #endif
 #include <assert.h>
-#include "common.h"
 #include "version.h"
+#include "debug.h"
+#include "index.h"
 #include "dllwrapper.h"
 #include "filecache.h"
 #include "iobuffer.h"
@@ -229,7 +190,7 @@ pthread_attr_t thread_attr;
 
 static void sync_dir(const char *dir);
 
-static int 
+static int
 extract_rar(char* arch, const char* file, char* passwd, FILE* fp, void* arg);
 
 /*!
@@ -267,19 +228,19 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
 
   FILE* tmp = NULL;
   char* buffer = malloc(sz);
-  if (!buffer) 
+  if (!buffer)
      return MAP_FAILED;
-  if (oper == E_TO_TMP) 
+  if (oper == E_TO_TMP)
   {
      tmp = tmpfile();
-  } 
+  }
   off_t off = 0;
   do
   {
      ssize_t n = read(out_pipe[0], buffer+off, sz-off); /* read from pipe into buffer */
-     if (n == -1) 
+     if (n == -1)
      {
-        if (errno == EINTR) 
+        if (errno == EINTR)
            continue;
         perror("read");
         free(buffer);
@@ -302,7 +263,7 @@ extract_to(const char* file, off_t sz, FILE* fp, const dir_elem_t* entry_p, int 
       else fseeko(tmp, 0, SEEK_SET);
       free(buffer);
       return tmp;
-  } 
+  }
   return buffer;
 }
 
@@ -343,7 +304,7 @@ popen_(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
           {
 #ifdef HAVE_FMEMOPEN
              maddr = mmap(0, P_ALIGN_(entry_p->msize), PROT_READ, MAP_SHARED, fd, 0);
-             if (maddr != MAP_FAILED) 
+             if (maddr != MAP_FAILED)
                 fp = fmemopen(maddr+entry_p->offset, entry_p->msize-entry_p->offset, "r");
 #else
              fp = fopen(entry_p->rar_p, "r");
@@ -359,7 +320,7 @@ popen_(const dir_elem_t* entry_p, pid_t* cpid, void** mmap_addr, FILE** mmap_fp,
        }
        else
        {
-          if (maddr != MAP_FAILED) 
+          if (maddr != MAP_FAILED)
           {
              if(entry_p->flags.mmap==1) munmap(maddr, P_ALIGN_(entry_p->msize));
              else free(maddr);
@@ -434,13 +395,13 @@ pclose_(FILE* fp, pid_t pid)
 }
 
 /* Size of file in first volume in which it exists */
-#define VOL_FIRST_SZ op->entry_p->vsize 
+#define VOL_FIRST_SZ op->entry_p->vsize
 
 /* Size of file in the following volume(s) (if situated in more than one) */
-#define VOL_NEXT_SZ op->entry_p->vsize_next 
+#define VOL_NEXT_SZ op->entry_p->vsize_next
 
 /* Size of file data in first volume file */
-#define VOL_REAL_SZ op->entry_p->vsize_real 
+#define VOL_REAL_SZ op->entry_p->vsize_real
 
 /* Calculate volume number base offset using archived file offset */
 #define VOL_NO(off) (off < VOL_FIRST_SZ ? 0 : ((offset-VOL_FIRST_SZ) / VOL_NEXT_SZ)+1)
@@ -463,10 +424,10 @@ get_vname(int t, const char* str, int vol, int len, int pos)
       sprintf(f, f1, vol);
       strncpy(&s[pos], f, len);
    }
-   else 
+   else
    {
       char f[16];
-      if (vol==1) 
+      if (vol==1)
       {
          sprintf(f, "%s", "ar");
       }
@@ -532,15 +493,15 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                if (op->volHdl && op->volHdl[vol].fp)
                {
                   vol_p = &op->volHdl[vol];
-                  fp = vol_p->fp; 
+                  fp = vol_p->fp;
                   src_off = VOL_REAL_SZ - chunk;
                   if (src_off != vol_p->pos) force_seek = 1;
                }
                else
                {
                   /* It is advisable to return 0 (read fail) here rather
-                   * than -errno at failure. 
-                   * Some media players tend to react "better" on that and 
+                   * than -errno at failure.
+                   * Some media players tend to react "better" on that and
                    * terminate playback as expected. */
                   char* tmp = get_vname(
                      op->entry_p->vtype, op->entry_p->rar_p, op->vno+op->entry_p->vno_base, op->entry_p->vlen, op->entry_p->vpos);
@@ -548,7 +509,7 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                   {
                      printd(3, "Opening %s\n", tmp);
                      fp = fopen(tmp, "r");
-                     free(tmp); 
+                     free(tmp);
                      if (fp == NULL)
                      {
                         perror("open");
@@ -557,7 +518,7 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                      fclose(FH_TOFP(op->fh));
                      FH_SETFP(&op->fh, fp);
                      force_seek = 1;
-                  } 
+                  }
                   else return 0;
                }
             }
@@ -591,7 +552,7 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
       printd(3, "Read %d bytes from vol=%d, base=%d\n", n, op->vno, op->entry_p->vno_base);
       if (n!=chunk)
       {
-         size = n; 
+         size = n;
       }
 
       size-=n;
@@ -623,7 +584,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
    /* Check for exception case */
    if (offset != op->pos)
    {
-      if (op->buf->idx.data_p != MAP_FAILED && 
+      if (op->buf->idx.data_p != MAP_FAILED &&
          offset >= op->buf->idx.data_p->head.offset)
       {
          off_t o = op->buf->idx.data_p->head.offset;
@@ -665,7 +626,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
             buf+=n;
             offset+=n;
          }
-         else 
+         else
          {
             printd(1, "read: I/O error\n");
             return -EIO;
@@ -678,13 +639,13 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
    size = (offset+size) > op->entry_p->stat.st_size ? op->entry_p->stat.st_size - offset : size;
    if ((offset+size)>op->buf->offset)
    {
-      /* This is another hack! Some media players, especially VLC, 
+      /* This is another hack! Some media players, especially VLC,
        * seems to be buggy and many times requests a second read
-       * far beyond the current offset. This is rendering the 
+       * far beyond the current offset. This is rendering the
        * stream completely useless for continued playback.
        * By checking the distance of the jump this effect can in
        * most cases be worked around. For VLC this will result in
-       * an error message being displayed. But, playback can 
+       * an error message being displayed. But, playback can
        * usually be started at the second attempt. */
 #if 1
       if (((offset+size)-op->buf->offset) > 100000000 &&
@@ -721,7 +682,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
    }
    printd(3, "read: RETURN %d\n", errno ? -errno : n);
 
-   if (errno) perror("read"); 
+   if (errno) perror("read");
    return errno ? -errno : n;
 }
 
@@ -742,7 +703,7 @@ static int lflush(const char *path,
  *
  ****************************************************************************/
 static int lrelease(const char *path,
-                    struct fuse_file_info *fi) 
+                    struct fuse_file_info *fi)
 {
    ENTER_("%s", path);
    close(FH_TOFD(fi->fh));
@@ -784,7 +745,7 @@ lopen(const char *path,
  *
  ****************************************************************************/
 #if !defined ( DEBUG_ ) || DEBUG_ < 5
-#define dump_stat(s) 
+#define dump_stat(s)
 #else
 #define DUMP_STATO_(m) fprintf(stderr, "%10s = %o (octal)\n", #m , (unsigned int)stbuf->m)
 #define DUMP_STAT4_(m) fprintf(stderr, "%10s = %u\n", #m , (unsigned int)stbuf->m)
@@ -792,7 +753,7 @@ lopen(const char *path,
 static void
 dump_stat(struct stat* stbuf)
 {
-   fprintf(stderr, "struct stat {\n"); 
+   fprintf(stderr, "struct stat {\n");
    DUMP_STAT4_(st_dev);
    DUMP_STATO_(st_mode);
    DUMP_STAT4_(st_nlink);
@@ -814,7 +775,7 @@ dump_stat(struct stat* stbuf)
 #ifdef __APPLE__
    DUMP_STAT4_(st_gen);
 #endif
-   fprintf(stderr, "}\n"); 
+   fprintf(stderr, "}\n");
 }
 #undef DUMP_STAT4_
 #undef DUMP_STAT8_
@@ -868,7 +829,7 @@ static int
 rar2_getattr(const char *path, struct stat *stbuf)
 {
    ENTER_("%s", path);
-   
+
    pthread_mutex_lock(&file_access_mutex);
    if (cache_path(path, stbuf))
    {
@@ -893,7 +854,7 @@ rar2_getattr(const char *path, struct stat *stbuf)
       memcpy(stbuf, &e_p->stat, sizeof(struct stat));
       dump_stat(stbuf);
       return 0;
-   } 
+   }
    return -ENOENT;
 }
 
@@ -1017,7 +978,7 @@ get_vformat(const char* s, int t, int* l, int* p)
    ? IS_RAR_DIR(l) ? (S_IFDIR|0777) : (S_IFREG|0666) : (l)->FileAttr)
 #define GET_RAR_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->UnpSizeHigh * 0x100000000ULL) | (l)->UnpSize))
 #define GET_RAR_PACK_SZ(l) (IS_RAR_DIR(l) ? 4096 : (((l)->PackSizeHigh * 0x100000000ULL) | (l)->PackSize))
- 
+
 /*!
  ****************************************************************************
  *
@@ -1047,7 +1008,7 @@ extract_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2)
    }
    return 0;
 }
- 
+
 /*!
  *****************************************************************************
  *
@@ -1061,18 +1022,18 @@ extract_rar(char* arch, const char* file, char* passwd, FILE* fp, void* arg)
     HANDLE hdl = fp?RARInitArchive(&d, fp):RAROpenArchive(&d);
     if (!hdl || d.OpenResult)
         goto extract_error;
- 
+
     if (passwd && strlen(passwd))
         RARSetPassword(hdl, passwd);
- 
+
     header.CmtBufSize = 0;
- 
+
     RARSetCallback(hdl, extract_callback, (LPARAM)(arg));
     while (1)
     {
         if (RARReadHeader(hdl, &header))
            break;
- 
+
         /* We won't extract subdirs */
         if (IS_RAR_DIR(&header) ||
             strcmp(header.FileName, file))
@@ -1135,14 +1096,14 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
       {
           /* Force file to be treated as a 'regular file' */
           mode = (mode & ~S_IFMT) | S_IFREG;
-      }  
+      }
       entry_p->stat.st_mode = mode;
       entry_p->stat.st_nlink = S_ISDIR(mode) ? 2 : alist_p->Method - (0x30 - 1);
       entry_p->stat.st_size = GET_RAR_SZ(alist_p);
    }
    else
    {
-      entry_p->stat.st_mode = (S_IFDIR|0777); 
+      entry_p->stat.st_mode = (S_IFDIR|0777);
       entry_p->stat.st_nlink = 2;
       entry_p->stat.st_size = 4096;
    }
@@ -1151,7 +1112,7 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
    entry_p->stat.st_ino = 0;
 
 #ifdef HAVE_STRUCT_STAT_ST_BLOCKS
-   /* This is far from perfect but does the job pretty well! 
+   /* This is far from perfect but does the job pretty well!
     * If there is some obvious way to calculate the number of blocks
     * used by a file, please tell me! Most Linux systems seems to
     * apply some sort of multiple of 8 blocks scheme? */
@@ -1182,13 +1143,13 @@ set_rarstats(dir_elem_t* entry_p,  RARArchiveListEx* alist_p, int force_dir)
 #endif
       };
 
-      /* Avoid type-punned pointer warning when strict aliasing is used 
+      /* Avoid type-punned pointer warning when strict aliasing is used
        * with some versions of gcc */
       unsigned int as_uint_;
    };
 
-   union dos_time_t* dos_time = (union dos_time_t*)&alist_p->FileTime; 
-   
+   union dos_time_t* dos_time = (union dos_time_t*)&alist_p->FileTime;
+
    t.tm_sec = dos_time->second;
    t.tm_min = dos_time->minute;
    t.tm_hour = dos_time->hour;
@@ -1224,7 +1185,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
    HANDLE hdl = RAROpenArchive(&d);
 
    /* Check for fault */
-   if (d.OpenResult) 
+   if (d.OpenResult)
    {
       pthread_mutex_unlock(&file_access_mutex);
       return d.OpenResult;
@@ -1266,7 +1227,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
          tmp2 = rar_root;
          rar_root += strlen(OBJ_STR2(OBJ_SRC,0));
          if (!strcmp(rar_root, path) || !strcmp("/", path))
-         { 
+         {
             if (!strcmp(".", rar_name)) display = 1;
 
             /* Handle the rare case when the root folder does not have
@@ -1334,8 +1295,8 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                ? strdup(Password)
                : entry_p->password_p);
 
-            /* Check for .rar inside archive */ 
-            if (!(MainHeaderFlags & MHD_VOLUME) &&  
+            /* Check for .rar inside archive */
+            if (!(MainHeaderFlags & MHD_VOLUME) &&
                 OBJ_INT(OBJ_SEEK_DEPTH, 0))
             {
                /* Check for .rar file */
@@ -1352,8 +1313,8 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   HANDLE hdl2 = NULL;
                   FILE* fp = NULL;
                   char* maddr = MAP_FAILED;
-                  off_t msize = 0; 
-                  int mflags = 0; 
+                  off_t msize = 0;
+                  int mflags = 0;
                   int fd = fileno(RARGetFileHandle(hdl));
                   if (fd!=-1)
                   {
@@ -1373,7 +1334,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                         msize = st.st_size;
                         mflags = 1;
                      }
-                     else 
+                     else
                      {
                          FILE* fp_ = RARGetFileHandle(hdl);
                          off_t curr_pos = ftello(fp_);
@@ -1394,13 +1355,13 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                          msize = GET_RAR_SZ(next);
                          mflags = 2;
                      }
-                  } 
+                  }
                   if (fp) hdl2 = RARInitArchive(&d2, fp);
                   if (hdl2)
                   {
                      RARArchiveListEx LL;
                      RARArchiveListEx* next2 = &LL;
-		     if (RARListArchiveEx(&hdl2, next2, NULL))
+                     if (RARListArchiveEx(&hdl2, next2, NULL))
                      {
                         const unsigned int MHF = RARGetMainHeaderFlags(hdl2);
                         while (next2)
@@ -1440,7 +1401,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                      RARFreeArchive(hdl2);
                   }
                   if (fp) fclose(fp);
-                  if (maddr != MAP_FAILED) 
+                  if (maddr != MAP_FAILED)
                   {
                      if (mflags==1) munmap(maddr, P_ALIGN_(msize));
                      else free(maddr);
@@ -1464,7 +1425,7 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   ((next->Flags & (LHD_SPLIT_BEFORE|LHD_SPLIT_AFTER)) ||
                      (IS_RAR_DIR(next))))
                {
-                  int len, pos; 
+                  int len, pos;
 
                   entry_p->flags.multipart = 1;
                   entry_p->flags.image = IS_IMG(next->FileName);
@@ -1479,7 +1440,6 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                   {
                      entry_p->vlen = len;
                      entry_p->vpos = pos;
-                     //XXXentry_p->offset = 1; /* Any value but 0 will do */
                      if (!IS_RAR_DIR(next))
                      {
                         entry_p->vsize_real = FileDataEnd;
@@ -1487,10 +1447,6 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
                            FileDataEnd - (SIZEOF_MARKHEAD + MainHeaderSize+next->HeadSize);
                         entry_p->vsize = GET_RAR_PACK_SZ(next);
                      }
-                     //XXXelse
-                     //XXX{
-                        //XXXentry_p->vsize = 1;  /* Any value but 0 is ok */
-                     //XXX}
                   }
                   else
                      entry_p->flags.raw = 0;
@@ -1503,30 +1459,19 @@ listrar(const char* path, dir_entry_list_t** buffer, const char* arch, const cha
             }
             else /* Compressed and/or Encrypted */
             {
-               //XXXentry_p->offset = 0;
                entry_p->flags.raw = 0;
-               //XXXif (!IS_RAR_DIR(next))
-               //XXX{
-               //XXX   entry_p->vsize = 0;
-               //XXX}
                /* Check if part of a volume */
-               //XXXelse if (MainHeaderFlags & MHD_VOLUME)
                if (MainHeaderFlags & MHD_VOLUME)
                {
                   entry_p->flags.multipart = 1;
-                  //XXXint len,pos;
                   entry_p->vtype = MainHeaderFlags & MHD_NEWNUMBERING?1:0;
-                  //XXXentry_p->vsize = 1;	/* Any value but 0 is ok */
-                  //XXX(void)get_vformat(entry_p->rar_p, entry_p->vtype, &len, &pos);
-                  //XXXentry_p->vlen = len;
-                  //XXXentry_p->vpos = pos;
                }
                else
                   entry_p->flags.multipart = 0;
             }
             entry_p->file_p = strdup(next->FileName);
             set_rarstats(entry_p, next, 0);
-         } 
+         }
          /* To protect from display of the same file name multiple times
           * the cache entry is compared with current archive name.
           * A true cache hit must also be located inside the same
@@ -1589,7 +1534,7 @@ sync_dir(const char *dir)
 {
    ENTER_("%s", dir);
 
-   char tmpbuf[MAXPASSWORD]; 
+   char tmpbuf[MAXPASSWORD];
    const char* password = NULL;
    DIR *dp;
    char* root;
@@ -1657,7 +1602,7 @@ swap(struct dir_entry_list* A, struct dir_entry_list* B)
 static void
 sort_dir(dir_entry_list_t* root, const char* path)
 {
-   /* Simple bubble sort of directory entries in 
+   /* Simple bubble sort of directory entries in
     * alphabetical order */
    if (root && root->next)
    {
@@ -1672,11 +1617,11 @@ sort_dir(dir_entry_list_t* root, const char* path)
            n += swap(next, next->next);
            next = next->next;
          }
-      } while (n != 0);	/* while swaps performed */
+      } while (n != 0); /* while swaps performed */
       /* Make sure entries are unique. Duplicates will be removed.
        * The winner will be the last entry added to the cache or
-         entries in the back-end fs. */ 
-      next = root->next; 
+         entries in the back-end fs. */
+      next = root->next;
       while(next->next)
       {
           if (!strcmp(next->entry.name, next->next->entry.name))
@@ -1702,7 +1647,7 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
 {
    ENTER_("%s", path);
 
-   char tmpbuf[MAXPASSWORD]; 
+   char tmpbuf[MAXPASSWORD];
    const char* password = NULL;
    dir_entry_list_t dir_list;    /* internal list root */
    dir_entry_list_t* next = &dir_list;
@@ -1737,7 +1682,7 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
                      ABS_ROOT(tmp2, tmp);
                      if (!access(tmp2, F_OK)) /* must not already exist */
                      {
-                         int l = OBJ_CNT(OBJ_FAKE_ISO) 
+                         int l = OBJ_CNT(OBJ_FAKE_ISO)
                             ? chk_obj(OBJ_FAKE_ISO, tmp) : chk_obj(OBJ_IMG_TYPE, tmp);
                          if (l)
                          {
@@ -1909,13 +1854,13 @@ reader_task(void* arg)
          char buf[2];
          NO_UNUSED_RESULT read(fd, buf, 1); /* consume byte */
          {
-            if (buf[0]<2 && !feof(FH_TOFP(op->fh))) 
+            if (buf[0]<2 && !feof(FH_TOFP(op->fh)))
                (void)readTo(op->buf, FH_TOFP(op->fh), IOB_SAVE_HIST);
             if (buf[0])
             {
                printd(4, "Reader thread acknowledge\n");
                int fd = op->pfd2[1];
-               if (write(fd, buf, 1) != 1) perror("write"); 
+               if (write(fd, buf, 1) != 1) perror("write");
             }
             /* Early termination */
             /*if (feof(FH_TOFP(op->fh))) break;*/ /* XXX check this! */
@@ -1935,7 +1880,7 @@ reader_task(void* arg)
 static void
 preload_index(IoBuf* buf, const char* path)
 {
-   ENTER_("%s", path); 
+   ENTER_("%s", path);
 
    /* check for .avi or .mkv */
    if (!IS_AVI(path) && !IS_MKV(path))
@@ -1971,11 +1916,11 @@ preload_index(IoBuf* buf, const char* path)
          return;
       }
       buf->idx.mmap = 1;
-   } else 
+   } else
 #endif
    {
       buf->idx.data_p = malloc(sizeof(IdxData));
-      if (!buf->idx.data_p) 
+      if (!buf->idx.data_p)
       {
          buf->idx.data_p = MAP_FAILED;
          return;
@@ -2019,7 +1964,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
       if (mount_type == MOUNT_FOLDER)
       {
          /* There was a cache miss and the file could not be found locally!
-          * This is bad! To make sure the files does not really exist all 
+          * This is bad! To make sure the files does not really exist all
           * rar archives need to be scanned for a matching file = slow! */
          CHK_FILTER;
          char* dir = alloca(strlen(path)+1);
@@ -2059,7 +2004,6 @@ rar2_open(const char *path, struct fuse_file_info *fi)
    IOContext* op = NULL;
    pid_t pid = 0;
 
-   //XXXif (entry_p->offset != 0 && !entry_p->flags.mmap)
    if (entry_p->flags.raw)
    {
       if (!FH_ISSET(fi->fh))
@@ -2068,7 +2012,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          if (fp != NULL)
          {
             op = malloc(sizeof(IOContext));
-            if (!op) 
+            if (!op)
                goto open_error;
 
             printd(3, "Opened %s\n", entry_p->rar_p);
@@ -2082,11 +2026,11 @@ rar2_open(const char *path, struct fuse_file_info *fi)
             op->pos = 0;
             op->vno = -1; /* force a miss 1st time */
             op->terminate = 1;
-            if (entry_p->flags.multipart && 
-                OBJ_SET(OBJ_PREOPEN_IMG) && 
+            if (entry_p->flags.multipart &&
+                OBJ_SET(OBJ_PREOPEN_IMG) &&
                 entry_p->flags.image)
             {
-               entry_p->vno_max = pow_(10, op->entry_p->vlen) + 1; 
+               entry_p->vno_max = pow_(10, op->entry_p->vlen) + 1;
                op->volHdl = malloc(entry_p->vno_max * sizeof(VolHandle));
                if (op->volHdl)
                {
@@ -2096,7 +2040,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
                   while (j--)
                   {
                      FILE* fp_ = fopen(tmp, "r");
-                     if (fp_ == NULL) 
+                     if (fp_ == NULL)
                      {
                         break;
                      }
@@ -2123,12 +2067,12 @@ rar2_open(const char *path, struct fuse_file_info *fi)
       int mmap_fd = 0;
 
       buf = malloc(P_ALIGN_(sizeof(IoBuf)+IOB_SZ));
-      if (!buf) 
+      if (!buf)
          goto open_error;
-      IOB_RST(buf); 
+      IOB_RST(buf);
 
       op = malloc(sizeof(IOContext));
-      if (!op) 
+      if (!op)
          goto open_error;
       op->buf = buf;
 
@@ -2152,7 +2096,7 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          printd(4, "PIPE %p created towards child %d\n", FH_TOFP(op->fh), pid);
 
          /* Disable flushing the cache of the file contents on every open().
-          * This is important to make sure FUSE does not force read from 
+          * This is important to make sure FUSE does not force read from
           * offset 0 if a RAR file is opened multiple times. It will break
           * the logic for compressed/encrypted archives since the I/O context
           * will become out-of-sync.
@@ -2161,8 +2105,8 @@ rar2_open(const char *path, struct fuse_file_info *fi)
          fi->keep_cache = 1;
 
          /* Create pipes to be used between threads.
-          * Both these pipes are used for communication between 
-          * parent (this thread) and reader thread. One pipe is for 
+          * Both these pipes are used for communication between
+          * parent (this thread) and reader thread. One pipe is for
           * requests (w->r) and the other is for responses (r<-w). */
          op->pfd1[0] = -1;
          op->pfd1[1] = -1;
@@ -2351,7 +2295,6 @@ rar2_release(const char *path, struct fuse_file_info *fi)
       }
       if (FH_TOFP(op->fh))
       {
-         //XXXif (op->entry_p->offset && !op->entry_p->flags.mmap)
          if (op->entry_p->flags.raw)
          {
             if (op->volHdl)
@@ -2365,7 +2308,7 @@ rar2_release(const char *path, struct fuse_file_info *fi)
             }
             fclose(FH_TOFP(op->fh));
             printd(3, "Closing file handle %p\n", FH_TOFP(op->fh));
-         } 
+         }
          else
          {
             close(op->pfd1[0]);
@@ -2373,7 +2316,7 @@ rar2_release(const char *path, struct fuse_file_info *fi)
             close(op->pfd2[0]);
             close(op->pfd2[1]);
             if (pclose_(FH_TOFP(op->fh), op->pid))
-            { 
+            {
                 printd(4, "child closed abnormaly");
             }
             printd(4, "PIPE %p closed towards child %05d\n", FH_TOFP(op->fh), op->pid);
@@ -2390,12 +2333,12 @@ rar2_release(const char *path, struct fuse_file_info *fi)
          }
       }
       printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "FREE", path, op);
-      if (op->buf) 
-      { 
+      if (op->buf)
+      {
          /* XXX clean up */
-         if (op->buf->idx.data_p != MAP_FAILED && op->buf->idx.mmap) 
+         if (op->buf->idx.data_p != MAP_FAILED && op->buf->idx.mmap)
             munmap((void*)op->buf->idx.data_p, P_ALIGN_(op->buf->idx.data_p->head.size));
-         if (op->buf->idx.data_p != MAP_FAILED && !op->buf->idx.mmap) 
+         if (op->buf->idx.data_p != MAP_FAILED && !op->buf->idx.mmap)
             free(op->buf->idx.data_p);
          if (op->buf->idx.fd != -1) close(op->buf->idx.fd);
          free(op->buf);
@@ -2438,10 +2381,9 @@ rar2_read(const char *path, char *buffer, size_t size, off_t offset,
       ABS_ROOT(root, entry_p->file_p);
       return lread(root, buffer, size, offset, fi);
    }
-   //XXXif (entry_p->offset && !entry_p->flags.mmap)
    if (entry_p->flags.raw)
    {
-      return lread_raw(buffer, size, offset, fi); 
+      return lread_raw(buffer, size, offset, fi);
    }
    return lread_rar(buffer, size, offset, fi);
 }
@@ -2521,7 +2463,7 @@ rar2_create(const char* path, mode_t mode, struct fuse_file_info* fi)
 {
    ENTER_("%s", path);
    /* Only allow creation of "regular" files this way */
-   if (S_ISREG(mode)) 
+   if (S_ISREG(mode))
    {
       if (!access_chk(path, 1))
       {
@@ -2593,7 +2535,7 @@ rar2_mknod(const char* path, mode_t mode, dev_t dev)
  *****************************************************************************
  *
  ****************************************************************************/
-static int 
+static int
 rar2_unlink(const char* path)
 {
    ENTER_("%s", path);
@@ -2620,7 +2562,7 @@ rar2_mkdir(const char* path, mode_t mode)
    {
       char* root;
       ABS_ROOT(root, path);
-      if (!mkdir(root, mode)) 
+      if (!mkdir(root, mode))
         return 0;
       return -errno;
    }
@@ -2631,7 +2573,7 @@ rar2_mkdir(const char* path, mode_t mode)
  *****************************************************************************
  *
  ****************************************************************************/
-static int 
+static int
 rar2_rmdir(const char* path)
 {
    ENTER_("%s", path);
@@ -2672,7 +2614,7 @@ rar2_utime(const char* path, const struct timespec tv[2])
  *****************************************************************************
  *
  ****************************************************************************/
-static void 
+static void
 usage(char* prog)
 {
    const char* P_ = basename(prog);
@@ -2744,7 +2686,7 @@ check_libunrar(int verbose)
 {
    if (RARGetDllVersion() != RAR_DLL_VERSION)
    {
-      if (verbose) 
+      if (verbose)
       {
           if (RARVER_BETA)
           {
@@ -2964,7 +2906,7 @@ main(int argc, char* argv[])
          usage(*argv);
          return -1;
       }
-   
+
       /* Check I/O buffer and history size */
       if (check_iob(*argv, 1))
       {
@@ -3001,7 +2943,7 @@ main(int argc, char* argv[])
    {
       argv[optind]=NULL;
       argc-=2;
-   } 
+   }
    else
    {
       argc = 0;
@@ -3011,7 +2953,7 @@ main(int argc, char* argv[])
    fuse_opt_add_arg(&args, "-s");
    fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,subtype=rar2fs,default_permissions");
    fuse_opt_add_arg(&args, OBJ_STR(OBJ_DST,0));
-  
+
    /* All static setup is ready, the rest is taken from the configuration.
     * Continue in work() function which will not return until the process
     * is about to terminate. */

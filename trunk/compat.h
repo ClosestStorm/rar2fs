@@ -123,4 +123,10 @@
         ignore_result_ ## __LINE__ ## _=(void*)(uintptr_t)
 #endif
 
+#ifdef __sun__
+#define HAVE_LOCKF
+#else
+#define HAVE_FLOCK
+#endif
+
 #endif

@@ -26,14 +26,10 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef FILECACHE_H
-#define FILECACHE_H
+#ifndef FILECACHE_H_
+#define FILECACHE_H_
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#else
-#include <compat.h>
-#endif
+#include <platform.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <pthread.h>

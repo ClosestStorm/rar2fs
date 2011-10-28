@@ -26,8 +26,8 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef SIGHANDLER_H
-#define SIGHANDLER_H 
+#ifndef SIGHANDLER_H_
+#define SIGHANDLER_H_
 
 extern int glibc_test;
 

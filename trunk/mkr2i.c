@@ -15,11 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#else
-#include <compat.h>
-#endif
+#include <platform.h>
 #include <locale.h>
 #include <stdio.h>
 #include <string.h>
@@ -32,10 +28,7 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 #include <arpa/inet.h>
-#ifdef __sun__
-#include <alloca.h>
-#endif
-#include "common.h"
+#include "index.h"
 
 #define MAP_FAILED_   (0x1)
 #define R2I_MAGIC     (htonl(0x72326900))   /* 'r2i ' */
@@ -92,11 +85,11 @@ parse_riff(IdxHead* h, FILE* fp, off_t sz)
                         h->offset = atoll(tmp2)&~4095; /* align offset */
                         h->size = sz - h->offset;
                         return;
-                } 
+                }
         }
 }
 
-static void 
+static void
 parse_ebml(IdxHead* h, FILE* fp, off_t sz)
 {
         char s[256];
@@ -147,10 +140,12 @@ parse_ebml(IdxHead* h, FILE* fp, off_t sz)
 static char*
 map_file(int fd, size_t size)
 {
-#ifdef __sun__
-        if (lockf(fd, F_LOCK, 0) == -1) return NULL;
-#else
+#ifdef HAVE_LOCKF
+        if (lockf(fd, F_TLOCK, 0) == -1) return NULL;
+#elif HAVE_FLOCK
         if (flock(fd, LOCK_EX|LOCK_NB) == -1) return NULL;
+#else
+        /* continue without locking */
 #endif
 
         /* Prepare the file */
@@ -189,10 +184,10 @@ int main(int argn, char* argv[])
         Mode mode;
         char dump_magic[10];
         NO_UNUSED_RESULT fscanf(fd_dump, "%s", dump_magic);
-        if (!strcmp(dump_magic, "EBML")) 
+        if (!strcmp(dump_magic, "EBML"))
                 mode = M_EBML;
-        else if (!strcmp(dump_magic+3, "RIFF")) 
-                mode = M_RIFF; 
+        else if (!strcmp(dump_magic+3, "RIFF"))
+                mode = M_RIFF;
         else {
                 printf("Invalid dump file\n");
                 exit(-1);
@@ -227,7 +222,7 @@ int main(int argn, char* argv[])
 
                 char* addr = map_file(fd, map_size);
                 if (!addr) {
-                        printf("Internal error %x\n", MAP_FAILED_); 
+                        printf("Internal error %x\n", MAP_FAILED_);
                         return 1;
                 }
 
@@ -238,7 +233,7 @@ int main(int argn, char* argv[])
                         return 1;
                 }
                 /* flush to medium */
-                msync(addr, map_size, MS_SYNC); 
+                msync(addr, map_size, MS_SYNC);
                 munmap(addr, map_size);
                 close(fd);
         }

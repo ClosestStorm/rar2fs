@@ -26,18 +26,14 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef IOBUFFER_H
-#define IOBUFFER_H
+#ifndef IOBUFFER_H_
+#define IOBUFFER_H_
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#else
-#include <compat.h>
-#endif
+#include <platform.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
-#include "common.h"
+#include "index.h"
 
 #define IOB_SZ_DEFAULT           (4*1024*1024)
 #ifdef USE_STATIC_IOB_
