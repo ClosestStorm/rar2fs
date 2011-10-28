@@ -28,18 +28,6 @@
 
 #include <platform.h>
 #include <stdio.h>
-#ifdef STDC_HEADERS
-# include <stdlib.h>
-# include <stddef.h>
-#else
-# ifdef HAVE_STDLIB_H
-#  include <stdlib.h>
-# endif
-#endif
-#ifdef HAVE_UNISTD_H
-#include <sys/types.h>
-#include <unistd.h>
-#endif
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/select.h>
