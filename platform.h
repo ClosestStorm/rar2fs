@@ -14,10 +14,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-    This is a C/C++ wrapper for the extension of the freeware Unrar C++
-    library (libunrar). It is part of the extension itself. The wrapper
-    can be used in source code written in C in order to access and 
-    include the C++ library API.
+    This program take use of the freeware "Unrar C++ Library" (libunrar)
+    by Alexander Roshal and some extensions to it.
 
     Unrar source may be used in any software to handle RAR archives
     without limitations free of charge, but cannot be used to re-create
@@ -28,26 +26,64 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef DLLWRAPPER_H_
-#define DLLWRAPPER_H_
+#ifndef PLATFORM_H_
+#define PLATFORM_H_
 
-#ifndef __cplusplus
-#include <wchar.h>
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#else
+# include <compat.h>
 #endif
 
-#include "dllext.hpp"
-
-#ifdef __cplusplus
-extern "C" {
+#ifdef HAVE_ALLOCA_H
+# include <alloca.h>
+#elif defined __GNUC__
+/* Some systems, eg. FreeBSD, define this already in stdlib.h */
+# ifndef alloca
+#  define alloca __builtin_alloca
+# endif
+#elif defined _AIX
+# define alloca __alloca
+#elif defined _MSC_VER
+# include <malloc.h>
+# define alloca _alloca
+#else
+# ifndef HAVE_ALLOCA
+#  ifdef  __cplusplus
+    extern "C"
+#  endif
+    void *alloca (size_t);
+# endif
 #endif
 
-typedef struct RARHeaderData RARHeaderData;
-typedef struct RARHeaderDataEx RARHeaderDataEx;
-typedef struct RAROpenArchiveData RAROpenArchiveData;
-typedef struct RAROpenArchiveDataEx RAROpenArchiveDataEx;
-
-#ifdef __cplusplus
-}
+#ifdef HAVE_DIRENT_H
+# include <dirent.h>
+# define NAMLEN(dirent) strlen ((dirent)->d_name)
+#else
+# define dirent direct
+# define NAMLEN(dirent) ((dirent)->d_namlen)
+# ifdef HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif
+# ifdef HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif
+# ifdef HAVE_NDIR_H
+#  include <ndir.h>
+# endif
 #endif
 
+#ifdef __GNUC__
+#define MB() do{ __asm__ __volatile__ ("" ::: "memory"); } while(0)
+#else
+#warning Check code for MB() on current platform
+#define MB()
 #endif
+
+extern long page_size;
+#define P_ALIGN_(a) (((a)+page_size)&~(page_size-1))
+
+
+#endif
+
+
