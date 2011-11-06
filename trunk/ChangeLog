@@ -1,5 +1,16 @@
 rar2fs ChangeLog file.
 
+2011-11-06  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed incorrect lookup of libfuse4x.dylib in Makefile.mk
+
+        * Added HAVE_STDBOOL_H to compat.h
+
+        * Relaxed autoconf version requirement to 2.61 for platforms
+          such as OS X with XCode4.
+
+        * Fixed OS X build problems.
+
 2011-10-28  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added missing include of inttypes.h/stdint.h in platform.h

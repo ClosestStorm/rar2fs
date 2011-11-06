@@ -29,7 +29,7 @@ ifeq ($(UNAME), Darwin)
 # Is _DARWIN_C_SOURCE really needed ?
 DEFINES+=-D_DARWIN_C_SOURCE
 ifeq ($(USE_OSX_64_BIT_INODES), n)
-ifeq "$(wildcard $(FUSE_LIB)/fuse4x.dylib)" ""
+ifeq "$(wildcard $(FUSE_LIB)/libfuse4x.dylib)" ""
 LIBS+=-lfuse
 else
 LIBS+=-lfuse4x

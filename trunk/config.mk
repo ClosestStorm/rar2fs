@@ -25,6 +25,8 @@ FUSE_SRC=
 # the FUSE library files.
 # This can be left blank if the system already points out the location
 # of a compatible FUSE library, eg. /lib.
+# When using Fuse4x the path _must_ be set here or else auto-detection
+# of Fuse4x library will fail.
 FUSE_LIB=
 
 ##########################
@@ -38,8 +40,10 @@ HAS_GLIBC_CUSTOM_STREAMS=y
 # be supported or not. The default is _not_ to support it. But for
 # version >= 10.6 (Snow Leopard) this is enabled by default in the
 # Darwin kernel so it would sort of make sense saying 'y' here too.
+# If using Fuse4x, leave it as 'n' or else auto-detection of Fuse4x
+# library will fail!
 # This option has no effect on any other OS so just leave it as is.
-USE_OSX_64_BIT_INODES=y
+USE_OSX_64_BIT_INODES=n
 
 
 ##########################

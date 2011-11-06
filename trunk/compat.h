@@ -36,6 +36,7 @@
 #define STDC_HEADERS 1
 #endif
 #define HAVE_STDLIB_H 1
+#define HAVE_STDBOOL_H 1
 #define HAVE_MMAP 1
 #define HAVE_SCHED_H 1
 #define HAVE_DIRENT_H 1

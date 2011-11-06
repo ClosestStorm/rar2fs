@@ -103,6 +103,21 @@
 extern long page_size;
 #define P_ALIGN_(a) (((a)+page_size)&~(page_size-1))
 
+#ifdef HAVE_STDBOOL_H
+# include <stdbool.h>
+#else
+# ifndef HAVE__BOOL
+#  ifdef __cplusplus
+typedef bool _Bool;
+#  else
+#   define _Bool signed char
+#  endif
+# endif
+# define bool _Bool
+# define false 0
+# define true 1
+# define __bool_true_false_are_defined 1
+#endif
 
 #endif
 
