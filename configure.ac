@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 AC_INIT(rar2fs, 1.13.9, [http://code.google.com/p/rar2fs])
-AC_PREREQ([2.67])
+AC_PREREQ([2.61])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE
@@ -31,7 +31,12 @@ AC_CHECK_HEADERS([execinfo.h ucontext.h sched.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_DIRENT
+# Use C++ context when checking for <stdbool.h>.
+# Some platforms seems to fail in detecting stdbool.h properly
+# due to the IBM "xlc bug" when gcc is used!?
+AC_LANG_PUSH([C++])
 AC_HEADER_STDBOOL
+AC_LANG_POP
 AC_HEADER_ASSERT
 AC_TYPE_UID_T
 AC_C_INLINE
@@ -222,7 +227,7 @@ AC_CHECK_HEADER([rar.hpp],,
             Can't find unrar source - add alternative source search path using
             --with-unrar and rerun configure. ])
 )
-AC_LANG_POP([C++])
+AC_LANG_POP
 CPPFLAGS="$save_CPPFLAGS"
 
 save_LDFLAGS="$LDFLAGS"
