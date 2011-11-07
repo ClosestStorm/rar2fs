@@ -2950,7 +2950,11 @@ main(int argc, char* argv[])
    /* Clean up what has not already been taken care of */
    fuse_opt_free_args(&args);
    configdb_destroy();
+
+   /* Why nothing is ever simple ? */
+#ifndef __APPLE__
    pthread_exit(NULL);
+#endif
 
    return res;
 }

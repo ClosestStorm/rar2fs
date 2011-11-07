@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2011-11-07  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Corrected an issue with Mac OS X getting stuck on 
+          pthread_exit(NULL) causing rar2fs to hang forever
+          at unmount.
+
 2011-11-06  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed incorrect lookup of libfuse4x.dylib in Makefile.mk
@@ -7,9 +13,9 @@ rar2fs ChangeLog file.
         * Added HAVE_STDBOOL_H to compat.h
 
         * Relaxed autoconf version requirement to 2.61 for platforms
-          such as OS X with XCode4.
+          such as Mac OS X with XCode4.
 
-        * Fixed OS X build problems.
+        * Fixed Mac OS X build problems.
 
 2011-10-28  Hans Beckerus <hans.beckerus@gmail.com>
 
@@ -213,7 +219,7 @@ rar2fs ChangeLog file.
           relaxed for the source folder once support for mounting of 
           individual RAR archives is added.
 
-        * Several OS X and FreeBSD build issues corrected.
+        * Several Mac OS X and FreeBSD build issues corrected.
 
         * Added check that file is of type .avi or .mkv before 
           attempting an index preload.  
