@@ -175,6 +175,7 @@ static int mount_type;
 dir_entry_list_t arch_list_root;    /* internal list root */
 dir_entry_list_t* arch_list = &arch_list_root;
 pthread_attr_t thread_attr;
+unsigned int rar2_ticks;
 
 static void sync_dir(const char *dir);
 
@@ -2189,10 +2190,6 @@ rar2_init(struct fuse_conn_info *conn)
    }
 #endif
 
-   /* For portability, explicitly create threads in a joinable state */
-   pthread_attr_init(&thread_attr);
-   pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
-
    return NULL;
 }
 
@@ -2205,7 +2202,6 @@ rar2_destroy(void *data)
 {
    ENTER_();
 
-   pthread_attr_destroy(&thread_attr);
    iobuffer_destroy();
    filecache_destroy();
    sighandler_destroy();
@@ -2727,55 +2723,109 @@ static struct fuse_operations rar2_operations = {
    .readlink = rar2_readlink
 };
 
+struct work_task_data
+{
+        struct fuse* fuse;
+        int mt;
+        volatile int work_task_exited;
+        int status;
+};
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static void*
+work_task(void* data)
+{
+        struct work_task_data* wdt = (struct work_task_data*)data;
+        wdt->status = wdt->mt ? fuse_loop_mt(wdt->fuse) : fuse_loop(wdt->fuse);
+        wdt->work_task_exited = 1;
+        pthread_exit(NULL);
+        return NULL;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int
 work(struct fuse_args* args)
 {
-      int res = -1;
+        struct work_task_data wdt;
+
+        /* For portability, explicitly create threads in a joinable state */
+        pthread_attr_init(&thread_attr);
+        pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
 
 #if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
-      cpu_set_t cpu_mask_saved;
-      if (OBJ_SET(OBJ_NO_SMP))
-      {
-              cpu_set_t cpu_mask;
-              CPU_ZERO(&cpu_mask);
-              CPU_SET(1, &cpu_mask);
-              if (sched_getaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved)) {
-                      perror("sched_getaffinity");
-              }
-              else {
-                      if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask)) {
-                              perror("sched_setaffinity");
-                      }
-              }
-      }
+        cpu_set_t cpu_mask_saved;
+        if (OBJ_SET(OBJ_NO_SMP)) {
+                cpu_set_t cpu_mask;
+                CPU_ZERO(&cpu_mask);
+                CPU_SET(1, &cpu_mask);
+                if (sched_getaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved)) {
+                        perror("sched_getaffinity");
+                } else {
+                        if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask)) {
+                                perror("sched_setaffinity");
+                        }
+                }
+        }
 #endif
 
-      /* The below callbacks depend on mount type */
-      rar2_operations.getattr  = mount_type == MOUNT_FOLDER ? rar2_getattr  : rar2_getattr2;
-      rar2_operations.readdir  = mount_type == MOUNT_FOLDER ? rar2_readdir  : rar2_readdir2;
-      rar2_operations.create   = mount_type == MOUNT_FOLDER ? rar2_create   : (void*)rar2_eperm_stub;
-      rar2_operations.rename   = mount_type == MOUNT_FOLDER ? rar2_rename   : (void*)rar2_eperm_stub;
-      rar2_operations.mknod    = mount_type == MOUNT_FOLDER ? rar2_mknod    : (void*)rar2_eperm_stub;
-      rar2_operations.unlink   = mount_type == MOUNT_FOLDER ? rar2_unlink   : (void*)rar2_eperm_stub;
-      rar2_operations.mkdir    = mount_type == MOUNT_FOLDER ? rar2_mkdir    : (void*)rar2_eperm_stub;
-      rar2_operations.rmdir    = mount_type == MOUNT_FOLDER ? rar2_rmdir    : (void*)rar2_eperm_stub;
-      rar2_operations.write    = mount_type == MOUNT_FOLDER ? rar2_write    : (void*)rar2_eperm_stub;
-      rar2_operations.truncate = mount_type == MOUNT_FOLDER ? rar2_truncate : (void*)rar2_eperm_stub;
-      rar2_operations.chmod    = mount_type == MOUNT_FOLDER ? rar2_chmod    : (void*)rar2_eperm_stub;
-      rar2_operations.chown    = mount_type == MOUNT_FOLDER ? rar2_chown    : (void*)rar2_eperm_stub;
+        /* The below callbacks depend on mount type */
+        rar2_operations.getattr  = mount_type == MOUNT_FOLDER ? rar2_getattr  : rar2_getattr2;
+        rar2_operations.readdir  = mount_type == MOUNT_FOLDER ? rar2_readdir  : rar2_readdir2;
+        rar2_operations.create   = mount_type == MOUNT_FOLDER ? rar2_create   : (void*)rar2_eperm_stub;
+        rar2_operations.rename   = mount_type == MOUNT_FOLDER ? rar2_rename   : (void*)rar2_eperm_stub;
+        rar2_operations.mknod    = mount_type == MOUNT_FOLDER ? rar2_mknod    : (void*)rar2_eperm_stub;
+        rar2_operations.unlink   = mount_type == MOUNT_FOLDER ? rar2_unlink   : (void*)rar2_eperm_stub;
+        rar2_operations.mkdir    = mount_type == MOUNT_FOLDER ? rar2_mkdir    : (void*)rar2_eperm_stub;
+        rar2_operations.rmdir    = mount_type == MOUNT_FOLDER ? rar2_rmdir    : (void*)rar2_eperm_stub;
+        rar2_operations.write    = mount_type == MOUNT_FOLDER ? rar2_write    : (void*)rar2_eperm_stub;
+        rar2_operations.truncate = mount_type == MOUNT_FOLDER ? rar2_truncate : (void*)rar2_eperm_stub;
+        rar2_operations.chmod    = mount_type == MOUNT_FOLDER ? rar2_chmod    : (void*)rar2_eperm_stub;
+        rar2_operations.chown    = mount_type == MOUNT_FOLDER ? rar2_chown    : (void*)rar2_eperm_stub;
 
-      res = fuse_main(args->argc, args->argv, &rar2_operations, NULL);
+        struct fuse* f;
+        pthread_t t;
+        char* mp;
+        int mt;
+
+        f = fuse_setup(args->argc, args->argv, &rar2_operations, sizeof(rar2_operations), &mp, &mt, NULL);
+        wdt.fuse = f;
+        wdt.mt = mt;
+        wdt.work_task_exited = 0;
+        wdt.status = 0;
+        pthread_create(&t, &thread_attr, work_task, (void*)&wdt);
+
+        /* This is a workaround for an issue with fuse_loop() that does
+         * not always release properly at reception of SIGINT. 
+         * But this is really what we want since this thread should not 
+         * block blindly without some user control.
+         */
+        while(!fuse_exited(f) && !wdt.work_task_exited) {
+                sleep(1);
+                ++rar2_ticks;
+        }
+        if (!wdt.work_task_exited)
+                pthread_cancel(t);
+
+        pthread_join(t, NULL);
+        fuse_teardown(f, mp);
 
 #if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
-      if (OBJ_SET(OBJ_NO_SMP))
-      {
-         if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved)) {
-                 perror("sched_setaffinity");
-         }
-      }
+        if (OBJ_SET(OBJ_NO_SMP)) {
+                if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved)) {
+                        perror("sched_setaffinity");
+                }
+        }
 #endif
 
-   return res;
+        pthread_attr_destroy(&thread_attr);
+
+        return wdt.status;
 }
 
 /*!
