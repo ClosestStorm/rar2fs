@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2011-11-09  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Split of fuse_main() to run fuse_loop() in a seperate thread.
+
 2011-11-07  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Corrected an issue with Mac OS X getting stuck on 
