@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2011-11-10  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Replaced call to pthread_cancel() with pthread_signal()
+          for a more graceful termination of the fuse loop thread.
+
 2011-11-09  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Split of fuse_main() to run fuse_loop() in a seperate thread.
