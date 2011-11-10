@@ -4,6 +4,8 @@ rar2fs ChangeLog file.
 
         * Replaced call to pthread_cancel() with pthread_signal()
           for a more graceful termination of the fuse loop thread.
+ 
+        * Built against unrar source v4.1.3 
 
 2011-11-09  Hans Beckerus <hans.beckerus@gmail.com>
 
