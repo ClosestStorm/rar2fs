@@ -2810,7 +2810,7 @@ work(struct fuse_args* args)
                 ++rar2_ticks;
         }
         if (!wdt.work_task_exited)
-                pthread_cancel(t);
+                pthread_kill(t, SIGINT);   /* terminate nicely */
 
         pthread_join(t, NULL);
         fuse_teardown(f, mp);
