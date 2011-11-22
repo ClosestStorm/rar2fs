@@ -72,7 +72,7 @@ readTo(IoBuf* dest, FILE* fp, int hist)
 }
 
 size_t
-readFrom(char* dest, IoBuf* src, size_t size, int off)
+readFrom(char* dest, IoBuf* src, size_t size, size_t off)
 {
         size_t tot = 0;
         unsigned int lri = src->ri; /* read once */

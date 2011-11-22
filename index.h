@@ -29,19 +29,17 @@
 #ifndef INDEX_H_
 #define INDEX_H_
 
-typedef struct
-{
-   unsigned int magic;
-   unsigned short version;
-   unsigned short spare;
-   off_t offset;
-   size_t size;
+typedef struct {
+        uint32_t magic;
+        uint16_t version;
+        uint16_t spare;
+        off_t offset;
+        size_t size;
 } IdxHead;
 
-typedef struct
-{
-   IdxHead head;
-   char bytes[1]; /* start of data bytes */
+typedef struct {
+        IdxHead head;
+        char bytes[1]; /* start of data bytes */
 } IdxData;
 
 #endif

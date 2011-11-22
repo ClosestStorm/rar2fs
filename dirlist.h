@@ -26,60 +26,51 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef IOBUFFER_H_
-#define IOBUFFER_H_
+#ifndef DIRLIST_H
+#define DIRLIST_H
 
-#include <platform.h>
-#include <stdio.h>
-#include "index.h"
+struct stat;
 
-#define IOB_SZ_DEFAULT           (4*1024*1024)
-#ifdef USE_STATIC_IOB_
-#define IOB_SZ                   IOB_SZ_DEFAULT
-#define IOB_HIST_SZ              (IOB_SZ/2)
-#else
-#define IOB_SZ                   (iob_sz)
-#define IOB_HIST_SZ              (iob_hist_sz)
-#endif
+typedef struct dir_entry_list dir_entry_list_t;
+struct dir_entry_list {
+        struct dir_entry {
+                char *name;
+                struct stat *st;
+                int valid;
+        } entry;
+        dir_entry_list_t *next;
+};
 
-#define IOB_NO_HIST 0
-#define IOB_SAVE_HIST 1
+#define DIR_LIST_RST(l) \
+        do {\
+                (l)->next = NULL;\
+                (l)->entry.name = NULL;\
+                (l)->entry.st = NULL;\
+        } while(0)
 
-#define IOB_RST(b)  (memset((b), 0, sizeof(IoBuf)+IOB_SZ))
+#define DIR_ENTRY_ADD(l, n, s) \
+        do {\
+                (l)->next = malloc(sizeof(dir_entry_list_t));\
+                if ((l)->next) {\
+                        (l)=(l)->next;\
+                        (l)->entry.name=strdup(n);\
+                        (l)->entry.st=(s);\
+                        (l)->entry.valid=1; /* assume entry is valid */ \
+                        (l)->next = NULL;\
+                }\
+        } while (0)
 
-typedef struct {
-        int fd;
-        int mmap;
-        IdxData* data_p;
-} IdxInfo;
+#define DIR_LIST_EMPTY(l) (!(l)->next)
 
-typedef struct {
-        IdxInfo idx;
-        off_t offset;
-        volatile size_t ri;
-        volatile size_t wi;
-        size_t used;
-        char data_p[];
-} IoBuf;
-
-
-size_t
-readTo(IoBuf* dest, FILE* fp, int hist);
-
-size_t
-readFrom(char* dest, IoBuf* src, size_t size, size_t off);
-
-size_t
-copyFrom(char* dest, IoBuf* src, size_t size, size_t pos);
-
-extern size_t iob_hist_sz;
-extern size_t iob_sz;
-
-void
-iobuffer_init();
-
-void
-iobuffer_destroy();
+#define DIR_LIST_FREE(l) \
+        do {\
+                dir_entry_list_t* next = (l)->next;\
+                while(next) {\
+                        dir_entry_list_t* tmp = next;\
+                        next = next->next;\
+                        free(tmp->entry.name);\
+                        free(tmp);\
+                }\
+        } while(0)
 
 #endif
-
