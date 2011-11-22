@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2011-11-22  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Disabled some obsolete arguments; rar2fs(1) man page updated
+          accordingly.
+
+        * New file(s): dirlist.h
+
 2011-11-10  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Replaced call to pthread_cancel() with pthread_kill()

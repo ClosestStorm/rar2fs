@@ -6,7 +6,7 @@
 rar2fs [options] source target
 .br
 .SH DESCRIPTION
-rar2fs is a FUSE based file system that can mount a 
+rar2fs is a FUSE based file system that can mount a
 .I source
 RAR archive/volume or a directory containing any number of RAR archives on
 .I target
@@ -14,7 +14,11 @@ and access (read only) the contents as plain files/directories. Other files loca
 .I source
 directory are handled transparently. Both compressed and non-compressed (store) archives/volumes are supported but full media seek support (aka. indexing) is only available for non-compressed plaintext archives. If a RAR volume is selected as
 .I source
-the file specified must be the first in the set. 
+the file specified must be the first in the set.
+Since rar2fs is non-interactive, passwords that are required to decrypt encrypted archives should be stored in a file with the same name
+as the main archive/volume file but with a
+.I .pwd
+extension. Be aware that a password must be stored in plaintext format and is thus not protected in any way from unauthorized access.
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
@@ -99,17 +103,6 @@ It is also possible to use this option in such a way that it instead points to a
 .B ';'
 character.
 .TP
-.B --unrar-path=<path>
-path to external unrar binary (override unrarlib)
-.TP
-.B --no-password
-disable password file support
-
-Since rar2fs is non-interactive, passwords that are to be used to decrypt encrypted archives should be stored in a file with the same name
-as the main archive/volume file but with a
-.I .pwd
-extension. Beware that a password must be stored in plaintext format and is thus not protected in any way from unauthorized access. Specifying this option will disable the support for encrypted archives.
-.TP
 .B --no-smp
 disable SMP support (bind to CPU #0)
 
@@ -125,7 +118,7 @@ At startup rar2fs validates that the dynamic libraries
 and
 .I libunrar.so
 are compatible/consistent with what was used during compilation.
-Use this option to by-pass this check, eg. if rar2fs is linked statically. Other use of this option is discouraged. 
+Use this option to by-pass this check, eg. if rar2fs is linked statically. Other use of this option is discouraged.
 .TP
 .B --iob-size=n
 tune the size of the I/O buffer
@@ -133,7 +126,7 @@ tune the size of the I/O buffer
 The I/O buffer is used to prefetch data at extraction of compressed or encrypted archives to make sure streaming is possible without delay due to disk or network I/O. Depending on the current system resources and network latency this buffer might need to be adjusted. A small buffer takes less resources but increase the chance that rar2fs must wait for data to arrive during a read request. On the other hand, a large buffer will increase memory footprint which may not always be desired. Also keep in mind that every file being extracted requires its own buffer. So the total memory resources required are always the buffer size multiplied by the number of active extraction threads. Be careful when choosing buffer size. There is no cap on the size itself. The only requirement is that it is a 'power of 2' Megabytes, eg. 1,2,4,8, etc. The default size is 4MiB.
 .TP
 .B --hist-size=n
-tune the size of I/O buffer history 
+tune the size of I/O buffer history
 
 The I/O buffer history is a sliding window within the I/O buffer that is guaranteed to never be overwritten until future data has been consumed passed this limit. This means that, even though an extraction process can never be reversed, this part of the buffer can still deliver "historic" data within this window (eg. skipping backwards during movie playback). The size of the history buffer is expressed as a percentage of the total I/O buffer size between 0% and 75%. Specifying 0 here will completely disable this function. The default size is 50% of the total I/O buffer size.
 
