@@ -111,18 +111,6 @@ OPTIONS
               pointed  to may contain more than one line but for each line files should be separated by
               a semi-colon ';' character.
 
-       --unrar-path=<path>
-              path to external unrar binary (override unrarlib)
-
-       --no-password
-              disable password file support
-
-              Since rar2fs is non-interactive, passwords that are to be used to decrypt  encrypted  ar‐
-              chives  should be stored in a file with the same name as the main archive/volume file but
-              with a .pwd extension. Beware that a password must be stored in plaintext format  and  is
-              thus  not protected in any way from unauthorized access. Specifying this option will dis‐
-              able the support for encrypted archives.
-
        --no-smp
               disable SMP support (bind to CPU #0)
 
