@@ -425,54 +425,51 @@ lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                 off_t src_off = 0;
                 VolHandle *vol_p = NULL;
                 if (VOL_FIRST_SZ) {
-                        chunk = offset < VOL_FIRST_SZ ?
-                                VOL_FIRST_SZ - offset :
-                                (VOL_NEXT_SZ) - ((offset - VOL_FIRST_SZ) % (VOL_NEXT_SZ));
-                        {
-                                /* keep current open file */
-                                int vol = VOL_NO(offset);
-                                if (vol != op->vno) {
-                                        /* close/open */
-                                        op->vno = vol;
-                                        if (op->volHdl && op->volHdl[vol].fp) {
-                                                vol_p = &op->volHdl[vol];
-                                                fp = vol_p->fp;
-                                                src_off = VOL_REAL_SZ - chunk;
-                                                if (src_off != vol_p->pos)
-                                                        force_seek = 1;
-                                        } else {
-                                                /* It is advisable to return 0 (read fail) here rather
-                                                 * than -errno at failure.
-                                                 * Some media players tend to react "better" on that and
-                                                 * terminate playback as expected. */
-                                                char *tmp =
-                                                    get_vname(op->entry_p->vtype,
-                                                              op->entry_p->rar_p,
-                                                              op->vno + op->entry_p->vno_base,
-                                                              op->entry_p->vlen,
-                                                              op->entry_p->vpos);
-                                                if (tmp) {
-                                                        printd(3,
-                                                               "Opening %s\n",
-                                                               tmp);
-                                                        fp = fopen(tmp, "r");
-                                                        free(tmp);
-                                                        if (fp == NULL) {
-                                                                perror("open");
-                                                                return 0;
-                                                        }
-                                                        fclose(FH_TOFP(op->fh));
-                                                        FH_SETFP(&op->fh, fp);
-                                                        force_seek = 1;
-                                                } else
-                                                        return 0;
-                                        }
+                        chunk = offset < VOL_FIRST_SZ
+                                ? VOL_FIRST_SZ - offset 
+                                : (VOL_NEXT_SZ) - ((offset - VOL_FIRST_SZ) % (VOL_NEXT_SZ));
+
+                        /* keep current open file */
+                        int vol = VOL_NO(offset);
+                        if (vol != op->vno) {
+                                /* close/open */
+                                op->vno = vol;
+                                if (op->volHdl && op->volHdl[vol].fp) {
+                                        vol_p = &op->volHdl[vol];
+                                        fp = vol_p->fp;
+                                        src_off = VOL_REAL_SZ - chunk;
+                                        if (src_off != vol_p->pos)
+                                                force_seek = 1;
                                 } else {
-                                        if (op->volHdl && op->volHdl[vol].fp)
-                                                fp = op->volHdl[vol].fp;
-                                        else
-                                                fp = FH_TOFP(op->fh);
+                                        /* It is advisable to return 0 (read fail) here rather
+                                         * than -errno at failure.
+                                         * Some media players tend to react "better" on that and
+                                         * terminate playback as expected. */
+                                        char *tmp =
+                                            get_vname(op->entry_p->vtype,
+                                                      op->entry_p->rar_p,
+                                                      op->vno + op->entry_p->vno_base,
+                                                      op->entry_p->vlen,
+                                                      op->entry_p->vpos);
+                                        if (tmp) {
+                                                printd(3, "Opening %s\n", tmp);
+                                                fp = fopen(tmp, "r");
+                                                free(tmp);
+                                                if (fp == NULL) {
+                                                        perror("open");
+                                                        return 0;
+                                                }
+                                                fclose(FH_TOFP(op->fh));
+                                                FH_SETFP(&op->fh, fp);
+                                                force_seek = 1;
+                                        } else
+                                                return 0;
                                 }
+                        } else {
+                                if (op->volHdl && op->volHdl[vol].fp)
+                                        fp = op->volHdl[vol].fp;
+                                else
+                                        fp = FH_TOFP(op->fh);
                         }
                         if (force_seek || offset != op->pos) {
                                 src_off = VOL_REAL_SZ - chunk;
@@ -715,8 +712,10 @@ static void dump_stat(struct stat *stbuf)
 #ifdef HAVE_STRUCT_STAT_ST_BLOCKS
         DUMP_STAT4_(st_blocks);
 #endif
+#ifdef HAVE_STRUCT_STAT_ST_BLKSIZE
         DUMP_STAT4_(st_blksize);
-#ifdef __APPLE__
+#endif
+#ifdef HAVE_STRUCT_STAT_ST_GEN
         DUMP_STAT4_(st_gen);
 #endif
         fprintf(stderr, "}\n");

@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rar2fs, 1.13.14, [http://code.google.com/p/rar2fs])
+AC_INIT(rar2fs, 1.13.15, [http://code.google.com/p/rar2fs])
 AC_PREREQ([2.61])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_TARGET
@@ -46,6 +46,7 @@ AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 AC_CHECK_MEMBERS([struct stat.st_blksize])
+AC_CHECK_MEMBERS([struct stat.st_gen])
 AC_STRUCT_ST_BLOCKS
 AC_CHECK_MEMBERS([struct stat.st_rdev])
 AC_TYPE_UINT64_T
