@@ -44,6 +44,12 @@
 #define HAVE_ALLOCA_H 1
 #define HAVE_ALLOC 1
 
+#define HAVE_STRUCT_STAT_ST_BLKSIZE 1
+#define HAVE_STRUCT_STAT_ST_BLOCKS 1
+#ifdef __APPLE__
+#define HAVE_STRUCT_STAT_ST_GEN 1
+#endif
+
 #define RETSIGTYPE void
 #include <signal.h>
 #ifdef SA_SIGACTION

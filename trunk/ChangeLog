@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2011-12-05  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added test for existance of member 'st_gen' in 'struct stat'.
+
 2011-11-22  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Disabled some obsolete arguments; rar2fs(1) man page updated
