@@ -33,7 +33,7 @@
 #include <stdio.h>
 #include "index.h"
 
-#define IOB_SZ_DEFAULT           (4*1024*1024)
+#define IOB_SZ_DEFAULT           (4 * 1024 * 1024)
 #ifdef USE_STATIC_IOB_
 #define IOB_SZ                   IOB_SZ_DEFAULT
 #define IOB_HIST_SZ              (IOB_SZ/2)

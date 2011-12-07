@@ -42,14 +42,25 @@ typedef enum {
         M_EBML
 } Mode;
 
-static int
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static inline int
 count_c(char c, char* s)
 {
         int cnt = 0;
-        while(*s) if (*s++ == c) ++cnt;
+        while(*s) {
+                if (*s++ == c)
+                        ++cnt;
+        }
         return cnt;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static void
 parse_riff(IdxHead* h, FILE* fp, off_t sz)
 {
@@ -63,20 +74,26 @@ parse_riff(IdxHead* h, FILE* fp, off_t sz)
         char* tmp2 = tmp;
         int cnt = 0;
         while(*needle) {
-                if (*needle != 32 || !cnt) { *tmp++ = *needle; ++cnt; }
-                if (*needle != 32) cnt = 0;
+                if (*needle != 32 || !cnt) {
+                        *tmp++ = *needle;
+                        ++cnt;
+                }
+                if (*needle != 32)
+                        cnt = 0;
                 ++needle;
         }
         *tmp = 0;
         tmp = tmp2;
         cnt = 0;
         while (*tmp) {
-                if (*tmp++ == 32) ++cnt;
+                if (*tmp++ == 32)
+                        ++cnt;
                 if (cnt == 2) {
                         needle = tmp;
                         tmp2 = tmp;
                         while(*needle) {
-                                if (*needle != ',') *tmp++ = *needle;
+                                if (*needle != ',')
+                                        *tmp++ = *needle;
                                 ++needle;
                         }
                         *tmp = 0;
@@ -87,6 +104,10 @@ parse_riff(IdxHead* h, FILE* fp, off_t sz)
         }
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static void
 parse_ebml(IdxHead* h, FILE* fp, off_t sz)
 {
@@ -105,45 +126,52 @@ parse_ebml(IdxHead* h, FILE* fp, off_t sz)
                         unsigned int i4;
                         int n = count_c(',', needle);
                         switch(n) {
-                                case 0:
-                                        i4 = 0;
-                                        i3 = 0;
-                                        i2 = 0;
-                                        sscanf(needle, "pos.: %3u)", &i1);
-                                        break;
-                                case 1:
-                                        i4 = 0;
-                                        i3 = 0;
-                                        sscanf(needle, "pos.: %3u,%3u)", &i2,&i1);
-                                        break;
-                                case 2:
-                                        i4 = 0;
-                                        sscanf(needle, "pos.: %3u,%3u,%3u)", &i3,&i2,&i1);
-                                        break;
-                                case 3:
-                                        sscanf(needle, "pos.: %3u,%3u,%3u,%3u)", &i4,&i3,&i2,&i1);
-                                        break;
-                                default:
-                                        return; /* not supported */
-                                        break;
+                        case 0:
+                                i4 = 0;
+                                i3 = 0;
+                                i2 = 0;
+                                sscanf(needle, "pos.: %3u)", &i1);
+                                break;
+                        case 1:
+                                i4 = 0;
+                                i3 = 0;
+                                sscanf(needle, "pos.: %3u,%3u)", &i2,&i1);
+                                break;
+                        case 2:
+                                i4 = 0;
+                                sscanf(needle, "pos.: %3u,%3u,%3u)", &i3,&i2,&i1);
+                                break;
+                        case 3:
+                                sscanf(needle, "pos.: %3u,%3u,%3u,%3u)", &i4,&i3,&i2,&i1);
+                                break;
+                        default:
+                                return; /* not supported */
                         }
                         /* XXX add error checking + size check sanity */
-                        h->offset = 0+i4*1000000000ULL+i3*1000000+i2*1000+i1;
-                        h->offset = h->offset&~4095; /* align offset */
+                        h->offset = (i4 * 1000000000ULL) +
+                                        (i3 * 1000000) +
+                                        (i2 * 1000) + i1;
+                        h->offset = h->offset & ~4095; /* align offset */
                         h->size = sz - h->offset;
                 }
         }
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static char*
 map_file(int fd, size_t size)
 {
 #ifdef HAVE_LOCKF
-        if (lockf(fd, F_TLOCK, 0) == -1) return NULL;
+        if (lockf(fd, F_TLOCK, 0) == -1)
+                return NULL;
 #else
 # ifdef HAVE_FLOCK
-        if (flock(fd, LOCK_EX|LOCK_NB) == -1) return NULL;
-# endif 
+        if (flock(fd, LOCK_EX|LOCK_NB) == -1)
+                return NULL;
+# endif
 #endif
 
         /* Prepare the file */
@@ -155,6 +183,10 @@ map_file(int fd, size_t size)
         return addr;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 int main(int argn, char* argv[])
 {
         setlocale(LC_CTYPE, "");
@@ -182,11 +214,11 @@ int main(int argn, char* argv[])
         Mode mode;
         char dump_magic[10];
         NO_UNUSED_RESULT fscanf(fd_dump, "%s", dump_magic);
-        if (!strcmp(dump_magic, "EBML"))
+        if (!strcmp(dump_magic, "EBML")) {
                 mode = M_EBML;
-        else if (!strcmp(dump_magic+3, "RIFF"))
+        } else if (!strcmp(dump_magic+3, "RIFF")) {
                 mode = M_RIFF;
-        else {
+        } else {
                 printf("Invalid dump file\n");
                 exit(-1);
         }
@@ -203,9 +235,14 @@ int main(int argn, char* argv[])
         head.spare = 0;
 
         switch (mode) {
-                case M_RIFF: parse_riff(&head, fd_dump, stat_src.st_size); break;
-                case M_EBML: parse_ebml(&head, fd_dump, stat_src.st_size); break;
-                default: break;
+        case M_RIFF:
+                parse_riff(&head, fd_dump, stat_src.st_size);
+                break;
+        case M_EBML:
+                parse_ebml(&head, fd_dump, stat_src.st_size);
+                break;
+        default:
+                break;
         }
 
         if (head.size) {
@@ -215,8 +252,10 @@ int main(int argn, char* argv[])
                 fseeko(fd_src, head.offset, SEEK_SET);
 
                 int fd = open(dest, O_RDWR|O_CREAT, S_IREAD|S_IWRITE);
-                if (fd==-1) return 1;
-                size_t map_size = (head.size+sizeof(IdxHead)+4096)&~4095;
+                if (fd == -1)
+                        return 1;
+
+                size_t map_size = (head.size+sizeof(IdxHead) + 4096) & ~4095;
 
                 char* addr = map_file(fd, map_size);
                 if (!addr) {
@@ -226,10 +265,10 @@ int main(int argn, char* argv[])
 
                 char* tmp = addr;
                 memcpy(tmp, &head, sizeof(IdxHead));
-                tmp+=sizeof(IdxHead);
-                if ((fread(tmp, 1, head.size, fd_src) != head.size) && ferror(fd_src)) {
+                tmp += sizeof(IdxHead);
+                if ((fread(tmp, 1, head.size, fd_src) != head.size) && ferror(fd_src))
                         return 1;
-                }
+
                 /* flush to medium */
                 msync(addr, map_size, MS_SYNC);
                 munmap(addr, map_size);

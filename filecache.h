@@ -53,8 +53,7 @@ struct dir_elem {
         short vlen;
         short vpos;
         short vtype;
-        struct Flags
-        {
+        struct {
                 unsigned int raw:1;
                 unsigned int multipart:1;
                 unsigned int image:1;
@@ -69,18 +68,22 @@ typedef struct dir_elem dir_elem_t;
 #define LOCAL_FS_ENTRY ((void*)-1)
 
 #define ABS_ROOT(s, path) \
-        (s) = alloca(strlen(path) + strlen(OBJ_STR2(OBJ_SRC,0)) + 1); \
-        strcpy((s), OBJ_STR2(OBJ_SRC,0)); \
-        strcat((s), path)
+        do { \
+                (s) = alloca(strlen(path) + strlen(OBJ_STR2(OBJ_SRC,0)) + 1); \
+                strcpy((s), OBJ_STR2(OBJ_SRC,0)); \
+                strcat((s), path); \
+        } while (0)
 
-#define ABS_MP(s, path, file)         ABS_MP1_((s), (path), (file), __LINE__)
-#define ABS_MP1_(s, path, file, line) ABS_MP2_((s), (path), (file), line)
-#define ABS_MP2_(s, path, file, line) \
-        int l##line##_ = strlen(path);\
-        (s) = alloca(l##line##_ + strlen(file) + 3 + 2); /* add +2 in case of fake .iso */ \
-        strcpy((s), path); \
-        if (l##line##_ && path[l##line##_ - 1] != '/') strcat((s), "/"); \
-        strcat((s), file)
+#define ABS_MP(s, path, file) \
+        do { \
+                int l = strlen(path); \
+                /* add +2 in case of fake .iso */ \
+                (s) = alloca(l + strlen(file) + 3 + 2); \
+                strcpy((s), path); \
+                if (l && path[l - 1] != '/') \
+                        strcat((s), "/"); \
+                strcat((s), file); \
+        } while(0)
 
 extern pthread_mutex_t file_access_mutex;
 

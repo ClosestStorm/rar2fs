@@ -61,37 +61,37 @@ stack_trace(int sig, siginfo_t *info, void *secret)
         /* Do something useful with siginfo_t */
         char buf[256];
         snprintf(buf, sizeof(buf), "Got signal %d, faulty address is 0x%p, "
-                 "from 0x%p", sig, info->si_addr,
+                        "from 0x%p", sig, info->si_addr,
 #ifdef REG_PC
-                 (void*)uc->uc_mcontext.gregs[REG_PC]);
+        (void*)uc->uc_mcontext.gregs[REG_PC]);
 #else
-                 /* TODO: need to handle compilers other than GCC */
-                 __builtin_return_address(0));
+        /* TODO: need to handle compilers other than GCC */
+        __builtin_return_address(0));
 #endif
         printf("%s\n", buf);
         syslog(LOG_INFO, "%s", buf);
-        {
-                void *trace[30];
-                char **messages = (char **)NULL;
-                int i, trace_size = 0;
 
-                trace_size = backtrace(trace, 30);
-                /* overwrite sigaction with caller's address */
+        void *trace[30];
+        char **messages = (char **)NULL;
+        int i;
+        int trace_size = 0;
+
+        trace_size = backtrace(trace, 30);
+        /* overwrite sigaction with caller's address */
 #ifdef REG_PC
-                trace[1] = (void *) uc->uc_mcontext.gregs[REG_PC];
+        trace[1] = (void *) uc->uc_mcontext.gregs[REG_PC];
 #else
-                /* TODO: need to handle compilers other than GCC */
-                trace[1] = __builtin_return_address(0);
+        /* TODO: need to handle compilers other than GCC */
+        trace[1] = __builtin_return_address(0);
 #endif
-                messages = backtrace_symbols(trace, trace_size);
-                if (messages) {
-                        /* skip first stack frame (points here) */
-                        for (i=1; i<trace_size; ++i) {
-                                printf("%s\n", messages[i]);
-                                syslog(LOG_INFO, "%s", messages[i]);
-                        }
-                        free(messages);
+        messages = backtrace_symbols(trace, trace_size);
+        if (messages) {
+                /* skip first stack frame (points here) */
+                for (i = 1; i < trace_size; ++i) {
+                        printf("%s\n", messages[i]);
+                        syslog(LOG_INFO, "%s", messages[i]);
                 }
+                free(messages);
         }
 }
 #endif
@@ -114,35 +114,26 @@ sig_handler(int signum)
 {
         switch(signum)
         {
-                case SIGUSR1:
-                {
-                        printd(4, "Caught signal SIGUSR1\n");
-                        printd(3, "Invalidating path cache\n");
-                        pthread_mutex_lock(&file_access_mutex);
-                        inval_cache_path(NULL);
-                        pthread_mutex_unlock(&file_access_mutex);
-                        break;
-                }
-                case SIGSEGV:
-                {
-                        if (!glibc_test)
-                        {
-                                printd(4, "Caught signal SIGSEGV\n");
+        case SIGUSR1:
+                printd(4, "Caught signal SIGUSR1\n");
+                printd(3, "Invalidating path cache\n");
+                pthread_mutex_lock(&file_access_mutex);
+                inval_cache_path(NULL);
+                pthread_mutex_unlock(&file_access_mutex);
+                break;
+        case SIGSEGV:
+                if (!glibc_test) {
+                        printd(4, "Caught signal SIGSEGV\n");
 #ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
-                                stack_trace(SIGSEGV, info, secret);
+                        stack_trace(SIGSEGV, info, secret);
 #endif
-                        }
-                        else
-                        {
-                                printf("glibc validation failed\n");
-                        }
-                        exit(EXIT_FAILURE);
+                } else {
+                        printf("glibc validation failed\n");
                 }
-                case SIGCHLD:
-                {
-                        printd(4, "Caught signal SIGCHLD\n");
-                        break;
-                }
+                exit(EXIT_FAILURE);
+        case SIGCHLD:
+                printd(4, "Caught signal SIGCHLD\n");
+                break;
         }
 #if RETSIGTYPE != void
         return (RETSIGTYPE)0;
@@ -153,7 +144,6 @@ sig_handler(int signum)
  *****************************************************************************
  *
  ****************************************************************************/
-
 void
 sighandler_init()
 {
@@ -197,6 +187,10 @@ sighandler_init()
         sigaction(SIGSEGV, &act, NULL);
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 void
 sighandler_destroy()
 {

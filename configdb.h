@@ -30,16 +30,15 @@
 #define CONFIGDB_H_
 
 #define IS_IMG(s) \
-   ((OBJ_CNT(OBJ_IMG_TYPE) && chk_obj(OBJ_IMG_TYPE, s)) || \
-   (OBJ_CNT(OBJ_FAKE_ISO) && chk_obj(OBJ_FAKE_ISO, s)))
+        ((OBJ_CNT(OBJ_IMG_TYPE) && chk_obj(OBJ_IMG_TYPE, s)) || \
+        (OBJ_CNT(OBJ_FAKE_ISO) && chk_obj(OBJ_FAKE_ISO, s)))
+
 #define IS_ISO(s) (!strcasecmp((s)+(strlen(s)-4), ".iso"))
 #define IS_AVI(s) (!strcasecmp((s)+(strlen(s)-4), ".avi"))
 #define IS_MKV(s) (!strcasecmp((s)+(strlen(s)-4), ".mkv"))
 
-#define CHK_FILTER \
-   if (OBJ_CNT(OBJ_EXCLUDE) && \
-       chk_obj(OBJ_EXCLUDE, (char*)path)\
-   ) return -ENOENT
+#define CHK_FILTER(path) \
+        (OBJ_CNT(OBJ_EXCLUDE) && chk_obj(OBJ_EXCLUDE, (char*)(path)))
 
 #define OBJ_ADDR(o) ((o)+1000)
 #define OBJ_BASE(a) ((a)-1000)
@@ -61,19 +60,18 @@
 #define OBJ_HIST_SIZE     (14)
 #define OBJ_BUFF_SIZE     (15)
 
-typedef struct
-{
-  union
-  {
-     long* v_arr_int;
-     char** v_arr_str;
-     void* p;
-  } u;
-  int is_set;
-  int n_elem;
-  int n_max;
-  int read_from_file;
-  int type;
+typedef struct {
+        union
+        {
+                long* v_arr_int;
+                char** v_arr_str;
+                void* p;
+        } u;
+        int is_set;
+        int n_elem;
+        int n_max;
+        int read_from_file;
+        int type;
 } CfgObj;
 
 #define OBJ_CNT(o)     (config_objects_[(o)].n_elem)
