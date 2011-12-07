@@ -36,12 +36,12 @@
 #define DEBUG_ 5
 #endif
 
-#if defined ( DEBUG_ ) 
+#if defined ( DEBUG_ )
 #if DEBUG_ > 2
 #define ELVL_ 2
 #else
 #define ELVL_ DEBUG_
-#endif 
+#endif
 #define ENTER_(...)         ENTER__(ELVL_, __VA_ARGS__)
 #define ENTER__(l, ...)     ENTERx_(l, __VA_ARGS__)
 #define ENTERx_(l, ...)     ENTER##l##_(__VA_ARGS__)
@@ -52,7 +52,11 @@
 #endif
 
 #ifdef DEBUG_
-#define printd(l, fmt, ...) do{ if(l <= DEBUG_) fprintf(stderr, fmt, ##__VA_ARGS__); }while(0)
+#define printd(l, fmt, ...) \
+        do{ \
+                if (l <= DEBUG_) \
+                        fprintf(stderr, fmt, ##__VA_ARGS__); \
+        }while(0)
 #else
 #define printd(...)
 #endif

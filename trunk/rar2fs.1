@@ -68,7 +68,10 @@ and
 .I .nrg
 will be displayed as
 .I .iso
-together with what was specified in --img-type.
+together with what was specified in --img-type. Note though that image files are treated somewhat differently depending on where they are located. If the image file is not part of a RAR archive, then there will be a
+virtual clone made of the original file but with a
+.I .iso
+extension, provided that the file/link does not already exist. This to keep the consistency of the back-end file system, especially when links are involved.
 .TP
 .B --seek-length=n
 set number of volume files that are traversed in search for headers [0=All]

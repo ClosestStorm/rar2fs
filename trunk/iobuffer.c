@@ -38,6 +38,10 @@ size_t iob_sz = 0;
 #define SPACE_LEFT(ri, wi) (IOB_SZ - SPACE_USED((ri), (wi)))
 #define SPACE_USED(ri, wi) (((wi) - (ri)) & (IOB_SZ-1))
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 size_t
 readTo(IoBuf* dest, FILE* fp, int hist)
 {
@@ -47,18 +51,23 @@ readTo(IoBuf* dest, FILE* fp, int hist)
         int left = (int)SPACE_LEFT(lri, lwi)-1;   /* -1 to avoid wi = ri */
         if (IOB_HIST_SZ && hist==IOB_SAVE_HIST) {
                 left = left > IOB_HIST_SZ ? left-IOB_HIST_SZ : 0;
-                if (!left) return 0; /* quick exit */
+                if (!left)
+                        return 0; /* quick exit */
         }
         unsigned int chunk = IOB_SZ-lwi;     /* assume one large chunk */
         chunk = chunk < left ? chunk : left; /* reconsider assumption */
-        while (left>0) {
-                size_t n = fread(dest->data_p+lwi, 1, chunk, fp);
+        while (left > 0) {
+                size_t n = fread(dest->data_p + lwi, 1, chunk, fp);
                 if (n != chunk) {
-                        if (n==-1) {perror("read");break;}
-                        if (!n)                    break;
+                        if (n == -1) {
+                                perror("read");
+                                break;
+                        }
+                        if (!n)
+                                break;
                 }
                 left -= n;
-                lwi = (lwi + n) & (IOB_SZ-1);
+                lwi = (lwi + n) & (IOB_SZ - 1);
                 tot += n;
                 chunk -= n;
                 chunk = !chunk ? left : chunk;
@@ -71,6 +80,10 @@ readTo(IoBuf* dest, FILE* fp, int hist)
         return tot;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 size_t
 readFrom(char* dest, IoBuf* src, size_t size, size_t off)
 {
@@ -80,16 +93,16 @@ readFrom(char* dest, IoBuf* src, size_t size, size_t off)
         if (off) {
                 /* consume offset */
                 off = off < used ? off : used;
-                lri = (lri + off) & (IOB_SZ-1);
+                lri = (lri + off) & (IOB_SZ - 1);
                 used -= off;
         }
         size = size > used ? used : size;    /* can not read more than used */
         unsigned int chunk = IOB_SZ - lri;   /* assume one large chunk */
         chunk = chunk < size ? chunk : size; /* reconsider assumption */
         while (size) {
-                memcpy(dest, src->data_p+lri, chunk);
+                memcpy(dest, src->data_p + lri, chunk);
                 used -= chunk;
-                lri = (lri + chunk) & (IOB_SZ-1);
+                lri = (lri + chunk) & (IOB_SZ - 1);
                 tot += chunk;
                 size -= chunk;
                 dest += chunk;
@@ -102,6 +115,10 @@ readFrom(char* dest, IoBuf* src, size_t size, size_t off)
         return tot;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 size_t
 copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
 {
@@ -112,8 +129,8 @@ copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
         unsigned int chunk = IOB_SZ - pos;   /* assume one large chunk */
         chunk = chunk < size ? chunk : size; /* reconsider assumption */
         while (size) {
-                memcpy(dest, src->data_p+pos, chunk);
-                pos = (pos + chunk) & (IOB_SZ-1);
+                memcpy(dest, src->data_p + pos, chunk);
+                pos = (pos + chunk) & (IOB_SZ - 1);
                 tot += chunk;
                 size -= chunk;
                 dest += chunk;
@@ -122,15 +139,23 @@ copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
         return tot;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 void
 iobuffer_init()
 {
         int bsz = OBJ_INT(OBJ_BUFF_SIZE,0);
-        iob_sz = bsz?(bsz*1024*1024):IOB_SZ_DEFAULT;
-        int hsz = OBJ_SET(OBJ_HIST_SIZE)?OBJ_INT(OBJ_HIST_SIZE,0):50;
-        iob_hist_sz = IOB_SZ*((hsz)/100.0);
+        iob_sz = bsz ? (bsz * 1024 * 1024) : IOB_SZ_DEFAULT;
+        int hsz = OBJ_SET(OBJ_HIST_SIZE) ? OBJ_INT(OBJ_HIST_SIZE, 0) : 50;
+        iob_hist_sz = IOB_SZ * (hsz / 100.0);
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 void
 iobuffer_destroy()
 {
