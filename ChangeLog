@@ -5,8 +5,8 @@ rar2fs ChangeLog file.
         * Fixed a problem with fake ISO extension for image files not inside
           an archive. This bug should only affect versions after 1.13.4.
 
-        * Due to the above bugix a change has been made to how image 
-          files, covered by the fake ISO extension, are handled when not
+        * Due to the above bugfix a change has been made to how image 
+          files, listed as a fake ISO extension, are handled when not
           located inside an archive. See rar2fs(1) man page for details.
 
 2011-12-05  Hans Beckerus <hans.beckerus@gmail.com>
