@@ -1,11 +1,18 @@
 rar2fs ChangeLog file.
 
+2011-12-09  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Removed some unnecessary calls to retrieve volume number
+          reducing folder load time.
+
+        * Fixed an issue with password lookup for .rNN style volumes.
+
 2011-12-07  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a problem with fake ISO extension for image files not inside
           an archive. This bug should only affect versions after 1.13.4.
 
-        * Due to the above bugfix a change has been made to how image 
+        * Due to the above bugfix a change has been made to how image
           files, listed as a fake ISO extension, are handled when not
           located inside an archive. See rar2fs(1) man page for details.
 
@@ -24,8 +31,8 @@ rar2fs ChangeLog file.
 
         * Replaced call to pthread_cancel() with pthread_kill()
           for a more graceful termination of the fuse loop thread.
- 
-        * Built against unrar source v4.1.3 
+
+        * Built against unrar source v4.1.3
 
 2011-11-09  Hans Beckerus <hans.beckerus@gmail.com>
 
@@ -33,7 +40,7 @@ rar2fs ChangeLog file.
 
 2011-11-07  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Corrected an issue with Mac OS X getting stuck on 
+        * Corrected an issue with Mac OS X getting stuck on
           pthread_exit(NULL) causing rar2fs to hang forever
           at unmount.
 
@@ -61,7 +68,7 @@ rar2fs ChangeLog file.
 
         * New file(s): debug.h, index.h, platform.h
           Deleted file(s): common.h
- 
+
 2011-10-26  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added GNU Autotools build support. To build using the old method
@@ -69,7 +76,7 @@ rar2fs ChangeLog file.
 
 2011-09-28  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Fixed a problem seen in previous version when loading file 
+        * Fixed a problem seen in previous version when loading file
           properties over a Samba/CIFS export. Now using 1 for store
           mode etc.
 
@@ -82,11 +89,11 @@ rar2fs ChangeLog file.
 2011-09-25  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added support for symbolic links. Note that this update only
-          affects the back-end file system and not files inside RAR 
+          affects the back-end file system and not files inside RAR
           archives for which symbolic links currently remain unsupported.
 
         * Minor code clean-up and improvements.
-         
+
 2011-09-23  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a compilation warning about wcsncpy() being called with
@@ -94,26 +101,26 @@ rar2fs ChangeLog file.
           is defined.
 
         * Corrected a problem when 'regular file' type was not set in the
-          archive according to the Linux definition of S_IFREG. 
-          This caused an I/O error when trying to access the file. 
-          Note that files of type other than S_IFREG or S_IFDIR is 
+          archive according to the Linux definition of S_IFREG.
+          This caused an I/O error when trying to access the file.
+          Note that files of type other than S_IFREG or S_IFDIR is
           not supported by rar2fs.
 
         * Changed default permission to 0777 and 0666 for directories
-          and regular files respectively. The default permission is 
-          applied only if the archive file header does not provide a 
-          Unix-style file mode. To change the file mode for _all_ files 
+          and regular files respectively. The default permission is
+          applied only if the archive file header does not provide a
+          Unix-style file mode. To change the file mode for _all_ files
           use the 'umask' FUSE option.
 
 2011-08-28  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Ported to OpenSolaris (i386 snv_126 baseline). 
+        * Ported to OpenSolaris (i386 snv_126 baseline).
 
         * Corrected build problem when FUSE_SRC was not set in config.mk.
 
 2011-08-21  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Fixed compilation warning about incompatible pointer type 
+        * Fixed compilation warning about incompatible pointer type
           passed to scandir(3) for FreeBSD 8.0+ and later.
 
 2011-07-24  Hans Beckerus <hans.beckerus@gmail.com>
@@ -130,7 +137,7 @@ rar2fs ChangeLog file.
         * Added missing support for FUSE 'statfs' callback reported in
           issue #5. It was required to avoid a crash (signal 8) in afpd
           when rar2fs was mounted across a Netatalk/AFP network.
-          There are however still issues with getting Netatalk to work 
+          There are however still issues with getting Netatalk to work
           as expected.
 
 2011-05-29  Hans Beckerus <hans.beckerus@gmail.com>
@@ -144,18 +151,18 @@ rar2fs ChangeLog file.
 2011-05-27  Hans Beckerus <hans.beckerus@gmail.com>
 
         * The code has been adapted to utilize the unrar API as intended
-          for extraction of compressed/encryped archives. 
-          This will remove the need for some of the previously added API 
+          for extraction of compressed/encryped archives.
+          This will remove the need for some of the previously added API
           extensions and will reduce the dependency to what version of
-          the unrar source is used. However, this will instead inflict 
+          the unrar source is used. However, this will instead inflict
           some extra memory overhead added by the original API callback
           interface.
 
         * Code clean up.
 
-        * Corrected a problem with extraction of compressed/encrypted 
+        * Corrected a problem with extraction of compressed/encrypted
           archives that could fail if the same file is opened during the
-          extraction process. 
+          extraction process.
 
 2011-05-17  Hans Beckerus <hans.beckerus@gmail.com>
 
@@ -163,7 +170,7 @@ rar2fs ChangeLog file.
 
 2011-05-12  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Corrected some more malloc() calls that could fail and 
+        * Corrected some more malloc() calls that could fail and
           pass unnoticed.
 
         * Option --hist-size now ranges from 0-75. Use a value of 0 to
@@ -173,17 +180,17 @@ rar2fs ChangeLog file.
 
         * Added option --iob-size that can be used to tune the total
           size of the I/O buffer. Default size is 4MiB.
-          It is also possible to keep the old hardcoded buffer and 
+          It is also possible to keep the old hardcoded buffer and
           history size using the -DUSE_STATIC_IOB_ flag.
 
-        * Added some missing checks for memory allocation failures 
+        * Added some missing checks for memory allocation failures
           during open() calls.
 
 2011-05-11  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added option --hist-size that can be used to tune the I/O
           buffer history size. The history can be set as a percentage
-          (25-75) of the total buffer size. Default is half the size of 
+          (25-75) of the total buffer size. Default is half the size of
           the total buffer, currently 2MiB.
 
         * Reinserted check of .avi and .mkv before attempting an index
@@ -223,8 +230,8 @@ rar2fs ChangeLog file.
 
 2011-05-04  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Improved logic in the volume part parser(s) to handle 
-          umlimited (in theory) number of volume files for old 
+        * Improved logic in the volume part parser(s) to handle
+          umlimited (in theory) number of volume files for old
           style .rNN format.
 
 2011-05-02  Hans Beckerus <hans.beckerus@gmail.com>
@@ -234,26 +241,26 @@ rar2fs ChangeLog file.
 
         * Files on the local/native file system are no longer added
           to the cache. This means any changes to file system should
-          now propagate properly also to the FUSE mount point.   
+          now propagate properly also to the FUSE mount point.
 
         * Picking up UID and GID from the calling process when setting
           up stat(2) information for files inside a RAR archives.
           Unless the FUSE options 'uid' and 'gid' where used, owner and
-          group were always set to 0 (root). 
+          group were always set to 0 (root).
 
-        * Fixed a crash when invalidating an empty cache entry. 
+        * Fixed a crash when invalidating an empty cache entry.
 
 2011-04-29  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added check to validate that source (root) and target folder
           (mount point) are in fact directories. This check will be
-          relaxed for the source folder once support for mounting of 
+          relaxed for the source folder once support for mounting of
           individual RAR archives is added.
 
         * Several Mac OS X and FreeBSD build issues corrected.
 
-        * Added check that file is of type .avi or .mkv before 
-          attempting an index preload.  
+        * Added check that file is of type .avi or .mkv before
+          attempting an index preload.
 
 2011-04-28  Hans Beckerus <hans.beckerus@gmail.com>
 
@@ -269,7 +276,7 @@ rar2fs ChangeLog file.
 
         * Using tmp file for extraction of "rar inside rar" if glibc
           custom stream support is missing. This will provide support
-          for "rar inside rar" even if the encapsulating file is 
+          for "rar inside rar" even if the encapsulating file is
           compressed and/or encrypted. It might however perform a bit
           slow in some cases compared to using glibc custom streams.
 
@@ -297,9 +304,9 @@ rar2fs ChangeLog file.
 
 2011-04-14  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * New revisioning approach using Major.Minor.PatchLevel instead 
+        * New revisioning approach using Major.Minor.PatchLevel instead
           of Major.Minor beta releases.
-          Stable releases will be denoted by a patch level of 0. 
+          Stable releases will be denoted by a patch level of 0.
           Each stable release will then be archived using a compressed
           tarball and comitted to the project home page download section.
           <http://code.google.com/p/rar2fs/downloads/list>
@@ -315,8 +322,8 @@ rar2fs ChangeLog file.
 
 2011-03-20  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Built against unrar source v4.0.7 
-   
+        * Built against unrar source v4.0.7
+
         * Minor modification of backward jump (history) logic for
           compressed/encrypted archives.
 
@@ -345,7 +352,7 @@ rar2fs ChangeLog file.
 
 2011-01-25  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Fixed a bug in handling of WAIT_THREAD() that could result 
+        * Fixed a bug in handling of WAIT_THREAD() that could result
           in that data was not read properly in SMP mode.
 
         * Added the option --no-smp to turn off SMP support and bind
@@ -353,15 +360,15 @@ rar2fs ChangeLog file.
 
 2011-01-22  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Added HAS_GLIBC_CUSTOM_STREAMS_ to control the use of this GNU 
-          extensions in glibc. This became necessary since many uClibc 
+        * Added HAS_GLIBC_CUSTOM_STREAMS_ to control the use of this GNU
+          extensions in glibc. This became necessary since many uClibc
           distributions choose not to provide glibc custom stream support.
           Turning this feature off disables the support for "rar inside rar"
-          if the encapsulating file is compressed and/or encrypted. 
+          if the encapsulating file is compressed and/or encrypted.
 
 2011-01-17  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Released 1.07 
+        * Released 1.07
 
 2011-01-14  Hans Beckerus <hans.beckerus@gmail.com>
 
