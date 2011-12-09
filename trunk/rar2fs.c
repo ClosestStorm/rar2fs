@@ -1524,14 +1524,14 @@ syncdir_scan(const char* dir, const char* root)
                         return;
                 }
                 while (i < n) {
-                        int vno = get_vformat(
-                                        namelist[i]->d_name, !(f - 1),
-                                        NULL, NULL);
+                        int vno = f == 2
+                                ? get_vformat(namelist[i]->d_name, !(f - 1), NULL, NULL)
+                                : 1;
                         if (!OBJ_INT(OBJ_SEEK_LENGTH, 0) ||
                                         vno <= OBJ_INT(OBJ_SEEK_LENGTH, 0)) {
                                 char *arch;
                                 ABS_MP(arch, root, namelist[i]->d_name);
-                                if (vno == 1) /* first file */
+                                if (f == 1 || vno == 2) /* "first" file */
                                         password = get_password(arch, tmpbuf);
                                 (void)listrar(dir, NULL, arch, password);
                         }
@@ -1579,7 +1579,6 @@ readdir_scan(const char* dir, const char* root, dir_entry_list_t **next)
 
         for (f = 0; f < (sizeof(filter) / sizeof(filter[0])); f++) {
                 int i = 0;
-                int vno = 0;
                 int n = scandir(root, &namelist, filter[f], alphasort);
                 if (n < 0) {
                         perror("scandir");
@@ -1606,12 +1605,15 @@ readdir_scan(const char* dir, const char* root, dir_entry_list_t **next)
                                 goto next_entry;
                         }
 
-                        vno = get_vformat(namelist[i]->d_name, !(f - 1), NULL, NULL);
+                        int vno = f == 2
+                                ? get_vformat(namelist[i]->d_name, !(f - 1), NULL, NULL)
+                                : 1;
+
                         if (!OBJ_INT(OBJ_SEEK_LENGTH, 0) ||
                                         vno <= OBJ_INT(OBJ_SEEK_LENGTH, 0)) {
                                 char *arch;
                                 ABS_MP(arch, root, namelist[i]->d_name);
-                                if (vno == 1)   /* first file */
+                                if (f == 1 || vno == 2)   /* "first" file */
                                         password = get_password(arch, tmpbuf);
                                 if (listrar(dir, next, arch, password))
                                         DIR_ENTRY_ADD(*next, namelist[i]->d_name, NULL);
@@ -1667,7 +1669,7 @@ swap(struct dir_entry_list *A, struct dir_entry_list *B)
  *
  ****************************************************************************/
 static void
-sort_dir(dir_entry_list_t * root, const char *path)
+sortdir(dir_entry_list_t * root, const char *path)
 {
         /* Simple bubble sort of directory entries in alphabetical order */
         if (root && root->next) {
@@ -1768,7 +1770,7 @@ fill_buff:
         }
 
         if (!DIR_LIST_EMPTY(&dir_list)) {
-                sort_dir(&dir_list, path);
+                sortdir(&dir_list, path);
                 dir_entry_list_t *next = dir_list.next;
                 while (next) {
                         if (next->entry.valid)
@@ -1811,7 +1813,7 @@ rar2_readdir2(const char *path, void *buffer, fuse_fill_dir_t filler,
         filler(buffer, "..", NULL, 0);
 
         if (!DIR_LIST_EMPTY(&dir_list)) {
-                sort_dir(&dir_list, path);
+                sortdir(&dir_list, path);
                 dir_entry_list_t *next = dir_list.next;
                 while (next) {
                         if (next->entry.valid)
