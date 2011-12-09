@@ -2,6 +2,10 @@ rar2fs ChangeLog file.
 
 2011-12-09  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Discarded previous optimization. 
+
+2011-12-09  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Removed some unnecessary calls to retrieve volume number
           reducing folder load time.
 
