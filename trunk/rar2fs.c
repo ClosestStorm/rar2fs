@@ -1524,14 +1524,13 @@ syncdir_scan(const char* dir, const char* root)
                         return;
                 }
                 while (i < n) {
-                        int vno = f == 2
-                                ? get_vformat(namelist[i]->d_name, !(f - 1), NULL, NULL)
-                                : 1;
+                        int vno = get_vformat(namelist[i]->d_name, !(f - 1),
+                                                        NULL, NULL);
                         if (!OBJ_INT(OBJ_SEEK_LENGTH, 0) ||
                                         vno <= OBJ_INT(OBJ_SEEK_LENGTH, 0)) {
                                 char *arch;
                                 ABS_MP(arch, root, namelist[i]->d_name);
-                                if (f == 1 || vno == 2) /* "first" file */
+                                if (vno == 1 || (vno == 2 && f == 2)) /* "first" file */
                                         password = get_password(arch, tmpbuf);
                                 (void)listrar(dir, NULL, arch, password);
                         }
@@ -1605,15 +1604,13 @@ readdir_scan(const char* dir, const char* root, dir_entry_list_t **next)
                                 goto next_entry;
                         }
 
-                        int vno = f == 2
-                                ? get_vformat(namelist[i]->d_name, !(f - 1), NULL, NULL)
-                                : 1;
-
+                        int vno = get_vformat(namelist[i]->d_name, !(f - 1),
+                                                        NULL, NULL);
                         if (!OBJ_INT(OBJ_SEEK_LENGTH, 0) ||
                                         vno <= OBJ_INT(OBJ_SEEK_LENGTH, 0)) {
                                 char *arch;
                                 ABS_MP(arch, root, namelist[i]->d_name);
-                                if (f == 1 || vno == 2)   /* "first" file */
+                                if (vno == 1 || (vno == 2 && f == 2))   /* "first" file */
                                         password = get_password(arch, tmpbuf);
                                 if (listrar(dir, next, arch, password))
                                         DIR_ENTRY_ADD(*next, namelist[i]->d_name, NULL);
