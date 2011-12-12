@@ -351,7 +351,6 @@ static FILE *popen_(const dir_elem_t * entry_p, pid_t * cpid, void **mmap_addr,
 static int pclose_(FILE * fp, pid_t pid)
 {
         int status;
-fprintf(stderr, "pclose\n");
         fclose(fp);
         killpg(pid, SIGKILL);
         /* Sync */
