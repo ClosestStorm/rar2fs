@@ -119,7 +119,7 @@ struct IOContext {
                 FD_SET(fd, &rd);\
                 int retval = select(nfsd, &rd, NULL, NULL, NULL); \
                 if (retval == -1) {\
-                        if (errno!=EINTR) \
+                        if (errno != EINTR) \
                                 perror("select()");\
                 } else if (retval) {\
                         /* FD_ISSET(0, &rfds) will be true. */\
@@ -351,7 +351,7 @@ static FILE *popen_(const dir_elem_t * entry_p, pid_t * cpid, void **mmap_addr,
 static int pclose_(FILE * fp, pid_t pid)
 {
         int status;
-
+fprintf(stderr, "pclose\n");
         fclose(fp);
         killpg(pid, SIGKILL);
         /* Sync */
@@ -622,18 +622,21 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
         if ((offset + size) > op->buf->offset) {
                 /*
                  * This is another hack! Some media players, especially VLC,
-                 * seems to be buggy and many times requests a second read
-                 * far beyond the current offset. This is rendering the
+                 * seems to "deviate" and many times requests a second 
+                 * read far beyond the current offset. This is rendering the
                  * stream completely useless for continued playback.
                  * By checking the distance of the jump this effect can in
-                 * most cases be worked around. For VLC this will result in
-                 * an error message being displayed. But, playback can
-                 * usually be started at the second attempt.
+                 * most cases be worked around. For VLC this might result in
+                 * an incorrectly reported media length and thus jumping in
+                 * the stream will not be possible! WMP fails in any case so
+                 * this patch neither improves nor reduce playback support.
                  */
 #if 1
                 if (((offset + size) - op->buf->offset) > 100000000 &&
-                    op->buf->idx.data_p == MAP_FAILED)
-                        return -EIO;
+                    op->buf->idx.data_p == MAP_FAILED) {
+                        memset(buf, 0, size);
+                        return size;
+                }
 #endif
                 if (!op->terminate) {   /* make sure thread is running */
                         /* Take control of reader thread */
@@ -1842,8 +1845,16 @@ static void *reader_task(void *arg)
                 FD_ZERO(&rd);
                 FD_SET(fd, &rd);
                 int retval = select(nfsd, &rd, NULL, NULL, NULL);
-                if (!retval || retval == -1) {
+                if (!retval) {
                         perror("select()");
+                        continue;
+                }
+                if (retval == -1) {
+                        if (errno == EINTR) {
+                                op->terminate = 1;  /* XXX protection!? */
+                        } else {
+                                perror("select()");
+                        }
                         continue;
                 }
                 /* FD_ISSET(0, &rfds) will be true. */
@@ -2114,7 +2125,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                         /* Create reader thread */
                         op->terminate = 1;
                         pthread_create(&op->thread, &thread_attr, reader_task, (void *)op);
-                        while (op->terminate) ;
+                        while (op->terminate);
                         WAKE_THREAD(op->pfd1, 0);
                         goto open_end;
                 }
@@ -2774,6 +2785,8 @@ static int work(struct fuse_args *args)
 
         f = fuse_setup(args->argc, args->argv, &rar2_operations,
                                 sizeof(rar2_operations), &mp, &mt, NULL);
+        if (!f)
+            return -1;
         wdt.fuse = f;
         wdt.mt = mt;
         wdt.work_task_exited = 0;

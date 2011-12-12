@@ -1,5 +1,15 @@
 rar2fs ChangeLog file.
 
+2011-12-12  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a crash (SEGV) if fuse_setup() failed
+
+        * Changed actions when reader thread is interrupted by a
+          signal to avoid a zombie.
+
+        * Changed work around when reading far beyond current 
+          offset for compressed archives.
+
 2011-12-09  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Discarded previous optimization. 
