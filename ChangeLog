@@ -1,5 +1,14 @@
 rar2fs ChangeLog file.
 
+2011-12-13  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added global flag to indicate if file system as been shutdown
+          so that running threads can terminate nicely.
+
+        * Added a mutex to allow for early termination of reader thread
+          in combination with forward jumps.
+
+
 2011-12-12  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a crash (SEGV) if fuse_setup() failed
