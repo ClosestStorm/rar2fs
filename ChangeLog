@@ -8,7 +8,6 @@ rar2fs ChangeLog file.
         * Added a mutex to allow for early termination of reader thread
           in combination with forward jumps.
 
-
 2011-12-12  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a crash (SEGV) if fuse_setup() failed
@@ -33,7 +32,7 @@ rar2fs ChangeLog file.
 2011-12-07  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a problem with fake ISO extension for image files not inside
-          an archive. This bug should only affect versions after 1.13.4.
+          an archive. This bug should only affect versions after 1.13.3.
 
         * Due to the above bugfix a change has been made to how image
           files, listed as a fake ISO extension, are handled when not
