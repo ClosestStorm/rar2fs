@@ -104,6 +104,7 @@ struct IOContext {
         int pfd2[2];
         volatile int terminate;
         pthread_t thread;
+        pthread_mutex_t mutex;
         /* mmap() data */
         void *mmap_addr;
         FILE *mmap_fp;
@@ -152,6 +153,7 @@ dir_entry_list_t arch_list_root;        /* internal list root */
 dir_entry_list_t *arch_list = &arch_list_root;
 pthread_attr_t thread_attr;
 unsigned int rar2_ticks;
+int fs_terminated = 0;
 
 static void syncdir(const char *dir);
 static int  extract_rar(char *arch, const char *file, char *passwd, FILE * fp,
@@ -637,6 +639,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                         return size;
                 }
 #endif
+                pthread_mutex_lock(&op->mutex);
                 if (!op->terminate) {   /* make sure thread is running */
                         /* Take control of reader thread */
                         do {
@@ -644,6 +647,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                                 WAKE_THREAD(op->pfd1, 2);
                                 WAIT_THREAD(op->pfd2);
                         } while (errno == EINTR);
+                        pthread_mutex_unlock(&op->mutex);
                         while (!feof(FH_TOFP(op->fh)) &&
                                         (offset + size) > op->buf->offset) {
                                 /* consume buffer */
@@ -656,6 +660,8 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                         op->buf->ri &= (IOB_SZ - 1);
                         op->buf->used -= (offset - op->pos);
                         op->pos = offset;
+                } else {
+                        pthread_mutex_unlock(&op->mutex);
                 }
         }
 
@@ -1840,20 +1846,25 @@ static void *reader_task(void *arg)
         int nfsd = fd + 1;
         while (!op->terminate) {
                 fd_set rd;
+                struct timeval tv;
 
+                tv.tv_sec = 1;
+                tv.tv_usec = 0;
                 FD_ZERO(&rd);
                 FD_SET(fd, &rd);
-                int retval = select(nfsd, &rd, NULL, NULL, NULL);
+                int retval = select(nfsd, &rd, NULL, NULL, &tv);
                 if (!retval) {
-                        perror("select()");
+                        /* timeout */
+                        if (fs_terminated) {
+                                if (!pthread_mutex_trylock(&op->mutex)) {
+                                        op->terminate = 1;
+                                        pthread_mutex_unlock(&op->mutex);
+                                }
+                        }
                         continue;
                 }
                 if (retval == -1) {
-                        if (errno == EINTR) {
-                                op->terminate = 1;  /* XXX protection!? */
-                        } else {
-                                perror("select()");
-                        }
+                        perror("select()");
                         continue;
                 }
                 /* FD_ISSET(0, &rfds) will be true. */
@@ -1869,7 +1880,12 @@ static void *reader_task(void *arg)
                                 perror("write");
                 }
                 /* Early termination */
-                /*if (feof(FH_TOFP(op->fh))) break; */ /* XXX check this! */
+                if (feof(FH_TOFP(op->fh))) {
+                        if (!pthread_mutex_trylock(&op->mutex)) {
+                                op->terminate = 1;
+                                pthread_mutex_unlock(&op->mutex);
+                        }
+                }
         }
         printd(4, "Reader thread stopped\n");
         pthread_exit(NULL);
@@ -2022,7 +2038,6 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                 op->buf = NULL;
                                 op->pos = 0;
                                 op->vno = -1;   /* force a miss 1st time */
-                                op->terminate = 1;
                                 if (entry_p->flags.multipart &&
                                     OBJ_SET(OBJ_PREOPEN_IMG) &&
                                     entry_p->flags.image) {
@@ -2120,6 +2135,8 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                 perror("pipe");
                                 goto open_error;
                         }
+
+                        pthread_mutex_init(&op->mutex, NULL);
 
                         /* Create reader thread */
                         op->terminate = 1;
@@ -2294,6 +2311,7 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                         WAKE_THREAD(op->pfd1, 2);
                         pthread_join(op->thread, NULL);
                 }
+                pthread_mutex_destroy(&op->mutex);
                 if (FH_TOFP(op->fh)) {
                         if (op->entry_p->flags.raw) {
                                 if (op->volHdl) {
@@ -2805,6 +2823,7 @@ static int work(struct fuse_args *args)
         if (!wdt.work_task_exited)
                 pthread_kill(t, SIGINT);        /* terminate nicely */
 
+        fs_terminated = 1;
         pthread_join(t, NULL);
         fuse_teardown(f, mp);
 
