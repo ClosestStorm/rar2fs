@@ -146,6 +146,7 @@ struct IOContext {
 
 /* Obsolete function(s) */
 /*#define ENABLE_OBSOLETE_ARGS*/
+#define USE_RAR_PASSWORD
 
 long page_size = 0;
 static int mount_type;
@@ -623,7 +624,7 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
         if ((offset + size) > op->buf->offset) {
                 /*
                  * This is another hack! Some media players, especially VLC,
-                 * seems to "deviate" and many times requests a second 
+                 * seems to "deviate" and many times requests a second
                  * read far beyond the current offset. This is rendering the
                  * stream completely useless for continued playback.
                  * By checking the distance of the jump this effect can in
@@ -1035,6 +1036,7 @@ extract_error:
  *****************************************************************************
  *
  ****************************************************************************/
+#ifdef USE_RAR_PASSWORD
 static char *get_password(const char *file, char *buf)
 {
         if (file && !OBJ_SET(OBJ_NO_PASSWD)) {
@@ -1059,6 +1061,9 @@ static char *get_password(const char *file, char *buf)
         buf[1] = '\0';
         return buf;
 }
+#else
+#define get_password(a, b) "?\0"
+#endif
 
 /*!
  *****************************************************************************
@@ -1075,7 +1080,7 @@ set_rarstats(dir_elem_t * entry_p, RARArchiveListEx * alist_p, int force_dir)
                 }
                 entry_p->stat.st_mode = mode;
                 entry_p->stat.st_nlink =
-                    S_ISDIR(mode) ? 2 : alist_p->Method - (0x30 - 1);
+                        S_ISDIR(mode) ? 2 : alist_p->Method - (FHD_STORING - 1);
                 entry_p->stat.st_size = GET_RAR_SZ(alist_p);
         } else {
                 entry_p->stat.st_mode = (S_IFDIR | 0777);
@@ -1138,6 +1143,125 @@ set_rarstats(dir_elem_t * entry_p, RARArchiveListEx * alist_p, int force_dir)
         entry_p->stat.st_ctime = entry_p->stat.st_atime;
 }
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static int
+listrar_rar(const char *path, dir_entry_list_t **buffer, const char *arch,
+            HANDLE hdl, const RARArchiveListEx *next, const dir_elem_t *entry_p,
+            int need_password)
+{
+        printd(3, "%llu byte RAR file %s found in archive %s\n",
+               GET_RAR_PACK_SZ(next), entry_p->name_p, arch);
+
+        RAROpenArchiveData d2;
+        d2.ArcName = entry_p->name_p;
+        d2.OpenMode = RAR_OM_LIST;
+        d2.CmtBuf = NULL;
+        d2.CmtBufSize = 0;
+        d2.CmtSize = 0;
+        d2.CmtState = 0;
+
+        HANDLE hdl2 = NULL;
+        FILE *fp = NULL;
+        char *maddr = MAP_FAILED;
+        off_t msize = 0;
+        int mflags = 0;
+
+        int fd = fileno(RARGetFileHandle(hdl));
+        if (fd == -1)
+                goto file_error;
+
+        if (next->Method == FHD_STORING && !need_password) {
+                struct stat st;
+                (void)fstat(fd, &st);
+#ifdef HAVE_FMEMOPEN
+                maddr = mmap(0, P_ALIGN_(st.st_size), PROT_READ, MAP_SHARED, fd, 0);
+                if (maddr != MAP_FAILED)
+                        fp = fmemopen(maddr + (next->Offset + next->HeadSize), GET_RAR_PACK_SZ(next), "r");
+#else
+                fp = fopen(entry_p->rar_p, "r");
+                if (fp)
+                        fseeko(fp, next->Offset + next->HeadSize, SEEK_SET);
+#endif
+                msize = st.st_size;
+                mflags = 1;
+        } else {
+                FILE *fp_ = RARGetFileHandle(hdl);
+                off_t curr_pos = ftello(fp_);
+                fseeko(fp_, 0, SEEK_SET);
+#ifdef HAVE_FMEMOPEN
+                maddr = extract_to(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p, E_TO_MEM);
+                if (maddr != MAP_FAILED)
+                        fp = fmemopen(maddr, GET_RAR_SZ(next), "r");
+#else
+                fp = extract_to(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p, E_TO_TMP);
+                if (fp == MAP_FAILED) {
+                        fp = NULL;
+                        printd(1, "Extract to tmpfile failed\n");
+                }
+#endif
+                fseeko(fp_, curr_pos, SEEK_SET);
+                msize = GET_RAR_SZ(next);
+                mflags = 2;
+        }
+
+        if (fp)
+                hdl2 = RARInitArchive(&d2, fp);
+        if (!hdl2)
+                goto file_error;
+
+        RARArchiveListEx LL;
+        RARArchiveListEx *next2 = &LL;
+        if (RARListArchiveEx(&hdl2, next2, NULL)) {
+                const unsigned int MHF = RARGetMainHeaderFlags(hdl2);
+                while (next2) {
+                        if (!(MHF & MHD_VOLUME)) {
+                                dir_elem_t *entry2_p;
+                                printd(3, "File inside archive is %s\n", next2->FileName);
+                                /* Allocate a cache entry for this file */
+                                char *mp2;
+                                char *rar_dir = strdup(next2->FileName);
+                                char *tmp1 = rar_dir;
+                                ABS_MP(mp2, path, basename(rar_dir));
+                                free(tmp1);
+
+                                entry2_p = cache_path_get(mp2);
+                                if (!entry2_p) {
+                                        printd(3, "Adding %s to cache\n", mp2);
+                                        entry2_p = cache_path_alloc(mp2);
+                                        entry2_p->name_p = strdup(mp2);
+                                        entry2_p->rar_p = strdup(arch);
+                                        entry2_p->file_p = strdup(next->FileName);
+                                        entry2_p->offset = (next->Offset + next->HeadSize);
+                                        entry2_p->flags.mmap = mflags;
+                                        entry2_p->msize = msize;
+                                        entry2_p-> flags.multipart = 0;
+                                        entry2_p->flags.raw = 0;
+                                        set_rarstats(entry2_p, next2, 0);
+                                }
+                                if (buffer)
+                                        DIR_ENTRY_ADD(*buffer, next2->FileName, &entry2_p->stat);
+                        }
+                        next2 = next2->next;
+                }
+        }
+        RARFreeListEx(&LL);
+        RARFreeArchive(hdl2);
+
+file_error:
+        if (fp) fclose(fp);
+        if (maddr != MAP_FAILED) {
+                if (mflags == 1) {
+                        munmap(maddr, P_ALIGN_(msize));
+                } else {
+                        free(maddr);
+                }
+        }
+
+        return hdl2 ? 1 : 0;
+}
 
 /*!
  *****************************************************************************
@@ -1145,7 +1269,7 @@ set_rarstats(dir_elem_t * entry_p, RARArchiveListEx * alist_p, int force_dir)
  ****************************************************************************/
 
 #define NEED_PASSWORD() \
-        ((MainHeaderFlags&MHD_PASSWORD)||(next->Flags&LHD_PASSWORD))
+        ((MainHeaderFlags & MHD_PASSWORD) || (next->Flags & LHD_PASSWORD))
 #define BS_TO_UNIX(p) \
         do {\
                 char *s = (p); \
@@ -1154,7 +1278,7 @@ set_rarstats(dir_elem_t * entry_p, RARArchiveListEx * alist_p, int force_dir)
         } while(0)
 
 static int
-listrar(const char *path, dir_entry_list_t ** buffer, const char *arch,
+listrar(const char *path, dir_entry_list_t **buffer, const char *arch,
         const char *Password)
 {
         ENTER_("%s   arch=%s", path, arch);
@@ -1186,7 +1310,6 @@ listrar(const char *path, dir_entry_list_t ** buffer, const char *arch,
                 return 1;
         }
 
-        char *last = strdup("");
         const unsigned int MainHeaderSize = RARGetMainHeaderSize(hdl);
         const unsigned int MainHeaderFlags = RARGetMainHeaderFlags(hdl);
 
@@ -1194,8 +1317,9 @@ listrar(const char *path, dir_entry_list_t ** buffer, const char *arch,
                 BS_TO_UNIX(next->FileName);
 
                 /* Skip compressed image files */
-                if (!OBJ_SET(OBJ_SHOW_COMP_IMG) && next->Method != 0x30 &&      /* Store */
-                    IS_IMG(next->FileName)) {
+                if (!OBJ_SET(OBJ_SHOW_COMP_IMG) &&
+                                next->Method != FHD_STORING &&
+                                IS_IMG(next->FileName)) {
                         next = next->next;
                         continue;
                 }
@@ -1221,12 +1345,10 @@ listrar(const char *path, dir_entry_list_t ** buffer, const char *arch,
                          * faked by adding it to the cache.
                          */
                         if (!display) {
-                                if (!strcmp
-                                    (basename(rar_name), rar_name)) {
+                                if (!strcmp(basename(rar_name), rar_name)) {
                                         char *mp;
                                         ABS_MP(mp, "/", rar_name);
-                                        dir_elem_t *entry_p =
-                                            cache_path_get(mp);
+                                        dir_elem_t *entry_p = cache_path_get(mp);
                                         if (entry_p == NULL) {
                                                 printd(3, "Adding %s to cache\n", mp);
                                                 entry_p = cache_path_alloc(mp);
@@ -1235,23 +1357,21 @@ listrar(const char *path, dir_entry_list_t ** buffer, const char *arch,
                                                 entry_p->rar_p = strdup(arch);
                                                 set_rarstats(entry_p, next, 1);
                                         }
-                                        if (buffer && strcmp(last, rar_name)) {
+
+                                        if (buffer)
                                                 DIR_ENTRY_ADD(*buffer, basename(entry_p->name_p), &entry_p->stat);
-                                                free(last);
-                                                last = strdup(rar_name);
-                                        }
                                 }
                         }
-                } else
-                    if (!strcmp(path + strlen(rar_root) + 1, rar_name))
+                } else if (!strcmp(path + strlen(rar_root) + 1, rar_name)) {
                         display = 1;
+                }
                 free(tmp1);
                 free(tmp2);
 
                 char *mp;
                 if (!display) {
                         ABS_MP(mp, (*rar_root ? rar_root : "/"),
-                               next->FileName);
+                                        next->FileName);
                 } else {
                         char *rar_dir = strdup(next->FileName);
                         char *tmp1 = rar_dir;
@@ -1261,8 +1381,8 @@ listrar(const char *path, dir_entry_list_t ** buffer, const char *arch,
 
                 if (!IS_RAR_DIR(next) && OBJ_SET(OBJ_FAKE_ISO)) {
                         int l = OBJ_CNT(OBJ_FAKE_ISO)
-                                ? chk_obj(OBJ_FAKE_ISO, mp)
-                                : chk_obj(OBJ_IMG_TYPE, mp);
+                                        ? chk_obj(OBJ_FAKE_ISO, mp)
+                                        : chk_obj(OBJ_IMG_TYPE, mp);
                         if (l)
                                 strcpy(mp + (strlen(mp) - l), "iso");
                 }
@@ -1293,116 +1413,11 @@ listrar(const char *path, dir_entry_list_t ** buffer, const char *arch,
 
                 /* Check for .rar inside archive */
                 if (!(MainHeaderFlags & MHD_VOLUME) &&
-                    OBJ_INT(OBJ_SEEK_DEPTH, 0)) {
+                                OBJ_INT(OBJ_SEEK_DEPTH, 0)) {
                         /* Check for .rar file */
                         if (IS_RAR(entry_p->name_p)) {
-                                printd(3, "%llu byte RAR file %s found in archive %s\n",
-                                       GET_RAR_PACK_SZ(next), entry_p->name_p, arch);
-                                RAROpenArchiveData d2;
-                                d2.ArcName = entry_p->name_p;
-                                d2.OpenMode = RAR_OM_LIST;
-                                d2.CmtBuf = NULL;
-                                d2.CmtBufSize = 0;
-                                d2.CmtSize = 0;
-                                d2.CmtState = 0;
-                                HANDLE hdl2 = NULL;
-                                FILE *fp = NULL;
-                                char *maddr = MAP_FAILED;
-                                off_t msize = 0;
-                                int mflags = 0;
-                                int fd =
-                                    fileno(RARGetFileHandle(hdl));
-                                if (fd == -1)
-                                        goto file_error10;
-
-                                if (next->Method == 0x30 &&     /* Store */
-                                    !NEED_PASSWORD()) {
-                                        struct stat st;
-                                        (void)fstat(fd, &st);
-#ifdef HAVE_FMEMOPEN
-                                        maddr = mmap(0, P_ALIGN_(st.st_size), PROT_READ, MAP_SHARED, fd, 0);
-                                        if (maddr != MAP_FAILED)
-                                                fp = fmemopen(maddr + (next->Offset + next->HeadSize), GET_RAR_PACK_SZ(next), "r");
-#else
-                                        fp = fopen(entry_p->rar_p, "r");
-                                        if (fp)
-                                                fseeko(fp, next->Offset + next->HeadSize, SEEK_SET);
-#endif
-                                        msize = st.st_size;
-                                        mflags = 1;
-                                } else {
-                                        FILE *fp_ = RARGetFileHandle(hdl);
-                                        off_t curr_pos = ftello(fp_);
-                                        fseeko(fp_, 0, SEEK_SET);
-#ifdef HAVE_FMEMOPEN
-                                        maddr = extract_to(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p, E_TO_MEM);
-                                        if (maddr != MAP_FAILED)
-                                                fp = fmemopen(maddr, GET_RAR_SZ(next), "r");
-#else
-                                        fp = extract_to(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p, E_TO_TMP);
-                                        if (fp == MAP_FAILED) {
-                                                fp = NULL;
-                                                printd(1, "Extract to tmpfile failed\n");
-                                        }
-#endif
-                                        fseeko(fp_, curr_pos, SEEK_SET);
-                                        msize = GET_RAR_SZ(next);
-                                        mflags = 2;
-                                }
-
-file_error10:
-                                if (fp)     hdl2 = RARInitArchive(&d2, fp);
-                                if (!hdl2)  goto file_error20;
-
-                                RARArchiveListEx LL;
-                                RARArchiveListEx *next2 = &LL;
-                                if (RARListArchiveEx(&hdl2, next2, NULL)) {
-                                        const unsigned int MHF = RARGetMainHeaderFlags(hdl2);
-                                        while (next2) {
-                                                if (!(MHF & MHD_VOLUME)) {
-                                                        dir_elem_t *entry2_p;
-                                                        printd(3, "File inside archive is %s\n", next2->FileName);
-                                                        /* Allocate a cache entry for this file */
-                                                        char *mp2;
-                                                        char *rar_dir = strdup(next2->FileName);
-                                                        char *tmp1 = rar_dir;
-                                                        ABS_MP(mp2, path, basename(rar_dir));
-                                                        free(tmp1);
-
-                                                        entry2_p = cache_path_get(mp2);
-                                                        if (!entry2_p) {
-                                                                entry2_p = cache_path_alloc(mp2);
-                                                                entry2_p->name_p = strdup(mp2);
-                                                                entry2_p->rar_p = strdup(arch);
-                                                                entry2_p->file_p = strdup(next->FileName);
-                                                                entry2_p->offset = (next->Offset + next->HeadSize);
-                                                                entry2_p->flags.mmap = mflags;
-                                                                entry2_p->msize = msize;
-                                                                entry2_p-> flags.multipart = 0;
-                                                                entry2_p->flags.raw = 0;
-                                                                set_rarstats(entry2_p, next2, 0);
-                                                        }
-                                                        if (buffer)
-                                                                DIR_ENTRY_ADD(*buffer, next2->FileName, &entry2_p->stat);
-                                                }
-                                                next2 = next2->next;
-                                        }
-                                }
-                                RARFreeListEx(&LL);
-                                RARFreeArchive(hdl2);
-
-file_error20:
-                                if (fp) fclose(fp);
-                                if (maddr != MAP_FAILED) {
-                                        if (mflags == 1) {
-                                                munmap(maddr, P_ALIGN_(msize));
-                                        } else {
-                                                free(maddr);
-                                        }
-                                }
-
-                                /* We are done with this rar file (.rar will never display!) */
-                                if (hdl2) {
+                                if (listrar_rar(path, buffer, arch, hdl, next, entry_p, NEED_PASSWORD())) {
+                                        /* We are done with this rar file (.rar will never display!) */
                                         inval_cache_path(mp);
                                         next = next->next;
                                         continue;
@@ -1410,12 +1425,11 @@ file_error20:
                         }
                 }
 
-                if (next->Method == 0x30 &&     /* Store */
-                    !NEED_PASSWORD()) {
+                if (next->Method == FHD_STORING && !NEED_PASSWORD()) {
                         entry_p->flags.raw = 1;
                         if ((MainHeaderFlags & MHD_VOLUME) &&   /* volume ? */
-                            ((next->Flags & (LHD_SPLIT_BEFORE | LHD_SPLIT_AFTER)) ||
-                            (IS_RAR_DIR(next)))) {
+                                        ((next->Flags & (LHD_SPLIT_BEFORE | LHD_SPLIT_AFTER)) ||
+                                        (IS_RAR_DIR(next)))) {
                                 int len, pos;
 
                                 entry_p->flags.multipart = 1;
@@ -1453,27 +1467,10 @@ file_error20:
                 set_rarstats(entry_p, next, 0);
 
 cache_hit:
-                /*
-                 * Check if this is a continued volume or not --
-                 * in that case we might need to skip presentation of the file
-                 */
-                if (display && (next->Flags & MHD_VOLUME) && !IS_RAR_DIR(next)) {
-                        if (get_vformat(arch, MainHeaderFlags & MHD_NEWNUMBERING ? 1 : 0, NULL, NULL) != entry_p->vno_base) {
-                                display = 0;
-                        }
-                }
 
-                /*
-                 * Check if there is already a ordinary/rared file with the same name.
-                 * In that case this one will loose :(
-                 */
-                if (display) {
+                if (display && buffer) {
                         char *tmp = basename(entry_p->name_p);
-                        if (buffer && strcmp(tmp, last)) {
-                                DIR_ENTRY_ADD(*buffer, tmp, &entry_p->stat);
-                                free(last);
-                                last = strdup(tmp);
-                        }
+                        DIR_ENTRY_ADD(*buffer, tmp, &entry_p->stat);
                 }
 
                 next = next->next;
@@ -1481,8 +1478,8 @@ cache_hit:
 
         RARFreeListEx(&L);
         RARCloseArchive(hdl);
-        free(last);
         pthread_mutex_unlock(&file_access_mutex);
+
         return 0;
 }
 
@@ -1518,7 +1515,9 @@ syncdir_scan(const char* dir, const char* root)
         struct dirent **namelist;
         int f;
         int (*filter[]) (SCANDIR_ARG3) = {f0, f1, f2};
+#ifdef USE_RAR_PASSWORD
         char tmpbuf[MAXPASSWORD];
+#endif
         const char *password = NULL;
 
         ENTER_("%s", dir);
@@ -1579,7 +1578,9 @@ readdir_scan(const char* dir, const char* root, dir_entry_list_t **next)
         struct dirent **namelist;
         int f;
         int (*filter[]) (SCANDIR_ARG3) = {f0, f1, f2};
+#ifdef USE_RAR_PASSWORD
         char tmpbuf[MAXPASSWORD];
+#endif
         const char *password = NULL;
 
         ENTER_("%s", dir);
@@ -1717,7 +1718,9 @@ rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
 {
         ENTER_("%s", path);
 
+#ifdef USE_RAR_PASSWORD
         char tmpbuf[MAXPASSWORD];
+#endif
         const char *password = NULL;
         dir_entry_list_t dir_list;      /* internal list root */
         dir_entry_list_t *next = &dir_list;
@@ -1799,7 +1802,9 @@ rar2_readdir2(const char *path, void *buffer, fuse_fill_dir_t filler,
 {
         ENTER_("%s", path);
 
+#ifdef USE_RAR_PASSWORD
         char tmpbuf[MAXPASSWORD];
+#endif
         const char *password = NULL;
         dir_entry_list_t dir_list;      /* internal list root */
         dir_entry_list_t *next = &dir_list;
