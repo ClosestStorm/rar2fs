@@ -123,6 +123,14 @@ enum HOST_SYSTEM {
 
 #define MAXPASSWORD 128
 
+/* These are missing from unrar headers!? */
+#define FHD_STORING         0x30U
+#define FHD_FASTEST_COMP    0x31U
+#define FHD_FAST_COMP       0x32U
+#define FHD_NORMAL_COMP     0x33U
+#define FHD_GOOD_COMP       0x34U
+#define FHD_BEST_COMP       0x35U
+
 #endif
 
 #pragma pack(1)
@@ -138,7 +146,7 @@ typedef struct RARArchiveListEx RARArchiveListEx;
 }
 #endif
 
-struct RARArchiveList 
+struct RARArchiveList
 {
    char         FileName[260];
    unsigned int Flags;
