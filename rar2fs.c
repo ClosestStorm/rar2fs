@@ -80,14 +80,14 @@ typedef union {
         uint64_t bits;
 } IOFileHandle;
 
-#define FH_ZERO(fh)            (((IOFileHandle*)(fh))->bits=0)
+#define FH_ZERO(fh)            (((IOFileHandle *)(fh))->bits=0)
 #define FH_ISSET(fh)           (fh)
 #define FH_ISADDR(fh)          (FH_ISSET(fh) && !FH_ISFP(fh))
 #define FH_ISFP(fh)            (FH_ISSET(fh) && ((fh)&0x1))
 #define FH_SETFP(fh, v)        {((IOFileHandle*)(fh))->bits = ((uint64_t)(size_t)(v))|0x1ULL;}
 #define FH_SETFD(fh, v)        FH_SETFP(fh, ((v)<<1))
-#define FH_SETCONTEXT(fh, v)   {((IOFileHandle*)(fh))->bits = ((uint64_t)(size_t)(v))&~0x1ULL;}
-#define FH_TOFP(fh)            ((FILE*)(size_t)(((uint64_t)(size_t)(((IOFileHandle)(fh)).fp))&~0x1ULL))
+#define FH_SETCONTEXT(fh, v)   {((IOFileHandle *)(fh))->bits = ((uint64_t)(size_t)(v))&~0x1ULL;}
+#define FH_TOFP(fh)            ((FILE *)(size_t)(((uint64_t)(size_t)(((IOFileHandle)(fh)).fp))&~0x1ULL))
 #define FH_TOFD(fh)            (((IOFileHandle)(fh)).fd>>1)
 #define FH_TOCONTEXT(fh)       (((IOFileHandle)(fh)).context)
 
@@ -165,7 +165,7 @@ static int  extract_rar(char *arch, const char *file, char *passwd, FILE * fp,
  *
  ****************************************************************************/
 static void *extract_to(const char *file, off_t sz, FILE * fp,
-                        const dir_elem_t * entry_p, int oper)
+                const dir_elem_t * entry_p, int oper)
 {
         ENTER_("%s", file);
 
@@ -236,70 +236,71 @@ static void *extract_to(const char *file, off_t sz, FILE * fp,
 
 #define UNRAR_ unrar_path, unrar_path
 
-static FILE *popen_(const dir_elem_t * entry_p, pid_t * cpid, void **mmap_addr,
-                    FILE ** mmap_fp, int *mmap_fd)
+static FILE *popen_(const dir_elem_t *entry_p, pid_t *cpid, void **mmap_addr,
+                FILE **mmap_fp, int *mmap_fd)
 {
         char *maddr = MAP_FAILED;
         FILE *fp = NULL;
+        int fd = -1;
+        int pfd[2] = {-1,};
 #ifdef ENABLE_OBSOLETE_ARGS
         char *unrar_path = OBJ_STR(OBJ_UNRAR_PATH, 0);
 #endif
         if (entry_p->flags.mmap) {
-                int fd = open(entry_p->rar_p, O_RDONLY);
-                if (fd != -1) {
-                        if (entry_p->flags.mmap == 2) {
+                fd = open(entry_p->rar_p, O_RDONLY);
+                if (fd == -1) {
+                        perror("open");
+                        goto error;
+                }
+
+                if (entry_p->flags.mmap == 2) {
 #ifdef HAVE_FMEMOPEN
-                                maddr = extract_to(entry_p->file_p,
-                                                        entry_p->msize, NULL,
-                                                        entry_p, E_TO_MEM);
-                                if (maddr != MAP_FAILED)
-                                        fp = fmemopen(maddr, entry_p->msize, "r");
-#else
-                                fp = extract_to(entry_p->file_p,
-                                                        entry_p->msize, NULL,
-                                                        entry_p, E_TO_TMP);
-                                if (fp == MAP_FAILED) {
-                                        fp = NULL;
-                                        printd(1, "Extract to tmpfile failed\n");
+                        maddr = extract_to(entry_p->file_p, entry_p->msize,
+                                                NULL, entry_p, E_TO_MEM);
+                        if (maddr != MAP_FAILED)
+                                fp = fmemopen(maddr, entry_p->msize, "r");
+                                if (fp == NULL) {
+                                        perror("fmemopen");
+                                        goto error;
                                 }
+#else
+                        fp = extract_to(entry_p->file_p, entry_p->msize,
+                                                NULL, entry_p, E_TO_TMP);
+                        if (fp == MAP_FAILED) {
+                                printd(1, "Extract to tmpfile failed\n");
+                                goto error;
+                        }
 #endif
-                        } else {
+                } else {
 #ifdef HAVE_FMEMOPEN
-                                maddr = mmap(0, P_ALIGN_(entry_p->msize),
-                                                PROT_READ, MAP_SHARED, fd, 0);
-                                if (maddr != MAP_FAILED)
-                                        fp = fmemopen(maddr + entry_p->offset,
+                        maddr = mmap(0, P_ALIGN_(entry_p->msize), PROT_READ,
+                                                MAP_SHARED, fd, 0);
+                        if (maddr != MAP_FAILED) {
+                                fp = fmemopen(maddr + entry_p->offset,
                                                         entry_p->msize -
                                                         entry_p->offset, "r");
+                        } else {
+                                perror("mmap");
+                                goto error;
+                        }
 #else
-                                fp = fopen(entry_p->rar_p, "r");
-                                if (fp)
-                                        fseeko(fp, entry_p->offset, SEEK_SET);
+                        fp = fopen(entry_p->rar_p, "r");
+                        if (fp)
+                                fseeko(fp, entry_p->offset, SEEK_SET);
+                        else
+                                goto error;
 #endif
-                        }
                 }
-                if (fp) {
-                        *mmap_addr = maddr;
-                        *mmap_fp = fp;
-                        *mmap_fd = fd;
-                } else {
-                        if (maddr != MAP_FAILED) {
-                                if (entry_p->flags.mmap == 1)
-                                        munmap(maddr, P_ALIGN_(entry_p->msize));
-                                else
-                                        free(maddr);
-                        }
-                        if (fd != -1)
-                                close(fd);
-                        return NULL;
-                }
+
+                *mmap_addr = maddr;
+                *mmap_fp = fp;
+                *mmap_fd = fd;
         }
 
-        int pfd[2];
         pid_t pid;
         if (pipe(pfd) == -1) {
                 perror("pipe");
-                return NULL;
+                goto error;
         }
 
         pid = fork();
@@ -336,13 +337,33 @@ static FILE *popen_(const dir_elem_t * entry_p, pid_t * cpid, void **mmap_addr,
                                   (void *)(uintptr_t) pfd[1]);
                 close(pfd[1]);
                 _exit(ret);
-        } else if (pid < 0)
-                /* The fork failed.  Report failure.  */
-                return NULL;
+        } else if (pid < 0) {
+                /* The fork failed. */
+                goto error;
+        }
+
         /* This is the parent process. */
         close(pfd[1]);          /* Close unused write end */
         *cpid = pid;
         return fdopen(pfd[0], "r");
+
+error:
+        if (maddr != MAP_FAILED) {
+                if (entry_p->flags.mmap == 1)
+                        munmap(maddr, P_ALIGN_(entry_p->msize));
+                else
+                        free(maddr);
+        }
+        if (fp)
+                fclose(fp);
+        if (fd >= 0)
+                close(fd);
+        if (pfd[0] >= 0)
+                close(pfd[0]);
+        if (pfd[1] >= 0)
+                close(pfd[1]);
+
+        return NULL;
 }
 
 #undef UNRAR_
@@ -415,8 +436,8 @@ static char *get_vname(int t, const char *str, int vol, int len, int pos)
  *****************************************************************************
  *
  ****************************************************************************/
-static int
-lread_raw(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+static int lread_raw(char *buf, size_t size, off_t offset,
+                struct fuse_file_info *fi)
 {
         int n = 0;
         IOContext *op = FH_TOCONTEXT(fi->fh);
@@ -540,59 +561,81 @@ seek_check:
  *****************************************************************************
  *
  ****************************************************************************/
-static int
-lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+static void sync_thread_read(int *pfd1, int *pfd2)
+{
+       do {
+                errno = 0;
+                WAKE_THREAD(pfd1, 1);
+                WAIT_THREAD(pfd2);
+        } while (errno == EINTR);
+}
+
+static void sync_thread_noread(int *pfd1, int *pfd2)
+{
+        do {
+                errno = 0;
+                WAKE_THREAD(pfd1, 2);
+                WAIT_THREAD(pfd2);
+        } while (errno == EINTR);
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static int lread_rar_idx(char *buf, size_t size, off_t offset, IOContext *op)
+{
+        off_t o = op->buf->idx.data_p->head.offset;
+        size_t s = op->buf->idx.data_p->head.size;
+        off_t off = (offset - o);
+        if (off >= s)
+                return -EIO;
+        size = (off + size) > s
+                ? size - ((off + size) - s)
+                : size;
+        printd(3, "Copying %u bytes from preloaded index information @ %llu\n",
+                                                size, offset);
+        if (op->buf->idx.mmap) {
+                memcpy(buf, op->buf->idx.data_p->bytes + off, size);
+                return size;
+        }
+        return pread(op->buf->idx.fd, buf, size, off + sizeof(IdxHead));
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static int lread_rar(char *buf, size_t size, off_t offset,
+                struct fuse_file_info *fi)
 {
         IOContext *op = FH_TOCONTEXT(fi->fh);
+        int n = 0;
+
         if (!op)
                 return -EIO;
+
+        if ((offset + size) > op->entry_p->stat.st_size) {
+                size = offset < op->entry_p->stat.st_size
+                        ? op->entry_p->stat.st_size - offset
+                        : 0;
+        }
+        if (!size)
+                return 0;
 
         ++op->seq;
         printd(3,
                "PID %05d calling %s(), seq = %d, size=%zu, offset=%llu/%llu\n",
                getpid(), __func__, op->seq, size, offset, op->pos);
 
-        int n = 0;
         errno = 0;
 
         /* Check for exception case */
         if (offset != op->pos) {
                 if (op->buf->idx.data_p != MAP_FAILED &&
-                    offset >= op->buf->idx.data_p->head.offset) {
-                        off_t o = op->buf->idx.data_p->head.offset;
-                        size_t s = op->buf->idx.data_p->head.size;
-                        off_t off = (offset - o);
-                        size = (off + size) > s
-                                ? size - ((off + size) - s)
-                                : size;
-                        printd(3, "Copying data from preloaded index "
-                                                "information @ %llu\n",
-                                                offset);
-                        if (op->buf->idx.mmap) {
-                                memcpy(buf, op->buf->idx.data_p->bytes + off,
-                                                                size);
-                                return size;
-                        } else
-                                return pread(op->buf->idx.fd, buf, size,
-                                                off + sizeof(IdxHead));
-                }
-                /*
-                 * If the initial read is not according to expected offset,
-                 * return best effort. That is, return all zeros according to
-                 * size. If this approach is causing problems for some media
-                 * players turn this feature off.
-                 */
-                if (((offset - op->pos) / (op->entry_p->stat.st_size * 1.0) * 100) > 60
-                    || (offset + size) > op->entry_p->stat.st_size) {
-                        if ((offset + size) > op->entry_p->stat.st_size) {
-                                size = offset < op->entry_p->stat.st_size
-                                        ? op->entry_p->stat.st_size - offset
-                                        : 0;
-                        }
-                        if (size)
-                                memset(buf, 0, size);
-                        return size;
-                }
+                                offset >= op->buf->idx.data_p->head.offset)
+                        return lread_rar_idx(buf, size, offset, op);
+
                 /* Check for backward read */
                 if (offset < op->pos) {
                         off_t delta = op->pos - offset;
@@ -611,16 +654,26 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                                 printd(1, "read: I/O error\n");
                                 return -EIO;
                         }
+                /*
+                 * If the current read is not according to expected offset,
+                 * return best effort. That is, return all zeros according to
+                 * size. If this approach is causing problems for some media
+                 * players turn this feature off.
+                 */
+                } else if (((offset - op->pos) / (op->entry_p->stat.st_size * 1.0) * 100) > 75
+                                || (offset + size) > op->entry_p->stat.st_size) {
+                        memset(buf, 0, size);
+                        return size;
                 }
         }
+
         /*
          * Check if we need to wait for data to arrive.
          * This should not be happening frequently. If it does it is an
          * indication that the I/O buffer is set too small.
          */
-        size = (offset + size) > op->entry_p->stat.st_size
-                ? op->entry_p->stat.st_size - offset
-                : size;
+        if ((offset + size) > op->buf->offset)
+                sync_thread_read(op->pfd1, op->pfd2);
         if ((offset + size) > op->buf->offset) {
                 /*
                  * This is another hack! Some media players, especially VLC,
@@ -634,22 +687,17 @@ lread_rar(char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
                  * this patch neither improves nor reduce playback support.
                  */
 #if 1
-                if (((offset + size) - op->buf->offset) > 100000000 &&
-                    op->buf->idx.data_p == MAP_FAILED) {
+                if (op->seq < 20 && op->buf->idx.data_p == MAP_FAILED) {
                         memset(buf, 0, size);
                         return size;
                 }
 #endif
-                pthread_mutex_lock(&op->mutex);
+                pthread_mutex_lock(&op->mutex); 
                 if (!op->terminate) {   /* make sure thread is running */
                         /* Take control of reader thread */
-                        do {
-                                errno = 0;
-                                WAKE_THREAD(op->pfd1, 2);
-                                WAIT_THREAD(op->pfd2);
-                        } while (errno == EINTR);
+                        sync_thread_noread(op->pfd1, op->pfd2);
                         pthread_mutex_unlock(&op->mutex);
-                        while (!feof(FH_TOFP(op->fh)) &&
+                        while (/*!feof(FH_TOFP(op->fh)) &&*/
                                         (offset + size) > op->buf->offset) {
                                 /* consume buffer */
                                 op->pos += op->buf->used;
@@ -707,9 +755,8 @@ static int lrelease(const char *path, struct fuse_file_info *fi)
  *****************************************************************************
  *
  ****************************************************************************/
-static int
-lread(const char *path,
-      char *buffer, size_t size, off_t offset, struct fuse_file_info *fi)
+static int lread(const char *path, char *buffer, size_t size, off_t offset,
+                struct fuse_file_info *fi)
 {
         ENTER_("%s   size = %zu, offset = %llu", path, size, offset);
         return pread(FH_TOFD(fi->fh), buffer, size, offset);
@@ -870,7 +917,7 @@ static int rar2_getattr2(const char *path, struct stat *stbuf)
  *****************************************************************************
  *
  ****************************************************************************/
-int is_rxx_vol(const char *name)
+static int is_rxx_vol(const char *name)
 {
         size_t len = strlen(name);
         if (name[len - 4] == '.' && name[len - 3] >= 'r' &&
@@ -963,8 +1010,8 @@ static int get_vformat(const char *s, int t, int *l, int *p)
  ****************************************************************************
  *
  ****************************************************************************/
-static int CALLBACK
-extract_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2)
+static int CALLBACK extract_callback(UINT msg, LPARAM UserData,
+                LPARAM P1, LPARAM P2)
 {
         if (msg == UCM_PROCESSDATA) {
                 /*
@@ -994,8 +1041,8 @@ extract_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2)
  *****************************************************************************
  *
  ****************************************************************************/
-static int
-extract_rar(char *arch, const char *file, char *passwd, FILE * fp, void *arg)
+static int extract_rar(char *arch, const char *file, char *passwd, FILE * fp,
+                void *arg)
 {
         int ret = 0;
         struct RAROpenArchiveData d = {
@@ -1069,8 +1116,8 @@ static char *get_password(const char *file, char *buf)
  *****************************************************************************
  *
  ****************************************************************************/
-static void
-set_rarstats(dir_elem_t * entry_p, RARArchiveListEx * alist_p, int force_dir)
+static void set_rarstats(dir_elem_t * entry_p, RARArchiveListEx * alist_p,
+                int force_dir)
 {
         if (!force_dir) {
                 mode_t mode = GET_RAR_MODE(alist_p);
@@ -1147,10 +1194,9 @@ set_rarstats(dir_elem_t * entry_p, RARArchiveListEx * alist_p, int force_dir)
  *****************************************************************************
  *
  ****************************************************************************/
-static int
-listrar_rar(const char *path, dir_entry_list_t **buffer, const char *arch,
-            HANDLE hdl, const RARArchiveListEx *next, const dir_elem_t *entry_p,
-            int need_password)
+static int listrar_rar(const char *path, dir_entry_list_t **buffer,
+                const char *arch, HANDLE hdl, const RARArchiveListEx *next,
+                const dir_elem_t *entry_p, int need_password)
 {
         printd(3, "%llu byte RAR file %s found in archive %s\n",
                GET_RAR_PACK_SZ(next), entry_p->name_p, arch);
@@ -1277,9 +1323,8 @@ file_error:
                         if (*s == 92) *s = '/'; \
         } while(0)
 
-static int
-listrar(const char *path, dir_entry_list_t **buffer, const char *arch,
-        const char *Password)
+static int listrar(const char *path, dir_entry_list_t **buffer,
+                const char *arch, const char *Password)
 {
         ENTER_("%s   arch=%s", path, arch);
         pthread_mutex_lock(&file_access_mutex);
@@ -1509,8 +1554,7 @@ static int f2(SCANDIR_ARG3 e)
  *****************************************************************************
  *
  ****************************************************************************/
-static void
-syncdir_scan(const char* dir, const char* root)
+static void syncdir_scan(const char *dir, const char *root)
 {
         struct dirent **namelist;
         int f;
@@ -1552,8 +1596,7 @@ syncdir_scan(const char* dir, const char* root)
  *****************************************************************************
  *
  ****************************************************************************/
-static int inline
-convert_fake_iso(const char* root, char* name)
+static int inline convert_fake_iso(const char *root, char *name)
 {
         if (OBJ_SET(OBJ_FAKE_ISO)) {
                 int l = OBJ_CNT(OBJ_FAKE_ISO)
@@ -1572,8 +1615,8 @@ convert_fake_iso(const char* root, char* name)
  *****************************************************************************
  *
  ****************************************************************************/
-static void
-readdir_scan(const char* dir, const char* root, dir_entry_list_t **next)
+static void readdir_scan(const char *dir, const char *root,
+                dir_entry_list_t **next)
 {
         struct dirent **namelist;
         int f;
@@ -1594,8 +1637,8 @@ readdir_scan(const char* dir, const char* root, dir_entry_list_t **next)
                 }
                 while (i < n) {
                         if (!f) {
-                                char* tmp = namelist[i]->d_name;
-                                char* tmp2;
+                                char *tmp = namelist[i]->d_name;
+                                char *tmp2;
 #ifdef _DIRENT_HAVE_D_TYPE
                                 tmp2 = NULL;
                                 if (namelist[i]->d_type != DT_LNK) {
@@ -1638,8 +1681,7 @@ next_entry:
  *****************************************************************************
  *
  ****************************************************************************/
-static void
-syncdir(const char *dir)
+static void syncdir(const char *dir)
 {
         ENTER_("%s", dir);
 
@@ -1658,8 +1700,7 @@ syncdir(const char *dir)
  *****************************************************************************
  *
  ****************************************************************************/
-static inline int
-swap(struct dir_entry_list *A, struct dir_entry_list *B)
+static inline int swap(struct dir_entry_list *A, struct dir_entry_list *B)
 {
         if (strcmp(A->entry.name, B->entry.name) > 0) {
                 const struct dir_entry TMP = B->entry;
@@ -1674,8 +1715,7 @@ swap(struct dir_entry_list *A, struct dir_entry_list *B)
  *****************************************************************************
  *
  ****************************************************************************/
-static void
-sortdir(dir_entry_list_t * root, const char *path)
+static void sortdir(dir_entry_list_t * root, const char *path)
 {
         /* Simple bubble sort of directory entries in alphabetical order */
         if (root && root->next) {
@@ -1712,9 +1752,8 @@ sortdir(dir_entry_list_t * root, const char *path)
  *****************************************************************************
  *
  ****************************************************************************/
-static int
-rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
-             off_t offset, struct fuse_file_info *fi)
+static int rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
+                off_t offset, struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
 
@@ -1796,9 +1835,9 @@ fill_buff:
  *****************************************************************************
  *
  ****************************************************************************/
-static int
-rar2_readdir2(const char *path, void *buffer, fuse_fill_dir_t filler,
-              off_t offset, struct fuse_file_info *fi)
+static int rar2_readdir2(const char *path, void *buffer,
+                fuse_fill_dir_t filler, off_t offset,
+                struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
 
@@ -1853,7 +1892,7 @@ static void *reader_task(void *arg)
                 fd_set rd;
                 struct timeval tv;
 
-                tv.tv_sec = 1;
+                tv.tv_sec = 1; 
                 tv.tv_usec = 0;
                 FD_ZERO(&rd);
                 FD_SET(fd, &rd);
@@ -1876,7 +1915,7 @@ static void *reader_task(void *arg)
                 printd(4, "Reader thread wakeup, select()=%d\n", retval);
                 char buf[2];
                 NO_UNUSED_RESULT read(fd, buf, 1);      /* consume byte */
-                if (buf[0] < 2 && !feof(FH_TOFP(op->fh)))
+                if (buf[0] < 2 /*&& !feof(FH_TOFP(op->fh))*/)
                         (void)readTo(op->buf, FH_TOFP(op->fh), IOB_SAVE_HIST);
                 if (buf[0]) {
                         printd(4, "Reader thread acknowledge\n");
@@ -1884,6 +1923,7 @@ static void *reader_task(void *arg)
                         if (write(fd, buf, 1) != 1)
                                 perror("write");
                 }
+#if 0
                 /* Early termination */
                 if (feof(FH_TOFP(op->fh))) {
                         if (!pthread_mutex_trylock(&op->mutex)) {
@@ -1891,6 +1931,7 @@ static void *reader_task(void *arg)
                                 pthread_mutex_unlock(&op->mutex);
                         }
                 }
+#endif
         }
         printd(4, "Reader thread stopped\n");
         pthread_exit(NULL);
@@ -2044,8 +2085,8 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                 op->pos = 0;
                                 op->vno = -1;   /* force a miss 1st time */
                                 if (entry_p->flags.multipart &&
-                                    OBJ_SET(OBJ_PREOPEN_IMG) &&
-                                    entry_p->flags.image) {
+                                                OBJ_SET(OBJ_PREOPEN_IMG) &&
+                                                entry_p->flags.image) {
                                         entry_p->vno_max =
                                             pow_(10, op->entry_p->vlen) + 1;
                                         op->volHdl =
@@ -2105,22 +2146,11 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                         op->pos = 0;
                         FH_SETCONTEXT(&fi->fh, op);
                         printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC",
-                               path, FH_TOCONTEXT(fi->fh));
+                                                path, FH_TOCONTEXT(fi->fh));
                         FH_SETFP(&op->fh, fp);
                         op->pid = pid;
                         printd(4, "PIPE %p created towards child %d\n",
-                               FH_TOFP(op->fh), pid);
-
-                        /*
-                         * Disable flushing the cache of the file contents on every open().
-                         * This is important to make sure FUSE does not force read from
-                         * offset 0 if a RAR file is opened multiple times. It will break
-                         * the logic for compressed/encrypted archives since the I/O context
-                         * will become out-of-sync.
-                         * This should only be enabled on files, where the file data is never
-                         * changed externally (not through the mounted FUSE filesystem).
-                         */
-                        fi->keep_cache = 1;
+                                                FH_TOFP(op->fh), pid);
 
                         /*
                          * Create pipes to be used between threads.
@@ -2142,6 +2172,18 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                         }
 
                         pthread_mutex_init(&op->mutex, NULL);
+
+
+                        /*
+                         * Disable flushing the cache of the file contents on every open().
+                         * This is important to make sure FUSE does not force read from an
+                         * old offset. It could break the logic for compressed/encrypted
+                         * archives since the I/O context will become out-of-sync.
+                         * This should only be enabled on files, where the file data is never
+                         * changed externally (not through the mounted FUSE filesystem).
+                         */
+                        fi->keep_cache = 1;
+                        fi->direct_io = 1;
 
                         /* Create reader thread */
                         op->terminate = 1;
@@ -2311,12 +2353,6 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
         }
         if (FH_ISADDR(fi->fh)) {
                 IOContext *op = FH_TOCONTEXT(fi->fh);
-                if (!op->terminate) {
-                        op->terminate = 1;
-                        WAKE_THREAD(op->pfd1, 2);
-                        pthread_join(op->thread, NULL);
-                }
-                pthread_mutex_destroy(&op->mutex);
                 if (FH_TOFP(op->fh)) {
                         if (op->entry_p->flags.raw) {
                                 if (op->volHdl) {
@@ -2349,16 +2385,22 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                                         }
                                         close(op->mmap_fd);
                                 }
+                                if (!op->terminate) {
+                                        op->terminate = 1;
+                                        WAKE_THREAD(op->pfd1, 0);
+                                        pthread_join(op->thread, NULL);
+                                }
+                                pthread_mutex_destroy(&op->mutex);
                         }
                 }
                 printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "FREE", path, op);
                 if (op->buf) {
                         /* XXX clean up */
-                        if (op->buf->idx.data_p != MAP_FAILED
-                            && op->buf->idx.mmap)
+                        if (op->buf->idx.data_p != MAP_FAILED &&
+                                        op->buf->idx.mmap)
                                 munmap((void *)op->buf->idx.data_p, P_ALIGN_(op->buf->idx.data_p->head.size));
-                        if (op->buf->idx.data_p != MAP_FAILED
-                            && !op->buf->idx.mmap)
+                        if (op->buf->idx.data_p != MAP_FAILED &&
+                                        !op->buf->idx.mmap)
                                 free(op->buf->idx.data_p);
                         if (op->buf->idx.fd != -1)
                                 close(op->buf->idx.fd);
@@ -2379,9 +2421,8 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
  *****************************************************************************
  *
  ****************************************************************************/
-static int
-rar2_read(const char *path, char *buffer, size_t size, off_t offset,
-          struct fuse_file_info *fi)
+static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
+                struct fuse_file_info *fi)
 {
         ENTER_("%s   size=%zu, offset=%llu, fh=%llu", path, size, offset, fi->fh);
         dir_elem_t *entry_p;
@@ -2420,9 +2461,8 @@ static int rar2_truncate(const char *path, off_t offset)
  *****************************************************************************
  *
  ****************************************************************************/
-static int
-rar2_write(const char *path, const char *buffer, size_t size, off_t offset,
-           struct fuse_file_info *fi)
+static int rar2_write(const char *path, const char *buffer, size_t size,
+                off_t offset, struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
         char *root;
@@ -2619,7 +2659,7 @@ static void usage(char *prog)
  *****************************************************************************
  *
  ****************************************************************************/
-int check_paths(char *src_path_in, char *dst_path_in,
+static int check_paths(char *src_path_in, char *dst_path_in,
                 char **src_path_out, char **dst_path_out, int verbose)
 {
         char p1[PATH_MAX];
@@ -2638,14 +2678,15 @@ int check_paths(char *src_path_in, char *dst_path_in,
         /* Check path type(s), destination path *must* be a folder */
         (void)stat(a2, &st);
         if (!S_ISDIR(st.st_mode) ||
-            (mount_type == MOUNT_ARCHIVE && !collect_files(a1, arch_list))) {
+                        (mount_type == MOUNT_ARCHIVE &&
+                        !collect_files(a1, arch_list))) {
                 if (verbose)
                         printf("invalid source and/or mount point\n");
                 return -1;
         }
         /* Do not try to use 'a1' after this call since dirname() will destroy it! */
-        *src_path_out =
-                mount_type == MOUNT_FOLDER ? strdup(a1) : strdup(dirname(a1));
+        *src_path_out = mount_type == MOUNT_FOLDER
+                ? strdup(a1) : strdup(dirname(a1));
         *dst_path_out = strdup(a2);
 
         return 0;
@@ -2655,12 +2696,12 @@ int check_paths(char *src_path_in, char *dst_path_in,
  *****************************************************************************
  *
  ****************************************************************************/
-int check_iob(char *bname, int verbose)
+static int check_iob(char *bname, int verbose)
 {
         unsigned int bsz = OBJ_INT(OBJ_BUFF_SIZE, 0);
         unsigned int hsz = OBJ_INT(OBJ_HIST_SIZE, 0);
-        if ((OBJ_SET(OBJ_BUFF_SIZE) && !bsz) ||
-            (bsz & (bsz - 1)) || (OBJ_SET(OBJ_HIST_SIZE) && (hsz > 75))) {
+        if ((OBJ_SET(OBJ_BUFF_SIZE) && !bsz) || (bsz & (bsz - 1)) ||
+                        (OBJ_SET(OBJ_HIST_SIZE) && (hsz > 75))) {
                 if (verbose)
                         usage(bname);
                 return -1;
@@ -2672,7 +2713,7 @@ int check_iob(char *bname, int verbose)
  *****************************************************************************
  *
  ****************************************************************************/
-int check_libunrar(int verbose)
+static int check_libunrar(int verbose)
 {
         if (RARGetDllVersion() != RAR_DLL_VERSION) {
                 if (verbose) {
@@ -2693,7 +2734,7 @@ int check_libunrar(int verbose)
  *****************************************************************************
  *
  ****************************************************************************/
-int check_libfuse(int verbose)
+static int check_libfuse(int verbose)
 {
         if (fuse_version() < FUSE_VERSION) {
                 if (verbose)
@@ -2914,7 +2955,7 @@ int main(int argc, char *argv[])
 {
         int res = 0;
 
-        /*openlog("rarfs2",LOG_NOWAIT|LOG_PID, 0); */
+        /*openlog("rarfs2", LOG_NOWAIT|LOG_PID, 0); */
         configdb_init();
 
         long ps = -1;
@@ -2985,16 +3026,15 @@ int main(int argc, char *argv[])
                 }
 
                 /* Check I/O buffer and history size */
-                if (check_iob(*argv, 1)) {
+                if (check_iob(*argv, 1))
                         return -1;
-                }
 
                 /* Check src/dst path */
                 char *dst_path;
                 char *src_path;
-                if (check_paths(argv[optind], argv[optind + 1], &src_path, &dst_path, 1)) {
+                if (check_paths(argv[optind], argv[optind + 1], &src_path, &dst_path, 1))
                         return -1;
-                }
+
                 collect_obj(OBJ_SRC, src_path);
                 collect_obj(OBJ_DST, dst_path);
                 free(src_path);
