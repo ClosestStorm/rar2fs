@@ -53,8 +53,7 @@
 #endif
 #endif
 
-static void
-stack_trace(int sig, siginfo_t *info, void *secret)
+static void stack_trace(int sig, siginfo_t *info, void *secret)
 {
         ucontext_t *uc = (ucontext_t *)secret;
 
@@ -105,11 +104,10 @@ stack_trace(int sig, siginfo_t *info, void *secret)
 
 int glibc_test = 0;
 
-static RETSIGTYPE
 #ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
-sig_handler(int signum, siginfo_t *info, void* secret)
+static RETSIGTYPE sig_handler(int signum, siginfo_t *info, void* secret)
 #else
-sig_handler(int signum)
+static RETSIGTYPE sig_handler(int signum)
 #endif
 {
         switch(signum)
@@ -144,8 +142,7 @@ sig_handler(int signum)
  *****************************************************************************
  *
  ****************************************************************************/
-void
-sighandler_init()
+void sighandler_init()
 {
         struct sigaction act;
 
@@ -191,8 +188,7 @@ sighandler_init()
  *****************************************************************************
  *
  ****************************************************************************/
-void
-sighandler_destroy()
+void sighandler_destroy()
 {
 }
 

@@ -42,8 +42,7 @@ size_t iob_sz = 0;
  *****************************************************************************
  *
  ****************************************************************************/
-size_t
-readTo(IoBuf* dest, FILE* fp, int hist)
+size_t readTo(IoBuf* dest, FILE* fp, int hist)
 {
         unsigned tot = 0;
         unsigned int lri = dest->ri;  /* read once */
@@ -59,7 +58,7 @@ readTo(IoBuf* dest, FILE* fp, int hist)
         while (left > 0) {
                 size_t n = fread(dest->data_p + lwi, 1, chunk, fp);
                 if (n != chunk) {
-                        if (n == -1) {
+                        if (ferror(fp)) {
                                 perror("read");
                                 break;
                         }
@@ -84,8 +83,7 @@ readTo(IoBuf* dest, FILE* fp, int hist)
  *****************************************************************************
  *
  ****************************************************************************/
-size_t
-readFrom(char* dest, IoBuf* src, size_t size, size_t off)
+size_t readFrom(char* dest, IoBuf* src, size_t size, size_t off)
 {
         size_t tot = 0;
         unsigned int lri = src->ri; /* read once */
@@ -119,8 +117,7 @@ readFrom(char* dest, IoBuf* src, size_t size, size_t off)
  *****************************************************************************
  *
  ****************************************************************************/
-size_t
-copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
+size_t copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
 {
         size_t used = src->used;
 
@@ -143,8 +140,7 @@ copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
  *****************************************************************************
  *
  ****************************************************************************/
-void
-iobuffer_init()
+void iobuffer_init()
 {
         int bsz = OBJ_INT(OBJ_BUFF_SIZE,0);
         iob_sz = bsz ? (bsz * 1024 * 1024) : IOB_SZ_DEFAULT;
@@ -156,8 +152,7 @@ iobuffer_init()
  *****************************************************************************
  *
  ****************************************************************************/
-void
-iobuffer_destroy()
+void iobuffer_destroy()
 {
 }
 

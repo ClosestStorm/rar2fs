@@ -81,10 +81,11 @@ Normally the RAR specific header(s) describing the files contained in a volume i
 The lower the value (starting from 1) the faster the display of folders containing a lot of RAR volumes (or volumes with a lot of files) will become since the number of open/search/close requests can be reduced.
 .TP
 .B --seek-depth=n
-set number of levels down RAR files are parsed inside main archive [0=Off]
+set number of levels down RAR files are parsed inside main archive [1]
 .br
 
-Currently only a depth of one (1) is supported. Setting seek depth to anything greater than this has no effect.
+Currently only a depth of one (1) is supported. Setting seek depth to anything greater than this has no effect. 
+Set to 0 to turn this feature off.
 .TP
 .B --no-idx-mmap
 use direct file I/O instead of mmap() for .r2i files

@@ -1,17 +1,26 @@
 rar2fs ChangeLog file.
 
+2011-12-21  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Setting seek depth to 1 by default
+
+        * Now closing pipe(s) _after_ terminating reader thread to 
+          avoid a bad file descriptor error on write.
+
+        * Some additional code re-structuring.
+
 2011-12-20  Hans Beckerus <hans.beckerus@gmail.com>
 
-         * Removed the pre-mature checks for EOF to avoid some
-           theoretical short byte item counts.
+        * Removed the pre-mature checks for EOF to avoid some
+          theoretical short byte item counts.
        
-         * Enabled the 'direct_io' flag for compressed/encrypted
-           data streams to work around some file system cache
-           issues.
+        * Enabled the 'direct_io' flag for compressed/encrypted
+          data streams to work around some file system cache
+          issues.
 
-         * Fixed a bug from previous version that could cause
-           rarf2s to crash at file release due to an invalid
-           thread handle.
+        * Fixed a bug from previous version that could cause
+          rarf2s to crash at file release due to an invalid
+          thread handle.
 
 2011-12-14  Hans Beckerus <hans.beckerus@gmail.com>
 

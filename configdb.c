@@ -94,8 +94,7 @@ CfgObj* config_objects_ = &config_objects[0];
  *****************************************************************************
  *
  ****************************************************************************/
-int
-collect_obj(int obj, char* s)
+int collect_obj(int obj, char* s)
 {
         char* s1 = NULL;
 
@@ -184,8 +183,7 @@ collect_obj(int obj, char* s)
  *****************************************************************************
  *
  ****************************************************************************/
-static void
-reset_obj(int obj, int init)
+static void reset_obj(int obj, int init)
 {
         if (obj < 0 || obj >= MAX_NOF_CFG_OBJ)
                 return;
@@ -199,6 +197,10 @@ reset_obj(int obj, int init)
                         ADD_OBJ_(OBJ_IMG_TYPE, ".img", OBJ_STR_);
                         ADD_OBJ_(OBJ_IMG_TYPE, ".nrg", OBJ_STR_);
                         break;
+                case OBJ_SEEK_DEPTH:
+                        OBJ_(OBJ_SEEK_DEPTH)->is_set = 1;
+                        ADD_OBJ_(OBJ_SEEK_DEPTH, "1", OBJ_INT_);
+                        break;
                 default:
                         break;
                 }
@@ -209,8 +211,7 @@ reset_obj(int obj, int init)
  *****************************************************************************
  *
  ****************************************************************************/
-void
-configdb_init()
+void configdb_init()
 {
         int i = MAX_NOF_CFG_OBJ;
         while (i--)
@@ -221,8 +222,7 @@ configdb_init()
  *****************************************************************************
  *
  ****************************************************************************/
-void
-configdb_destroy()
+void configdb_destroy()
 {
         int i = MAX_NOF_CFG_OBJ;
         while (i--)
@@ -238,8 +238,7 @@ configdb_destroy()
  *****************************************************************************
  *
  ****************************************************************************/
-static inline int
-get_ext_len(char* s)
+static inline int get_ext_len(char* s)
 {
         char* s1 = s+strlen(s);
         while (s1 != s && *s1 != '.')

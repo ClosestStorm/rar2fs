@@ -46,8 +46,7 @@ typedef enum {
  *****************************************************************************
  *
  ****************************************************************************/
-static inline int
-count_c(char c, char* s)
+static inline int count_c(char c, char* s)
 {
         int cnt = 0;
         while(*s) {
@@ -61,8 +60,7 @@ count_c(char c, char* s)
  *****************************************************************************
  *
  ****************************************************************************/
-static void
-parse_riff(IdxHead* h, FILE* fp, off_t sz)
+static void parse_riff(IdxHead* h, FILE* fp, off_t sz)
 {
         char s[256];
         char* needle = NULL;
@@ -108,8 +106,7 @@ parse_riff(IdxHead* h, FILE* fp, off_t sz)
  *****************************************************************************
  *
  ****************************************************************************/
-static void
-parse_ebml(IdxHead* h, FILE* fp, off_t sz)
+static void parse_ebml(IdxHead* h, FILE* fp, off_t sz)
 {
         char s[256];
         char* needle = NULL;
@@ -161,8 +158,7 @@ parse_ebml(IdxHead* h, FILE* fp, off_t sz)
  *****************************************************************************
  *
  ****************************************************************************/
-static char*
-map_file(int fd, size_t size)
+static char *map_file(int fd, size_t size)
 {
 #ifdef HAVE_LOCKF
         if (lockf(fd, F_TLOCK, 0) == -1)
