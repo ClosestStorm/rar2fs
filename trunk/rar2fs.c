@@ -692,7 +692,7 @@ static int lread_rar(char *buf, size_t size, off_t offset,
                         return size;
                 }
 #endif
-                pthread_mutex_lock(&op->mutex); 
+                pthread_mutex_lock(&op->mutex);
                 if (!op->terminate) {   /* make sure thread is running */
                         /* Take control of reader thread */
                         sync_thread_noread(op->pfd1, op->pfd2);
@@ -1892,7 +1892,7 @@ static void *reader_task(void *arg)
                 fd_set rd;
                 struct timeval tv;
 
-                tv.tv_sec = 1; 
+                tv.tv_sec = 1;
                 tv.tv_usec = 0;
                 FD_ZERO(&rd);
                 FD_SET(fd, &rd);
@@ -2066,8 +2066,8 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
         IOContext *op = NULL;
         pid_t pid = 0;
 
-        if (entry_p->flags.raw) {
-                if (!FH_ISSET(fi->fh)) {
+        if (!FH_ISSET(fi->fh)) {
+                if (entry_p->flags.raw) {
                         FILE *fp = fopen(entry_p->rar_p, "r");
                         if (fp != NULL) {
                                 op = malloc(sizeof(IOContext));
@@ -2083,7 +2083,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                 op->seq = 0;
                                 op->buf = NULL;
                                 op->pos = 0;
-                                op->vno = -1;   /* force a miss 1st time */
+                                op->vno = -1;   /* force a miss 1:st time */
                                 if (entry_p->flags.multipart &&
                                                 OBJ_SET(OBJ_PREOPEN_IMG) &&
                                                 entry_p->flags.image) {
@@ -2112,12 +2112,13 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                                 printd(1, "Failed to allocate resource (%u)\n", __LINE__);
                                 } else
                                         op->volHdl = NULL;
+
                                 goto open_end;
                         }
+
                         goto open_error;
                 }
-        }
-        if (!FH_ISSET(fi->fh)) {
+
                 void *mmap_addr = NULL;
                 FILE *mmap_fp = NULL;
                 int mmap_fd = 0;
@@ -2181,8 +2182,20 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                          * archives since the I/O context will become out-of-sync.
                          * This should only be enabled on files, where the file data is never
                          * changed externally (not through the mounted FUSE filesystem).
+                         * But first see 'direct_io' below.
                          */
                         fi->keep_cache = 1;
+
+                        /*
+                         * The below will take precedence over keep_cache.
+                         * This flag will allow the filesystem to bypass the page cache using
+                         * the "direct_io" flag.  This is not the same as O_DIRECT, it's
+                         * dictated by the filesystem not the application.
+                         * Since compressed archives might sometimes require fake data to be
+                         * returned in read requests, a cache might cause the same faulty
+                         * information to be propagated to sub-sequent reads. Setting this
+                         * flag will force _all_ reads to enter the filesystem.
+                         */
                         fi->direct_io = 1;
 
                         /* Create reader thread */
@@ -2190,11 +2203,12 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                         pthread_create(&op->thread, &thread_attr, reader_task, (void *)op);
                         while (op->terminate);
                         WAKE_THREAD(op->pfd1, 0);
+
                         goto open_end;
                 }
+
                 goto open_error;
         }
-        goto open_end;
 
  open_error:
         if (fp)
@@ -2366,6 +2380,11 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                                 fclose(FH_TOFP(op->fh));
                                 printd(3, "Closing file handle %p\n", FH_TOFP(op->fh));
                         } else {
+                                if (!op->terminate) {
+                                        op->terminate = 1;
+                                        WAKE_THREAD(op->pfd1, 0);
+                                        pthread_join(op->thread, NULL);
+                                }
                                 close(op->pfd1[0]);
                                 close(op->pfd1[1]);
                                 close(op->pfd2[0]);
@@ -2384,11 +2403,6 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                                                         free(op->mmap_addr);
                                         }
                                         close(op->mmap_fd);
-                                }
-                                if (!op->terminate) {
-                                        op->terminate = 1;
-                                        WAKE_THREAD(op->pfd1, 0);
-                                        pthread_join(op->thread, NULL);
                                 }
                                 pthread_mutex_destroy(&op->mutex);
                         }

@@ -65,8 +65,7 @@ get_hash(const char* s)
  *****************************************************************************
  *
  ****************************************************************************/
-dir_elem_t*
-cache_path_alloc(const char* path)
+dir_elem_t *cache_path_alloc(const char* path)
 {
         dir_elem_t* p = &path_cache[get_hash(path)];
         if (p->rar_p) {
@@ -88,8 +87,7 @@ cache_path_alloc(const char* path)
  *****************************************************************************
  *
  ****************************************************************************/
-dir_elem_t*
-cache_path_get(const char* path)
+dir_elem_t *cache_path_get(const char* path)
 {
         int hash = get_hash(path);
         dir_elem_t* p = &path_cache[hash];
@@ -105,8 +103,7 @@ cache_path_get(const char* path)
  *****************************************************************************
  *
  ****************************************************************************/
-dir_elem_t*
-cache_path(const char* path, struct stat *stbuf)
+dir_elem_t *cache_path(const char* path, struct stat *stbuf)
 {
         dir_elem_t* e_p = cache_path_get(path);
         if (e_p && !e_p->flags.fake_iso) {
@@ -175,8 +172,7 @@ cache_path(const char* path, struct stat *stbuf)
  *****************************************************************************
  *
  ****************************************************************************/
-void
-inval_cache_path(const char* path)
+void inval_cache_path(const char* path)
 {
         int i;
         if (path) {
@@ -228,8 +224,7 @@ inval_cache_path(const char* path)
  *****************************************************************************
  *
  ****************************************************************************/
-void
-filecache_init()
+void filecache_init()
 {
         memset(path_cache, 0, sizeof(dir_elem_t)*PATH_CACHE_SZ);
         pthread_mutex_init(&file_access_mutex, NULL);
@@ -239,8 +234,7 @@ filecache_init()
  *****************************************************************************
  *
  ****************************************************************************/
-void
-filecache_destroy()
+void filecache_destroy()
 {
         pthread_mutex_destroy(&file_access_mutex);
 }
