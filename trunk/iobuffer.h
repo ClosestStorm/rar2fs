@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
+    Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ typedef struct {
         volatile size_t ri;
         volatile size_t wi;
         size_t used;
-        char data_p[];
+        uint8_t data_p[];
 } IoBuf;
 
 

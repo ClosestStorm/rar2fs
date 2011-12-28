@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
+    Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,6 +31,6 @@
 
 #define RAR2FS_MAJOR_VER   1
 #define RAR2FS_MINOR_VER   13
-#define RAR2FS_PATCH_LVL   23
+#define RAR2FS_PATCH_LVL   24
 
 #endif
