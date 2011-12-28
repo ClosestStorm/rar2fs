@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
+    Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -59,7 +59,10 @@ struct dir_elem {
                 unsigned int image:1;
                 unsigned int fake_iso:1;
                 unsigned int mmap:2;
-                unsigned int :26;
+                unsigned int :23;
+                unsigned int direct_io:1;
+                unsigned int avi_tested:1;
+                unsigned int save_eof:1;
         } flags;
         struct dir_elem* next_p;
 };

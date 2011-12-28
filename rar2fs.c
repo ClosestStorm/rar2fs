@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
+    Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -160,12 +160,21 @@ static void syncdir(const char *dir);
 static int  extract_rar(char *arch, const char *file, char *passwd, FILE * fp,
                         void *arg);
 
+struct eof_data {
+        off_t toff;
+        off_t coff;
+        size_t size;
+        int fd;
+};
+static int extract_index(const dir_elem_t *entry_p, off_t offset);
+static int preload_index(IoBuf *buf, const char *path);
+
 /*!
  *****************************************************************************
  *
  ****************************************************************************/
-static void *extract_to(const char *file, off_t sz, FILE * fp,
-                const dir_elem_t * entry_p, int oper)
+static void *extract_to(const char *file, off_t sz, FILE *fp,
+                const dir_elem_t *entry_p, int oper)
 {
         ENTER_("%s", file);
 
@@ -372,7 +381,7 @@ error:
  *****************************************************************************
  *
  ****************************************************************************/
-static int pclose_(FILE * fp, pid_t pid)
+static int pclose_(FILE *fp, pid_t pid)
 {
         int status;
         fclose(fp);
@@ -593,13 +602,16 @@ static int lread_rar_idx(char *buf, size_t size, off_t offset, IOContext *op)
         size = (off + size) > s
                 ? size - ((off + size) - s)
                 : size;
-        printd(3, "Copying %u bytes from preloaded index information @ %llu\n",
+        printd(3, "Copying %u bytes from preloaded offset @ %llu\n",
                                                 size, offset);
         if (op->buf->idx.mmap) {
                 memcpy(buf, op->buf->idx.data_p->bytes + off, size);
                 return size;
         }
-        return pread(op->buf->idx.fd, buf, size, off + sizeof(IdxHead));
+        size = (size_t)pread(op->buf->idx.fd, buf, size, off + sizeof(IdxHead));
+        if ((ssize_t)size == -1)
+                return -errno;
+        return size;
 }
 
 /*!
@@ -632,6 +644,7 @@ static int lread_rar(char *buf, size_t size, off_t offset,
 
         /* Check for exception case */
         if (offset != op->pos) {
+check_idx:
                 if (op->buf->idx.data_p != MAP_FAILED &&
                                 offset >= op->buf->idx.data_p->head.offset)
                         return lread_rar_idx(buf, size, offset, op);
@@ -655,13 +668,31 @@ static int lread_rar(char *buf, size_t size, off_t offset,
                                 return -EIO;
                         }
                 /*
-                 * If the current read is not according to expected offset,
-                 * return best effort. That is, return all zeros according to
-                 * size. If this approach is causing problems for some media
-                 * players turn this feature off.
+                 * Early reads at offsets reaching the last few percent of the
+                 * file is most likely a request for index information.
                  */
-                } else if (((offset - op->pos) / (op->entry_p->stat.st_size * 1.0) * 100) > 75
-                                || (offset + size) > op->entry_p->stat.st_size) {
+                } else if ((((offset - op->pos) / (op->entry_p->stat.st_size * 1.0) * 100) > 95.0 &&
+                                op->seq > 1 && op->seq < 15) ||
+                                (offset + size) > op->entry_p->stat.st_size) {
+                        op->seq--;      /* pretend it never happened */
+
+                        /*
+                         * If enabled, attempt to extract the index information
+                         * based on the offset. If that fails fall-back to best
+                         * effort. That is, return all zeros according to size.
+                         * In the latter case also force direct I/O since
+                         * otherwise the fake data might propagate incorrectly
+                         * to sub-sequent reads.
+                         */
+                        if (op->entry_p->flags.save_eof) {
+                                op->entry_p->flags.save_eof = 0;
+                                if (!extract_index(op->entry_p, offset)) {
+                                        if (!preload_index(op->buf, op->entry_p->name_p))
+                                                goto check_idx;
+                                }
+                        }
+                        fi->direct_io = 1;
+                        op->entry_p->flags.direct_io = 1;
                         memset(buf, 0, size);
                         return size;
                 }
@@ -676,22 +707,22 @@ static int lread_rar(char *buf, size_t size, off_t offset,
                 sync_thread_read(op->pfd1, op->pfd2);
         if ((offset + size) > op->buf->offset) {
                 /*
-                 * This is another hack! Some media players, especially VLC,
-                 * seems to "deviate" and many times requests a second
-                 * read far beyond the current offset. This is rendering the
-                 * stream completely useless for continued playback.
-                 * By checking the distance of the jump this effect can in
-                 * most cases be worked around. For VLC this might result in
-                 * an incorrectly reported media length and thus jumping in
-                 * the stream will not be possible! WMP fails in any case so
-                 * this patch neither improves nor reduce playback support.
+                 * This is another hack! At this point an early read far beyond
+                 * the current stream position is most likely bogus. We can not
+                 * blindly take the jump here since it would render the stream
+                 * completely useless for continued playback. If the jump is
+                 * too far off, again fall-back to best effort. Also making
+                 * sure direct I/O is forced from now on to not cause any fake
+                 * data to propage to sub-sequent reads.
                  */
-#if 1
-                if (op->seq < 20 && op->buf->idx.data_p == MAP_FAILED) {
+                if (op->seq > 1 && op->seq < 20 &&
+                                ((offset + size) - op->buf->offset) > IOB_SZ) {
+                        fi->direct_io = 1;
+                        op->entry_p->flags.direct_io = 1;
                         memset(buf, 0, size);
                         return size;
                 }
-#endif
+
                 pthread_mutex_lock(&op->mutex);
                 if (!op->terminate) {   /* make sure thread is running */
                         /* Take control of reader thread */
@@ -828,7 +859,7 @@ static void dump_stat(struct stat *stbuf)
  *****************************************************************************
  *
  ****************************************************************************/
-static int collect_files(const char *arch, dir_entry_list_t * list)
+static int collect_files(const char *arch, dir_entry_list_t *list)
 {
         RAROpenArchiveDataEx d;
         int files = 0;
@@ -1010,6 +1041,111 @@ static int get_vformat(const char *s, int t, int *l, int *p)
  ****************************************************************************
  *
  ****************************************************************************/
+static int CALLBACK index_callback(UINT msg, LPARAM UserData,
+                LPARAM P1, LPARAM P2)
+{
+        struct eof_data *eofd = (struct eof_data *)UserData;
+
+        if (msg == UCM_PROCESSDATA) {
+                /*
+                 * We do not need to handle the case that not all data is
+                 * written after return from write() since the pipe is not
+                 * opened using the O_NONBLOCK flag.
+                 */
+                if (eofd->coff != eofd->toff) {
+                        eofd->coff += P2;
+                        if (eofd->coff > eofd->toff) {
+                                off_t delta = eofd->coff - eofd->toff;
+                                if (delta < P2) {
+                                        eofd->coff -= delta;
+                                        P1 = (LPARAM)((void*)P1 + (P2 - delta));
+                                        P2 = delta;
+                                }
+                        }
+                }
+                if (eofd->coff == eofd->toff) {
+                        eofd->size += P2;
+                        write(eofd->fd, (char*)P1, P2);
+                        fdatasync(eofd->fd);      /* XXX needed!? */
+                        eofd->toff += P2;
+                        eofd->coff = eofd->toff;
+                }
+
+        }
+        if (msg == UCM_CHANGEVOLUME) {
+                return access((char*)P1, F_OK);
+        }
+        return 0;
+}
+
+/*!
+ ****************************************************************************
+ *
+ ****************************************************************************/
+static int extract_index(const dir_elem_t *entry_p, off_t offset)
+{
+        int e = ERAR_BAD_DATA;
+        struct RAROpenArchiveData d =
+                {entry_p->rar_p, RAR_OM_EXTRACT, ERAR_EOPEN, NULL, 0, 0, 0};
+        struct RARHeaderData header;
+        HANDLE hdl = 0;
+        IdxHead head = {R2I_MAGIC, 0, };
+        char *r2i;
+
+        struct eof_data eofd;
+        eofd.toff = offset;
+        eofd.coff = 0;
+        eofd.size = 0;
+
+        ABS_ROOT(r2i, entry_p->name_p);
+        strcpy(&r2i[strlen(r2i) - 3], "r2i");
+
+        eofd.fd = open(r2i, O_WRONLY|O_CREAT|O_EXCL, 0644); // XXX use S_XXX
+        if (eofd.fd == -1)
+                goto index_error;
+        lseek(eofd.fd, sizeof(IdxHead), SEEK_SET);
+
+        hdl = RAROpenArchive(&d);
+        if (!hdl || d.OpenResult)
+                goto index_error;
+
+        if (entry_p->password_p && strlen(entry_p->password_p))
+                RARSetPassword(hdl, entry_p->password_p);
+
+        header.CmtBufSize = 0;
+        RARSetCallback(hdl, index_callback, (LPARAM)&eofd);
+        while (1) {
+                if (RARReadHeader(hdl, &header))
+                        break;
+                /* We won't extract subdirs */
+                if (IS_RAR_DIR(&header) ||
+                        strcmp(header.FileName, entry_p->file_p)) {
+                                if (RARProcessFile(hdl, RAR_SKIP, NULL, NULL))
+                                        break;
+                } else {
+                        e = RARProcessFile(hdl, RAR_TEST, NULL, NULL);
+                        if (!e) {
+                                head.offset = offset;
+                                head.size = eofd.size;
+                                lseek(eofd.fd, (off_t)0, SEEK_SET);
+                                write(eofd.fd, (void*)&head, sizeof(IdxHead));
+                        }
+                        break;
+                }
+        }
+
+index_error:
+        if (eofd.fd != -1)
+                close(eofd.fd);
+        if (hdl)
+                RARCloseArchive(hdl);
+        return e ? -1 : 0;
+}
+
+/*!
+ ****************************************************************************
+ *
+ ****************************************************************************/
 static int CALLBACK extract_callback(UINT msg, LPARAM UserData,
                 LPARAM P1, LPARAM P2)
 {
@@ -1031,9 +1167,9 @@ static int CALLBACK extract_callback(UINT msg, LPARAM UserData,
                         return -1;
                 }
         }
-        if (msg == UCM_CHANGEVOLUME) {
+        if (msg == UCM_CHANGEVOLUME)
                 return access((char *)P1, F_OK);
-        }
+
         return 0;
 }
 
@@ -1041,7 +1177,7 @@ static int CALLBACK extract_callback(UINT msg, LPARAM UserData,
  *****************************************************************************
  *
  ****************************************************************************/
-static int extract_rar(char *arch, const char *file, char *passwd, FILE * fp,
+static int extract_rar(char *arch, const char *file, char *passwd, FILE *fp,
                 void *arg)
 {
         int ret = 0;
@@ -1100,23 +1236,17 @@ static char *get_password(const char *file, char *buf)
                         return buf;
                 }
         }
-        /*
-         * If no .pwd file is found return some default dummy
-         * password string.
-         */
-        buf[0] = '?';
-        buf[1] = '\0';
-        return buf;
+        return NULL;
 }
 #else
-#define get_password(a, b) "?\0"
+#define get_password(a, b) (NULL)
 #endif
 
 /*!
  *****************************************************************************
  *
  ****************************************************************************/
-static void set_rarstats(dir_elem_t * entry_p, RARArchiveListEx * alist_p,
+static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
                 int force_dir)
 {
         if (!force_dir) {
@@ -1283,8 +1413,9 @@ static int listrar_rar(const char *path, dir_entry_list_t **buffer,
                                         entry2_p->offset = (next->Offset + next->HeadSize);
                                         entry2_p->flags.mmap = mflags;
                                         entry2_p->msize = msize;
-                                        entry2_p-> flags.multipart = 0;
+                                        entry2_p->flags.multipart = 0;
                                         entry2_p->flags.raw = 0;
+                                        entry2_p->flags.save_eof = 0;
                                         set_rarstats(entry2_p, next2, 0);
                                 }
                                 if (buffer)
@@ -1297,13 +1428,13 @@ static int listrar_rar(const char *path, dir_entry_list_t **buffer,
         RARFreeArchive(hdl2);
 
 file_error:
-        if (fp) fclose(fp);
+        if (fp)
+                fclose(fp);
         if (maddr != MAP_FAILED) {
-                if (mflags == 1) {
+                if (mflags == 1)
                         munmap(maddr, P_ALIGN_(msize));
-                } else {
+                else
                         free(maddr);
-                }
         }
 
         return hdl2 ? 1 : 0;
@@ -1492,6 +1623,8 @@ static int listrar(const char *path, dir_entry_list_t **buffer,
                                         }
                                 } else {
                                         entry_p->flags.raw = 0;
+                                        entry_p->flags.save_eof =
+                                                OBJ_SET(OBJ_SAVE_EOF) ? 1 : 0;
                                 }
                         } else {
                                 entry_p->flags.multipart = 0;
@@ -1500,6 +1633,11 @@ static int listrar(const char *path, dir_entry_list_t **buffer,
                 } else {        /* Compressed and/or Encrypted */
 
                         entry_p->flags.raw = 0;
+                        if (!NEED_PASSWORD())
+                                entry_p->flags.save_eof =
+                                        OBJ_SET(OBJ_SAVE_EOF) ? 1 : 0;
+                         else
+                                entry_p->flags.save_eof = 0;
                         /* Check if part of a volume */
                         if (MainHeaderFlags & MHD_VOLUME) {
                                 entry_p->flags.multipart = 1;
@@ -1715,7 +1853,7 @@ static inline int swap(struct dir_entry_list *A, struct dir_entry_list *B)
  *****************************************************************************
  *
  ****************************************************************************/
-static void sortdir(dir_entry_list_t * root, const char *path)
+static void sortdir(dir_entry_list_t *root, const char *path)
 {
         /* Simple bubble sort of directory entries in alphabetical order */
         if (root && root->next) {
@@ -1891,7 +2029,6 @@ static void *reader_task(void *arg)
         while (!op->terminate) {
                 fd_set rd;
                 struct timeval tv;
-
                 tv.tv_sec = 1;
                 tv.tv_usec = 0;
                 FD_ZERO(&rd);
@@ -1941,13 +2078,13 @@ static void *reader_task(void *arg)
  *****************************************************************************
  *
  ****************************************************************************/
-static void preload_index(IoBuf * buf, const char *path)
+static int preload_index(IoBuf *buf, const char *path)
 {
         ENTER_("%s", path);
 
         /* check for .avi or .mkv */
         if (!IS_AVI(path) && !IS_MKV(path))
-                return;
+                return -1;
 
         char *r2i;
         ABS_ROOT(r2i, path);
@@ -1957,24 +2094,25 @@ static void preload_index(IoBuf * buf, const char *path)
         buf->idx.data_p = MAP_FAILED;
         int fd = open(r2i, O_RDONLY);
         if (fd == -1) {
-                return;
+                return -1;
         }
 #ifdef HAVE_MMAP
         if (!OBJ_SET(OBJ_NO_IDX_MMAP)) {
                 /* Map the file into address space (1st pass) */
                 IdxHead *h =
                     (IdxHead *)mmap(NULL, sizeof(IdxHead), PROT_READ, MAP_SHARED, fd, 0);
-                if (h == MAP_FAILED) {
+                if (h == MAP_FAILED || h->magic != R2I_MAGIC) {
                         close(fd);
-                        return;
+                        return -1;
                 }
-                /* Map the file into address space (2st pass) */
+
+                /* Map the file into address space (2nd pass) */
                 buf->idx.data_p =
                     (void *)mmap(NULL, P_ALIGN_(h->size), PROT_READ, MAP_SHARED, fd, 0);
                 munmap((void *)h, sizeof(IdxHead));
                 if (buf->idx.data_p == MAP_FAILED) {
                         close(fd);
-                        return;
+                        return -1;
                 }
                 buf->idx.mmap = 1;
         } else
@@ -1983,12 +2121,13 @@ static void preload_index(IoBuf * buf, const char *path)
                 buf->idx.data_p = malloc(sizeof(IdxData));
                 if (!buf->idx.data_p) {
                         buf->idx.data_p = MAP_FAILED;
-                        return;
+                        return -1;
                 }
                 NO_UNUSED_RESULT read(fd, buf->idx.data_p, sizeof(IdxHead));
                 buf->idx.mmap = 0;
         }
         buf->idx.fd = fd;
+        return 0;
 }
 
 /*!
@@ -2007,13 +2146,96 @@ static inline int pow_(int b, int n)
  *****************************************************************************
  *
  ****************************************************************************/
+
+#define LE_BYTES_TO_W32(b) \
+        *((b)+3) * 16777216 + *((b)+2) * 65537 + *((b)+1) * 256 + *(b)
+
+static int check_avi_type(IOContext *op)
+{
+        uint32_t off = 0;
+        uint32_t off_end = 0;
+        uint32_t len = 0;
+        uint32_t first_fc = 0;
+
+        sleep(1);
+        if (!(op->buf->data_p[off + 0] == 'R' &&
+              op->buf->data_p[off + 1] == 'I' &&
+              op->buf->data_p[off + 2] == 'F' &&
+              op->buf->data_p[off + 3] == 'F')) {
+                return -1;
+        }
+        off += 8;
+        if (!(op->buf->data_p[off + 0] == 'A' &&
+              op->buf->data_p[off + 1] == 'V' &&
+              op->buf->data_p[off + 2] == 'I' &&
+              op->buf->data_p[off + 3] == ' ')) {
+                return -1;
+        }
+        off += 4;
+        if (!(op->buf->data_p[off + 0] == 'L' &&
+              op->buf->data_p[off + 1] == 'I' &&
+              op->buf->data_p[off + 2] == 'S' &&
+              op->buf->data_p[off + 3] == 'T')) {
+                return -1;
+        }
+        off += 4;
+        len = LE_BYTES_TO_W32(op->buf->data_p + off);
+
+        /* Search ends here */
+        off_end = len + 20;
+
+        /* Locate the AVI header and extract frame count. */
+        off += 8;
+        if (!(op->buf->data_p[off + 0] == 'a' &&
+              op->buf->data_p[off + 1] == 'v' &&
+              op->buf->data_p[off + 2] == 'i' &&
+              op->buf->data_p[off + 3] == 'h')) {
+                return -1;
+        }
+        off += 4;
+        len = LE_BYTES_TO_W32(op->buf->data_p + off);
+
+        /* The frame count will be compared with a possible multi-part
+         * OpenDML (AVI 2.0) to detect a badly configured muxer. */
+        off += 4;
+        first_fc = LE_BYTES_TO_W32(op->buf->data_p + off + 16);
+
+        off += len;
+        for (; off < off_end; off += len) {
+                off += 4;
+                len = LE_BYTES_TO_W32(op->buf->data_p + off);
+                off += 4;
+                if (op->buf->data_p[off + 0] == 'o' &&
+                    op->buf->data_p[off + 1] == 'd' &&
+                    op->buf->data_p[off + 2] == 'm' &&
+                    op->buf->data_p[off + 3] == 'l' &&
+                    op->buf->data_p[off + 4] == 'd' &&
+                    op->buf->data_p[off + 5] == 'm' &&
+                    op->buf->data_p[off + 6] == 'l' &&
+                    op->buf->data_p[off + 7] == 'h') {
+                        off += 12;
+                        /* Check AVI 2.0 frame count */
+                        if (first_fc != LE_BYTES_TO_W32(op->buf->data_p + off))
+                                return -1;
+                        return 0;
+                }
+        }
+
+        return 0;
+}
+
+#undef LE_BYTE_TO_W32
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int rar2_open(const char *path, struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
 
         printd(3, "(%05d) %-8s%s [0x%llu][called from %05d]\n", getpid(),
                         "OPEN", path, fi->fh, fuse_get_context()->pid);
-
         dir_elem_t *entry_p;
         char *root;
 
@@ -2136,12 +2358,6 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                 /* Open PIPE(s) and create child process */
                 fp = popen_(entry_p, &pid, &mmap_addr, &mmap_fp, &mmap_fd);
                 if (fp != NULL) {
-                        buf->idx.data_p = MAP_FAILED;
-                        buf->idx.fd = -1;
-                        preload_index(buf, path);
-                        op->mmap_addr = mmap_addr;
-                        op->mmap_fp = mmap_fp;
-                        op->mmap_fd = mmap_fd;
                         op->entry_p = entry_p;
                         op->seq = 0;
                         op->pos = 0;
@@ -2174,7 +2390,6 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
 
                         pthread_mutex_init(&op->mutex, NULL);
 
-
                         /*
                          * Disable flushing the cache of the file contents on every open().
                          * This is important to make sure FUSE does not force read from an
@@ -2196,13 +2411,37 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                          * information to be propagated to sub-sequent reads. Setting this
                          * flag will force _all_ reads to enter the filesystem.
                          */
-                        fi->direct_io = 1;
+                        if (entry_p->flags.direct_io)
+                                fi->direct_io = 1;
 
                         /* Create reader thread */
                         op->terminate = 1;
                         pthread_create(&op->thread, &thread_attr, reader_task, (void *)op);
                         while (op->terminate);
                         WAKE_THREAD(op->pfd1, 0);
+
+                        buf->idx.data_p = MAP_FAILED;
+                        buf->idx.fd = -1;
+                        if (!preload_index(buf, path)) {
+                                entry_p->flags.save_eof = 0;
+                        } else {
+                                /* Was the file removed ? */
+                                if (OBJ_SET(OBJ_SAVE_EOF) && !entry_p->flags.save_eof) {
+                                        if (!entry_p->password_p) {
+                                                entry_p->flags.save_eof = 1;
+                                                entry_p->flags.avi_tested = 0;
+                                        }
+                                }
+                        }
+                        op->mmap_addr = mmap_addr;
+                        op->mmap_fp = mmap_fp;
+                        op->mmap_fd = mmap_fd;
+
+                        if (entry_p->flags.save_eof && !entry_p->flags.avi_tested) {
+                                if (check_avi_type(op))
+                                        entry_p->flags.save_eof = 0;
+                                entry_p->flags.avi_tested = 1;
+                        }
 
                         goto open_end;
                 }
@@ -2907,9 +3146,9 @@ static int work(struct fuse_args *args)
 static void print_version()
 {
 #ifdef SVNREV
-        printf("rar2fs v%u.%u.%u build %d (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
+        printf("rar2fs v%u.%u.%u build %d (DLL version %d, FUSE version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
 #else
-        printf("rar2fs v%u.%u.%u (DLL version %d, FUSE version %d)    Copyright (C) 2009-2011 Hans Beckerus\n",
+        printf("rar2fs v%u.%u.%u (DLL version %d, FUSE version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
 #endif
                RAR2FS_MAJOR_VER,
                RAR2FS_MINOR_VER, RAR2FS_PATCH_LVL,
@@ -2945,6 +3184,7 @@ static void print_help()
 #ifndef USE_STATIC_IOB_
         printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MiB (1,2,4,8, etc.) [4]\n");
         printf("    --hist-size=n\t    I/O buffer history size as a percentage (0-75) of total buffer size [50]\n");
+        printf("    --save-eof\t\t    force creation of .r2i files (end-of-file chunk)\n");
 #endif
 #if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
         printf("    --no-smp\t\t    disable SMP support (bind to CPU #0)\n");
@@ -3010,6 +3250,7 @@ int main(int argc, char *argv[])
                         {"hist-size",   required_argument, NULL, OBJ_ADDR(OBJ_HIST_SIZE)},
                         {"iob-size",    required_argument, NULL, OBJ_ADDR(OBJ_BUFF_SIZE)},
 #endif
+                        {"save-eof",          no_argument, NULL, OBJ_ADDR(OBJ_SAVE_EOF)},
                         {"version",           no_argument, NULL, 'V'},
                         {"help",              no_argument, NULL, 'h'},
                         {NULL,                          0, NULL, 0}

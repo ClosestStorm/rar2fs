@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
+    Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,8 +35,8 @@
 #include "debug.h"
 #include "configdb.h"
 
-#define MAX_NOF_CFG_OBJ (16)
-static CfgObj config_objects[MAX_NOF_CFG_OBJ] = {
+#define MAX_NOF_CFG_OBJ (OBJ_LAST_ENTRY)
+static struct cfg_obj config_objects[MAX_NOF_CFG_OBJ] = {
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 1, 0},
@@ -52,10 +52,11 @@ static CfgObj config_objects[MAX_NOF_CFG_OBJ] = {
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 0, 1},
-        {{NULL,}, 0, 0, 0, 0, 1}
+        {{NULL,}, 0, 0, 0, 0, 1},
+        {{NULL,}, 0, 0, 0, 0, 0}
 };
 
-CfgObj* config_objects_ = &config_objects[0];
+struct cfg_obj *config_objects_ = &config_objects[0];
 
 #define OBJ_(o)                 (config_objects_+(o))
 #define OBJ_STR_                u.v_arr_str,char*
@@ -94,9 +95,9 @@ CfgObj* config_objects_ = &config_objects[0];
  *****************************************************************************
  *
  ****************************************************************************/
-int collect_obj(int obj, char* s)
+int collect_obj(int obj, char *s)
 {
-        char* s1 = NULL;
+        char *s1 = NULL;
 
         if (obj < 0 || obj >= MAX_NOF_CFG_OBJ)
                 return 1;
@@ -107,12 +108,12 @@ int collect_obj(int obj, char* s)
                 if (fp) {
                         struct stat st;
                         (void)fstat(fileno(fp), &st);
-                        s1 = malloc(st.st_size*2);
+                        s1 = malloc(st.st_size * 2);
                         if (s1) {
                                 s = s1;
                                 NO_UNUSED_RESULT fread(s1, 1, st.st_size, fp);
                                 while(*s1) {
-                                        if(*s1=='\n') *s1=';';
+                                        if (*s1=='\n') *s1=';';
                                                 s1++;
                                 }
                                 s1 = s;
@@ -146,7 +147,7 @@ int collect_obj(int obj, char* s)
                          * strtok(). In particular, it modifies the original
                          * string. Avoid it."
                          */
-                        char* s2 = s1;
+                        char *s2 = s1;
                         if (strlen(s1)) {
                                 while ((s2 = strchr(s2, ';'))) {
                                         *s2++ = 0;
@@ -154,7 +155,7 @@ int collect_obj(int obj, char* s)
                                                 ADD_OBJ_(obj, s1, OBJ_STR_);
                                         s1 = s2;
                                 }
-                                if(*s1)
+                                if (*s1)
                                         ADD_OBJ_(obj, s1, OBJ_STR_);
                         }
                 }
@@ -238,9 +239,9 @@ void configdb_destroy()
  *****************************************************************************
  *
  ****************************************************************************/
-static inline int get_ext_len(char* s)
+static inline int get_ext_len(char *s)
 {
-        char* s1 = s+strlen(s);
+        char *s1 = s + strlen(s);
         while (s1 != s && *s1 != '.')
                 --s1;
         return s1 == s ? 0 : strlen(s1);
@@ -250,12 +251,12 @@ static inline int get_ext_len(char* s)
  *****************************************************************************
  *
  ****************************************************************************/
-int chk_obj(int obj, char* path)
+int chk_obj(int obj, char *path)
 {
         int i = 0;
         if (obj == OBJ_EXCLUDE) {
                 while (i != OBJ_CNT(obj)) {
-                        char* tmp = OBJ_STR(OBJ_EXCLUDE, i);
+                        char *tmp = OBJ_STR(OBJ_EXCLUDE, i);
                         if (!strcmp(basename(path), tmp ? tmp : ""))
                                 return 1;
                         ++i;
@@ -265,7 +266,7 @@ int chk_obj(int obj, char* path)
                 if (l <= 1)
                         return 0;
                 while (i != OBJ_CNT(obj)) {
-                        char* tmp =  OBJ_STR(obj, i);
+                        char *tmp =  OBJ_STR(obj, i);
                         if (!strcmp((path) + (strlen(path) - l), tmp ? tmp : ""))
                                 return l - 1;
                         ++i;

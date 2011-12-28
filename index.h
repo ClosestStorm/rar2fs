@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
+    Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,10 @@
 
 #ifndef INDEX_H_
 #define INDEX_H_
+
+#include <arpa/inet.h>
+
+#define R2I_MAGIC     (htonl(0x72326900))   /* 'r2i ' */
 
 typedef struct {
         uint32_t magic;

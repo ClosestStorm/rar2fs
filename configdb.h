@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
+    Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,36 +43,40 @@
 #define OBJ_ADDR(o) ((o)+1000)
 #define OBJ_BASE(a) ((a)-1000)
 
-#define OBJ_SRC           (0)
-#define OBJ_DST           (1)
-#define OBJ_EXCLUDE       (2)
-#define OBJ_FAKE_ISO      (3)
-#define OBJ_IMG_TYPE      (4)
-#define OBJ_PREOPEN_IMG   (5)
-#define OBJ_SHOW_COMP_IMG (6)
-#define OBJ_NO_IDX_MMAP   (7)
-#define OBJ_SEEK_LENGTH   (8)
-#define OBJ_SEEK_DEPTH    (9)
-#define OBJ_NO_PASSWD     (10)
-#define OBJ_NO_SMP        (11)
-#define OBJ_UNRAR_PATH    (12)
-#define OBJ_NO_LIB_CHECK  (13)
-#define OBJ_HIST_SIZE     (14)
-#define OBJ_BUFF_SIZE     (15)
+enum {
+        OBJ_SRC = 0,
+        OBJ_DST,
+        OBJ_EXCLUDE,
+        OBJ_FAKE_ISO,
+        OBJ_IMG_TYPE,
+        OBJ_PREOPEN_IMG,
+        OBJ_SHOW_COMP_IMG,
+        OBJ_NO_IDX_MMAP,
+        OBJ_SEEK_LENGTH,
+        OBJ_SEEK_DEPTH,
+        OBJ_NO_PASSWD,
+        OBJ_NO_SMP,
+        OBJ_UNRAR_PATH,
+        OBJ_NO_LIB_CHECK,
+        OBJ_HIST_SIZE,
+        OBJ_BUFF_SIZE,
+        OBJ_SAVE_EOF,
+        OBJ_LAST_ENTRY /* Must *always* be last */
+};
 
-typedef struct {
+struct cfg_obj {
         union
         {
-                long* v_arr_int;
-                char** v_arr_str;
-                void* p;
+                long *v_arr_int;
+                char **v_arr_str;
+                void *p;
         } u;
         int is_set;
         int n_elem;
         int n_max;
         int read_from_file;
         int type;
-} CfgObj;
+};
 
 #define OBJ_CNT(o)     (config_objects_[(o)].n_elem)
 #define OBJ_STR(o, n)  (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:NULL)
@@ -80,7 +84,7 @@ typedef struct {
 #define OBJ_INT(o, n)  (OBJ_SET(o)?config_objects_[(o)].u.v_arr_int[(n)]:0)
 #define OBJ_SET(o)     (config_objects_[(o)].is_set)
 
-extern CfgObj* config_objects_;
+extern struct cfg_obj *config_objects_;
 
 int collect_obj(int obj, char*);
 int chk_obj(int obj, char*);

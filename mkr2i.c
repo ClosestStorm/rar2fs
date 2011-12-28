@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2011 Hans Beckerus (hans.beckerus@gmail.com)
+    Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,11 +25,9 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/file.h>
-#include <arpa/inet.h>
 #include "index.h"
 
 #define MAP_FAILED_   (0x1)
-#define R2I_MAGIC     (htonl(0x72326900))   /* 'r2i ' */
 
 #define STR_DUP(s, path) \
         int len = strlen(path);\
