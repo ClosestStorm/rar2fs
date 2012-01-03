@@ -3174,7 +3174,7 @@ static void print_help()
         printf("    --fake-iso[=E1[;E2...]] fake .iso extension for specified image file types\n");
         printf("    --exclude=F1[;F2...]    exclude file filter\n");
         printf("    --seek-length=n\t    set number of volume files that are traversed in search for headers [0=All]\n");
-        printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [0=Off]\n");
+        printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [1]\n");
         printf("    --no-idx-mmap\t    use direct file I/O instead of mmap() for .r2i files\n");
 #ifdef ENABLE_OBSOLETE_ARGS
         printf("    --unrar-path=PATH\t    path to external unrar binary (overide libunrar)\n");
