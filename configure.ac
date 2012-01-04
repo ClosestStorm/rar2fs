@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rar2fs, 1.13.24, [http://code.google.com/p/rar2fs])
+AC_INIT(rar2fs, 1.13.25, [http://code.google.com/p/rar2fs])
 AC_PREREQ([2.61])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_TARGET
@@ -167,6 +167,8 @@ if test "$debug_level" != ""; then
     AC_DEFINE_UNQUOTED(DEBUG_, $debug_level, Define run-time debug level)
     : ${CXXFLAGS="-g -O0"}
     : ${CFLAGS="-g -O0"}
+else
+    CPPFLAGS="$CPPFLAGS -DNDEBUG" 
 fi
 
 AX_PTHREAD
