@@ -178,9 +178,8 @@ static void *extract_to(const char *file, off_t sz, FILE *fp,
 {
         ENTER_("%s", file);
 
-        int out_pipe[2] = {
-                -1, -1
-        };
+        int out_pipe[2] = {-1, -1};
+
         if (pipe(out_pipe) != 0)      /* make a pipe */
                 return MAP_FAILED;
 
@@ -205,9 +204,10 @@ static void *extract_to(const char *file, off_t sz, FILE *fp,
         char *buffer = malloc(sz);
         if (!buffer)
                 return MAP_FAILED;
-        if (oper == E_TO_TMP) {
+
+        if (oper == E_TO_TMP)
                 tmp = tmpfile();
-        }
+
         off_t off = 0;
         do {
                 /* read from pipe into buffer */
@@ -624,8 +624,9 @@ static int lread_rar(char *buf, size_t size, off_t offset,
         IOContext *op = FH_TOCONTEXT(fi->fh);
         int n = 0;
 
-        if (!op)
-                return -EIO;
+        assert(op && "bad context data");
+
+        errno = 0;
 
         if ((offset + size) > op->entry_p->stat.st_size) {
                 size = offset < op->entry_p->stat.st_size
@@ -633,22 +634,21 @@ static int lread_rar(char *buf, size_t size, off_t offset,
                         : 0;
         }
         if (!size)
-                return 0;
+                goto out;
 
         ++op->seq;
         printd(3,
                "PID %05d calling %s(), seq = %d, size=%zu, offset=%llu/%llu\n",
                getpid(), __func__, op->seq, size, offset, op->pos);
 
-        errno = 0;
-
         /* Check for exception case */
         if (offset != op->pos) {
 check_idx:
                 if (op->buf->idx.data_p != MAP_FAILED &&
-                                offset >= op->buf->idx.data_p->head.offset)
-                        return lread_rar_idx(buf, size, offset, op);
-
+                                offset >= op->buf->idx.data_p->head.offset) {
+                        n = lread_rar_idx(buf, size, offset, op);
+                        goto out;
+                }
                 /* Check for backward read */
                 if (offset < op->pos) {
                         off_t delta = op->pos - offset;
@@ -659,13 +659,15 @@ check_idx:
                                         ? IOB_HIST_SZ
                                         : op->pos;
                                 chunk = chunk > size ? size : size - chunk;
-                                n += copyFrom(buf, op->buf, chunk, pos);
-                                size -= n;
-                                buf += n;
-                                offset += n;
+                                size_t tmp = copyFrom(buf, op->buf, chunk, pos);
+                                size -= tmp;
+                                buf += tmp;
+                                offset += tmp;
+                                n += tmp;
                         } else {
                                 printd(1, "read: I/O error\n");
-                                return -EIO;
+                                n = -EIO;
+                                goto out;
                         }
                 /*
                  * Early reads at offsets reaching the last few percent of the
@@ -694,7 +696,8 @@ check_idx:
                         fi->direct_io = 1;
                         op->entry_p->flags.direct_io = 1;
                         memset(buf, 0, size);
-                        return size;
+                        n += size;
+                        goto out;
                 }
         }
 
@@ -706,21 +709,35 @@ check_idx:
         if ((offset + size) > op->buf->offset)
                 sync_thread_read(op->pfd1, op->pfd2);
         if ((offset + size) > op->buf->offset) {
-                /*
-                 * This is another hack! At this point an early read far beyond
-                 * the current stream position is most likely bogus. We can not
-                 * blindly take the jump here since it would render the stream
-                 * completely useless for continued playback. If the jump is
-                 * too far off, again fall-back to best effort. Also making
-                 * sure direct I/O is forced from now on to not cause any fake
-                 * data to propage to sub-sequent reads.
-                 */
-                if (op->seq > 1 && op->seq < 20 &&
-                                ((offset + size) - op->buf->offset) > IOB_SZ) {
-                        fi->direct_io = 1;
-                        op->entry_p->flags.direct_io = 1;
-                        memset(buf, 0, size);
-                        return size;
+                if (offset < op->buf->offset) {
+                        int off = offset - op->pos;
+                        size_t tmp = readFrom(buf, op->buf,
+                                                op->buf->offset - offset,
+                                                off);
+                        op->pos += (off + tmp);
+                        size -= tmp;
+                        offset += tmp;
+                        buf += tmp;
+                        n += tmp;
+                } else {
+                        /*
+                         * This is another hack! At this point an early read
+                         * far beyond the current stream position is most
+                         * likely bogus. We can not blindly take the jump here
+                         * since it would render the stream completely useless
+                         * for continued playback. If the jump is too far off,
+                         * again fall-back to best effort. Also making sure
+                         * direct I/O is forced from now on to not cause any
+                         * fake data to propagate in sub-sequent reads.
+                         */
+                        if (op->seq > 1 && op->seq < 20 &&
+                                        ((offset + size) - op->buf->offset) > IOB_SZ) {
+                                fi->direct_io = 1;
+                                op->entry_p->flags.direct_io = 1;
+                                memset(buf, 0, size);
+                                n += size;
+                                goto out;
+                        }
                 }
 
                 pthread_mutex_lock(&op->mutex);
@@ -728,7 +745,7 @@ check_idx:
                         /* Take control of reader thread */
                         sync_thread_noread(op->pfd1, op->pfd2);
                         pthread_mutex_unlock(&op->mutex);
-                        while (/*!feof(FH_TOFP(op->fh)) &&*/
+                        while (!feof(FH_TOFP(op->fh)) &&
                                         (offset + size) > op->buf->offset) {
                                 /* consume buffer */
                                 op->pos += op->buf->used;
@@ -736,10 +753,13 @@ check_idx:
                                 (void)readTo(op->buf, FH_TOFP(op->fh),
                                                 IOB_NO_HIST);
                         }
-                        op->buf->ri += (offset - op->pos);
-                        op->buf->ri &= (IOB_SZ - 1);
-                        op->buf->used -= (offset - op->pos);
-                        op->pos = offset;
+                        /* Save history only if safe to do so */
+                        if (!feof(FH_TOFP(op->fh))) {
+                                op->buf->ri += (offset - op->pos);
+                                op->buf->ri &= (IOB_SZ - 1);
+                                op->buf->used -= (offset - op->pos);
+                                op->pos = offset;
+                        }
                 } else {
                         pthread_mutex_unlock(&op->mutex);
                 }
@@ -752,8 +772,9 @@ check_idx:
                 if (!op->terminate)
                         WAKE_THREAD(op->pfd1, 0);
         }
-        printd(3, "read: RETURN %d\n", errno ? -errno : n);
 
+out:
+        printd(3, "%s: RETURN %d\n", __func__, errno ? -errno : n);
         if (errno)
                 perror("read");
         return errno ? -errno : n;
@@ -1072,10 +1093,10 @@ static int CALLBACK index_callback(UINT msg, LPARAM UserData,
                 }
 
         }
-        if (msg == UCM_CHANGEVOLUME) {
+        if (msg == UCM_CHANGEVOLUME)
                 return access((char*)P1, F_OK);
-        }
-        return 0;
+
+        return 1;
 }
 
 /*!
@@ -1170,7 +1191,7 @@ static int CALLBACK extract_callback(UINT msg, LPARAM UserData,
         if (msg == UCM_CHANGEVOLUME)
                 return access((char *)P1, F_OK);
 
-        return 0;
+        return 1;
 }
 
 /*!

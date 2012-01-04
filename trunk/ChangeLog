@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2012-01-04  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added yet another case that was not covered at read
+          of compressed archives that could result in corrupt
+          data. Very unlikely though.
+
+        * Added -DNDEBUG to CPPFLAGS for non-debug builds 
+          
 2011-12-28  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fall-back to direct I/O mode only if legit data can not
