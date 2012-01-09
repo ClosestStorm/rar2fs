@@ -3171,7 +3171,7 @@ static void print_version()
 #ifdef SVNREV
         printf("rar2fs v%u.%u.%u build %d (DLL version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
 #else
-        printf("rar2fs v%u.%u.%u (DLL version %d, FUSE version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
+        printf("rar2fs v%u.%u.%u (DLL version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
 #endif
                RAR2FS_MAJOR_VER,
                RAR2FS_MINOR_VER, RAR2FS_PATCH_LVL,

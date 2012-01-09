@@ -2,6 +2,10 @@ rar2fs ChangeLog file.
 
 2012-01-09  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Corrected a minor options database problem
+
+2012-01-09  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Fixed a crash when reading options with optional
           arguments.
 
