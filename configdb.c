@@ -65,6 +65,7 @@ struct cfg_obj *config_objects_ = &config_objects[0];
 
 #define ADD_OBJ__(o, s1, m, t) \
         do { \
+                OBJ_(o)->is_set = 1; \
                 if ((OBJ_(o))->n_elem == (OBJ_(o))->n_max) { \
                         OBJ_(o)->n_max += 16; \
                         OBJ_(o)->m = (t*)realloc((t*)OBJ_(o)->m, \
@@ -78,7 +79,7 @@ struct cfg_obj *config_objects_ = &config_objects[0];
 
 #define CLR_OBJ_(o) \
         do { \
-                OBJ_(obj)->is_set = 0; \
+                OBJ_(o)->is_set = 0; \
                 if ((OBJ_(o))->n_elem && IS_STR_(o)) { \
                         int i = (OBJ_(o))->n_elem; \
                         while (i--) { \
@@ -102,7 +103,6 @@ int collect_obj(int obj, const char *s)
         if (obj < 0 || obj >= MAX_NOF_CFG_OBJ)
                 return 1;
 
-        OBJ_(obj)->is_set = 1;
         if (OBJ_(obj)->read_from_file && s && *s == '/') {
                 FILE* fp = fopen(s, "r");
                 if (fp) {
@@ -132,10 +132,12 @@ int collect_obj(int obj, const char *s)
         case OBJ_SEEK_LENGTH:
         case OBJ_SEEK_DEPTH:
         case OBJ_HIST_SIZE:
+                CLR_OBJ_(obj);
                 ADD_OBJ_(obj, s1, OBJ_INT_);
                 break;
         case OBJ_SRC:
         case OBJ_DST:
+                CLR_OBJ_(obj);
                 ADD_OBJ_(obj, s1, OBJ_STR_);
                 break;
         default:
@@ -193,13 +195,11 @@ static void reset_obj(int obj, int init)
         if (init) {
                 switch (obj) {
                 case OBJ_IMG_TYPE:
-                        OBJ_(OBJ_IMG_TYPE)->is_set = 1;
                         ADD_OBJ_(OBJ_IMG_TYPE, ".iso", OBJ_STR_);
                         ADD_OBJ_(OBJ_IMG_TYPE, ".img", OBJ_STR_);
                         ADD_OBJ_(OBJ_IMG_TYPE, ".nrg", OBJ_STR_);
                         break;
                 case OBJ_SEEK_DEPTH:
-                        OBJ_(OBJ_SEEK_DEPTH)->is_set = 1;
                         ADD_OBJ_(OBJ_SEEK_DEPTH, "1", OBJ_INT_);
                         break;
                 default:
