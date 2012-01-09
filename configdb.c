@@ -121,7 +121,8 @@ int collect_obj(int obj, const char *s)
                         fclose(fp);
                 }
         } else {
-                s1 = strdup(s);
+                if (s)
+                        s1 = strdup(s);
         }
         if (!s1)
                 return 0;
