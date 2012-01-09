@@ -95,7 +95,7 @@ struct cfg_obj *config_objects_ = &config_objects[0];
  *****************************************************************************
  *
  ****************************************************************************/
-int collect_obj(int obj, char *s)
+int collect_obj(int obj, const char *s)
 {
         char *s1 = NULL;
 
@@ -110,19 +110,18 @@ int collect_obj(int obj, char *s)
                         (void)fstat(fileno(fp), &st);
                         s1 = malloc(st.st_size * 2);
                         if (s1) {
-                                s = s1;
+                                char* s2 = s1;
                                 NO_UNUSED_RESULT fread(s1, 1, st.st_size, fp);
                                 while(*s1) {
                                         if (*s1=='\n') *s1=';';
                                                 s1++;
                                 }
-                                s1 = s;
+                                s1 = s2;
                         }
                         fclose(fp);
-        }
+                }
         } else {
-                s1 = s;
-                s = NULL;
+                s1 = strdup(s);
         }
         if (!s1)
                 return 0;
@@ -161,8 +160,8 @@ int collect_obj(int obj, char *s)
                 }
                 break;
         }
-        if (s)
-                free(s);
+        if (s1)
+                free(s1);
 
 #ifdef DEBUG_
         {

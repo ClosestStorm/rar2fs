@@ -40,8 +40,9 @@
 #define CHK_FILTER(path) \
         (OBJ_CNT(OBJ_EXCLUDE) && chk_obj(OBJ_EXCLUDE, (char*)(path)))
 
-#define OBJ_ADDR(o) ((o)+1000)
-#define OBJ_BASE(a) ((a)-1000)
+#define OBJ_BASE    (1000)
+#define OBJ_ADDR(o) ((o) + OBJ_BASE)
+#define OBJ_ID(o)   ((o) - OBJ_BASE)
 
 enum {
         OBJ_SRC = 0,
@@ -86,7 +87,7 @@ struct cfg_obj {
 
 extern struct cfg_obj *config_objects_;
 
-int collect_obj(int obj, char*);
+int collect_obj(int obj, const char*);
 int chk_obj(int obj, char*);
 void configdb_init();
 void configdb_destroy();

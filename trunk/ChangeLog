@@ -1,5 +1,14 @@
 rar2fs ChangeLog file.
 
+2012-01-09  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed an issue that caused the option '--no-smp' to
+          generate an error message if executing on a single CPU
+          machine. Bind should now be done to the correct CPU.
+
+        * Reworked argument parsing to work similar to native
+          fuse options.
+
 2012-01-04  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added yet another case that was not covered at read

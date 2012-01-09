@@ -2925,7 +2925,7 @@ static int rar2_utime(const char *path, const struct timespec tv[2])
 static void usage(char *prog)
 {
         const char *P_ = basename(prog);
-        printf("Usage: %s [options] source target\n", P_);
+        printf("Usage: %s source mountpoint [options]\n", P_);
         printf("Try `%s -h' or `%s --help' for more information.\n", P_, P_);
 }
 
@@ -2933,7 +2933,7 @@ static void usage(char *prog)
  *****************************************************************************
  *
  ****************************************************************************/
-static int check_paths(char *src_path_in, char *dst_path_in,
+static int check_paths(const char *prog, char *src_path_in, char *dst_path_in,
                 char **src_path_out, char **dst_path_out, int verbose)
 {
         char p1[PATH_MAX];
@@ -2942,7 +2942,8 @@ static int check_paths(char *src_path_in, char *dst_path_in,
         char *a2 = realpath(dst_path_in, p2);
         if (!a1 || !a2 || !strcmp(a1, a2)) {
                 if (verbose)
-                        printf("invalid source and/or mount point\n");
+                        printf("%s: invalid source and/or mount point\n",
+                                                prog);
                 return -1;
         }
         DIR_LIST_RST(arch_list);
@@ -2955,7 +2956,8 @@ static int check_paths(char *src_path_in, char *dst_path_in,
                         (mount_type == MOUNT_ARCHIVE &&
                         !collect_files(a1, arch_list))) {
                 if (verbose)
-                        printf("invalid source and/or mount point\n");
+                        printf("%s: invalid source and/or mount point\n",
+                                                prog);
                 return -1;
         }
         /* Do not try to use 'a1' after this call since dirname() will destroy it! */
@@ -3075,7 +3077,7 @@ static int work(struct fuse_args *args)
         if (OBJ_SET(OBJ_NO_SMP)) {
                 cpu_set_t cpu_mask;
                 CPU_ZERO(&cpu_mask);
-                CPU_SET(1, &cpu_mask);
+                CPU_SET(0, &cpu_mask);
                 if (sched_getaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved)) {
                         perror("sched_getaffinity");
                 } else {
@@ -3167,7 +3169,7 @@ static int work(struct fuse_args *args)
 static void print_version()
 {
 #ifdef SVNREV
-        printf("rar2fs v%u.%u.%u build %d (DLL version %d, FUSE version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
+        printf("rar2fs v%u.%u.%u build %d (DLL version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
 #else
         printf("rar2fs v%u.%u.%u (DLL version %d, FUSE version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
 #endif
@@ -3176,7 +3178,7 @@ static void print_version()
 #ifdef SVNREV
                SVNREV,
 #endif
-               RARGetDllVersion(), FUSE_VERSION);
+               RARGetDllVersion());
         printf("This program comes with ABSOLUTELY NO WARRANTY.\n"
                "This is free software, and you are welcome to redistribute it under\n"
                "certain conditions; see <http://www.gnu.org/licenses/> for details.\n");
@@ -3212,20 +3214,108 @@ static void print_help()
 #endif
 }
 
+enum {
+        KEY_HELP,
+        KEY_VERSION,
+};
+
+static struct fuse_opt rar2fs_opts[] = {
+        FUSE_OPT_KEY("-V",              KEY_VERSION),
+        FUSE_OPT_KEY("--version",       KEY_VERSION),
+        FUSE_OPT_KEY("-h",              KEY_HELP),
+        FUSE_OPT_KEY("--help",          KEY_HELP),
+        FUSE_OPT_END
+};
+
+static struct option longopts[] = {
+        {"show-comp-img",     no_argument, NULL, OBJ_ADDR(OBJ_SHOW_COMP_IMG)},
+        {"preopen-img",       no_argument, NULL, OBJ_ADDR(OBJ_PREOPEN_IMG)},
+        {"no-idx-mmap",       no_argument, NULL, OBJ_ADDR(OBJ_NO_IDX_MMAP)},
+        {"fake-iso",    optional_argument, NULL, OBJ_ADDR(OBJ_FAKE_ISO)},
+        {"exclude",     required_argument, NULL, OBJ_ADDR(OBJ_EXCLUDE)},
+        {"seek-length", required_argument, NULL, OBJ_ADDR(OBJ_SEEK_LENGTH)},
+#ifdef ENABLE_OBSOLETE_ARGS
+        {"unrar-path",  required_argument, NULL, OBJ_ADDR(OBJ_UNRAR_PATH)},
+        {"no-password",       no_argument, NULL, OBJ_ADDR(OBJ_NO_PASSWD)},
+#endif
+        {"seek-depth",  required_argument, NULL, OBJ_ADDR(OBJ_SEEK_DEPTH)},
+#if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
+        {"no-smp",            no_argument, NULL, OBJ_ADDR(OBJ_NO_SMP)},
+#endif
+        {"img-type",    required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
+        {"no-lib-check",      no_argument, NULL, OBJ_ADDR(OBJ_NO_LIB_CHECK)},
+#ifndef USE_STATIC_IOB_
+        {"hist-size",   required_argument, NULL, OBJ_ADDR(OBJ_HIST_SIZE)},
+        {"iob-size",    required_argument, NULL, OBJ_ADDR(OBJ_BUFF_SIZE)},
+#endif
+        {"save-eof",          no_argument, NULL, OBJ_ADDR(OBJ_SAVE_EOF)},
+        {NULL,                          0, NULL, 0}
+};
+
 /*!
  *****************************************************************************
  *
  ****************************************************************************/
+static int rar2fs_opt_proc(void *data, const char *arg, int key, struct fuse_args *outargs)
+{
+        const char* const argv[2] = {outargs->argv[0], arg};
 
-#define CONSUME_LONG_ARG() \
-        do { \
-                int i; \
-                --argc; \
-                --optind; \
-                for(i = optind; i < argc; i++) \
-                        argv[i] = argv[i + 1]; \
-        } while(0)
+        switch (key) {
+        case FUSE_OPT_KEY_NONOPT:
+                if (!OBJ_SET(OBJ_SRC)) {
+                        collect_obj(OBJ_SRC, arg);
+                        return 0;
+                }
+                if (!OBJ_SET(OBJ_DST)) {
+                        collect_obj(OBJ_DST, arg);
+                        return 0;
+                }
+                usage(outargs->argv[0]);
+                return -1;
 
+        case FUSE_OPT_KEY_OPT:
+                optind=0;
+                opterr=1;
+                int opt = getopt_long(2, (char* const*)argv, "dfs", longopts, NULL);
+                if (opt == '?')
+                        return -1;
+                if (opt >= OBJ_ADDR(0)) {
+                        if (!collect_obj(OBJ_ID(opt), optarg))
+                                return 0;
+                }
+                return 1;
+
+        case KEY_HELP:
+                fprintf(stderr,
+                        "usage: %s source mountpoint [options]\n"
+                        "\n"
+                        "general options:\n"
+                        "    -o opt,[opt...]        mount options\n"
+                        "    -h   --help            print help\n"
+                        "    -V   --version         print version\n"
+                        "\n", outargs->argv[0]);
+                fuse_opt_add_arg(outargs, "-ho");
+                fuse_main(outargs->argc, outargs->argv, NULL, NULL);
+                print_help();
+                exit(0);
+
+        case KEY_VERSION:
+                print_version();
+                fuse_opt_add_arg(outargs, "--version");
+                fuse_main(outargs->argc, outargs->argv, NULL, NULL);
+                exit(0);
+
+        default:
+                break;
+        }
+
+        return 1;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 int main(int argc, char *argv[])
 {
         int res = 0;
@@ -3244,98 +3334,43 @@ int main(int argc, char *argv[])
         else
                 page_size = 4096;
 
-        if (1) {
-                int opt;
-                char *helpargv[2] = {
-                        NULL, "-h"
-                };
+        struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+        if (fuse_opt_parse(&args, NULL, rar2fs_opts, rar2fs_opt_proc))
+                return -1;
 
-                struct option longopts[] = {
-                        {"show-comp-img",     no_argument, NULL, OBJ_ADDR(OBJ_SHOW_COMP_IMG)},
-                        {"preopen-img",       no_argument, NULL, OBJ_ADDR(OBJ_PREOPEN_IMG)},
-                        {"no-idx-mmap",       no_argument, NULL, OBJ_ADDR(OBJ_NO_IDX_MMAP)},
-                        {"fake-iso",    optional_argument, NULL, OBJ_ADDR(OBJ_FAKE_ISO)},
-                        {"exclude",     required_argument, NULL, OBJ_ADDR(OBJ_EXCLUDE)},
-                        {"seek-length", required_argument, NULL, OBJ_ADDR(OBJ_SEEK_LENGTH)},
-#ifdef ENABLE_OBSOLETE_ARGS
-                        {"unrar-path",  required_argument, NULL, OBJ_ADDR(OBJ_UNRAR_PATH)},
-                        {"no-password",       no_argument, NULL, OBJ_ADDR(OBJ_NO_PASSWD)},
-#endif
-                        {"seek-depth",  required_argument, NULL, OBJ_ADDR(OBJ_SEEK_DEPTH)},
-#if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
-                        {"no-smp",            no_argument, NULL, OBJ_ADDR(OBJ_NO_SMP)},
-#endif
-                        {"img-type",    required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
-                        {"no-lib-check",      no_argument, NULL, OBJ_ADDR(OBJ_NO_LIB_CHECK)},
-#ifndef USE_STATIC_IOB_
-                        {"hist-size",   required_argument, NULL, OBJ_ADDR(OBJ_HIST_SIZE)},
-                        {"iob-size",    required_argument, NULL, OBJ_ADDR(OBJ_BUFF_SIZE)},
-#endif
-                        {"save-eof",          no_argument, NULL, OBJ_ADDR(OBJ_SAVE_EOF)},
-                        {"version",           no_argument, NULL, 'V'},
-                        {"help",              no_argument, NULL, 'h'},
-                        {NULL,                          0, NULL, 0}
-                };
-
-                opterr = 0;
-                while ((opt = getopt_long(argc, argv, "Vhfo:", longopts, NULL)) != -1) {
-                        if (opt == 'V') {
-                                print_version();
-                                return 0;
-                        }
-                        if (opt == 'h') {
-                                helpargv[0] = argv[0];
-                                fuse_main(2, helpargv, (const struct fuse_operations *)NULL, NULL);
-                                print_help();
-                                return 0;
-                        }
-                        int consume = 1;
-                        if (collect_obj(OBJ_BASE(opt), optarg))
-                                consume = 0;
-                        if (consume)
-                                CONSUME_LONG_ARG();
-                }
-
-                if (argc < 3 || !argv[optind]) {
-                        usage(*argv);
-                        return -1;
-                }
-
-                /* Check I/O buffer and history size */
-                if (check_iob(*argv, 1))
-                        return -1;
-
-                /* Check src/dst path */
-                char *dst_path;
-                char *src_path;
-                if (check_paths(argv[optind], argv[optind + 1], &src_path, &dst_path, 1))
+        /* Check src/dst path */
+        if (OBJ_SET(OBJ_SRC) && OBJ_SET(OBJ_DST)) {
+                char *dst_path = NULL;
+                char *src_path = NULL;
+                if (check_paths(argv[0],
+                                OBJ_STR(OBJ_SRC, 0),
+                                OBJ_STR(OBJ_DST, 0),
+                                &src_path, &dst_path, 1))
                         return -1;
 
                 collect_obj(OBJ_SRC, src_path);
                 collect_obj(OBJ_DST, dst_path);
                 free(src_path);
                 free(dst_path);
-
-                /* Check library versions */
-                if (!OBJ_SET(OBJ_NO_LIB_CHECK)) {
-                        if (check_libunrar(1) || check_libfuse(1))
-                                return -1;
-                }
         } else {
-                /* Call external configuration domain here */
+                usage(argv[0]);
+                return 0;
         }
 
-        if (argc >= 2) {
-                argv[optind] = NULL;
-                argc -= 2;
-        } else {
-                argc = 0;
+        /* Check I/O buffer and history size */
+        if (check_iob(argv[0], 1))
+                return -1;
+
+        /* Check library versions */
+        if (!OBJ_SET(OBJ_NO_LIB_CHECK)) {
+                if (check_libunrar(1) || check_libfuse(1))
+                        return -1;
         }
-        struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-        fuse_opt_parse(&args, NULL, NULL, NULL);
+
         fuse_opt_add_arg(&args, "-s");
         fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,subtype=rar2fs,default_permissions");
-        fuse_opt_add_arg(&args, OBJ_STR(OBJ_DST, 0));
+        if (OBJ_SET(OBJ_DST))
+                fuse_opt_add_arg(&args, OBJ_STR(OBJ_DST, 0));
 
         /*
          * All static setup is ready, the rest is taken from the configuration.
@@ -3355,5 +3390,3 @@ int main(int argc, char *argv[])
 
         return res;
 }
-
-#undef CONSUME_LONG_ARG
