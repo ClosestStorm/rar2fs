@@ -103,6 +103,8 @@ int collect_obj(int obj, const char *s)
         if (obj < 0 || obj >= MAX_NOF_CFG_OBJ)
                 return 1;
 
+        OBJ_(obj)->is_set = 1;
+
         if (OBJ_(obj)->read_from_file && s && *s == '/') {
                 FILE* fp = fopen(s, "r");
                 if (fp) {

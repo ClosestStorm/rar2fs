@@ -42,7 +42,7 @@
 
 #define OBJ_BASE    (1000)
 #define OBJ_ADDR(o) ((o) + OBJ_BASE)
-#define OBJ_ID(o)   ((o) - OBJ_BASE)
+#define OBJ_ID(a)   ((a) - OBJ_BASE)
 
 enum {
         OBJ_SRC = 0,
