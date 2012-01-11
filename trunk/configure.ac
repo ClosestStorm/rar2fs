@@ -59,9 +59,7 @@ AC_FUNC_FORK
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
 AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
-#AC_FUNC_MALLOC     dnl This package does not use malloc(0)
-#AC_FUNC_REALLOC    dnl This package does not use malloc(0)
-AC_CHECK_FUNCS([mktime atexit dup3 fs_stat_dev ftruncate getcwd getpass lchown memchr memmove memset mkdir realpath rmdir select setlocale strchr strdup strerror strpbrk strrchr strstr strtol strtoul utime])
+AC_CHECK_FUNCS([mktime atexit dup3 fs_stat_dev ftruncate getcwd getpass lchown memchr memmove memset mkdir realpath rmdir select setlocale strchr strdup strerror strpbrk strrchr strstr strtol strtoul utime setxattr])
 
 # Check for GNU library extension fmemopen()
 #
