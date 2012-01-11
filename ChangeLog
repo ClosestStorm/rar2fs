@@ -2,6 +2,11 @@ rar2fs ChangeLog file.
 
 2012-01-11  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Fixed a problem with xattr functions taking additional
+          arguments like on Darwin
+
+2012-01-11  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Implemented getxattr() and listxattr()
 
         * Fixed build errors on OpenSolaris
