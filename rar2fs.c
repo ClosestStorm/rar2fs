@@ -1090,11 +1090,7 @@ static int CALLBACK index_callback(UINT msg, LPARAM UserData,
                 if (eofd->coff == eofd->toff) {
                         eofd->size += P2;
                         write(eofd->fd, (char*)P1, P2);
-#ifdef HAVE_FDATASYNC
                         fdatasync(eofd->fd);      /* XXX needed!? */
-#else
-                        fsync(eofd->fd);          /* XXX needed!? */
-#endif
                         eofd->toff += P2;
                         eofd->coff = eofd->toff;
                 }
