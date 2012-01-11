@@ -119,6 +119,15 @@ typedef bool _Bool;
 # define __bool_true_false_are_defined 1
 #endif
 
+#ifdef HAVE_FDATASYNC
+#ifdef __APPLE__
+# include <sys/syscall.h>
+# define fdatasync(fd) syscall(SYS_fdatasync, (fd))
+#endif
+#else
+# define fdatasync(fd) fsync(fd)
+#endif
+
 #endif
 
 
