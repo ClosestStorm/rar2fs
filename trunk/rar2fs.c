@@ -2933,7 +2933,11 @@ static int rar2_getxattr(const char *path, const char *name, char *value,
         ENTER_("%s", path);
         char *tmp;
         ABS_ROOT(tmp, path);
+#ifdef XATTR_ADD_OPT
+        size = getxattr(tmp, name, value, size, 0, 0);
+#else
         size = getxattr(tmp, name, value, size);
+#endif
         if (size != -1)
                 return size;
         return -errno;
@@ -2948,7 +2952,11 @@ static int rar2_listxattr(const char *path, char *list, size_t size)
         ENTER_("%s", path);
         char *tmp;
         ABS_ROOT(tmp, path);
+#ifdef XATTR_ADD_OPT
+        size = listxattr(tmp, list, size, 0);
+#else
         size = listxattr(tmp, list, size);
+#endif
         if (size != -1)
                 return size;
         return -errno;

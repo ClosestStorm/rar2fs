@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rar2fs, 1.13.30, [http://code.google.com/p/rar2fs])
+AC_INIT(rar2fs, 1.13.31, [http://code.google.com/p/rar2fs])
 AC_PREREQ([2.61])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_TARGET
@@ -60,7 +60,37 @@ AC_FUNC_FORK
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
 AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
-AC_CHECK_FUNCS([mktime atexit dup3 fs_stat_dev ftruncate getcwd getpass lchown memchr memmove memset mkdir realpath rmdir select setlocale strchr strdup strerror strpbrk strrchr strstr strtol strtoul utime setxattr fdatasync])
+AC_CHECK_FUNCS([mktime atexit dup3 fs_stat_dev ftruncate getcwd getpass lchown memchr memmove memset mkdir realpath rmdir select setlocale strchr strdup strerror strpbrk strrchr strstr strtol strtoul utime fdatasync])
+
+########################################################
+# Check for extended attribute support
+AC_SEARCH_LIBS(getxattr, [attr])
+AC_CHECK_FUNCS(getxattr,[
+        AC_CHECK_FUNCS(lgetxattr fgetxattr listxattr llistxattr flistxattr removexattr lremovexattr fremovexattr setxattr lsetxattr fsetxattr)
+        ])
+########################################################
+# Do xattr functions take additional options like on Darwin?
+if test x"$ac_cv_func_getxattr" = x"yes" ; then
+        AC_CACHE_CHECK([whether xattr interface takes additional options], attr_cv_xattr_add_opt, [
+                old_LIBS=$LIBS
+                LIBS="$LIBS $ACL_LIBS"
+                AC_TRY_COMPILE([
+                        #include <sys/types.h>
+                        #if HAVE_ATTR_XATTR_H
+                        #include <attr/xattr.h>
+                        #elif HAVE_SYS_XATTR_H
+                        #include <sys/xattr.h>
+                        #endif
+                ],[
+                        getxattr(0, 0, 0, 0, 0, 0);
+                ],
+                [attr_cv_xattr_add_opt=yes],
+                [attr_cv_xattr_add_opt=no;LIBS=$old_LIBS])
+        ])
+        if test x"$attr_cv_xattr_add_opt" = x"yes"; then
+                AC_DEFINE(XATTR_ADD_OPT, 1, [xattr functions have additional options])
+        fi
+fi
 
 # Check for GNU library extension fmemopen()
 #
