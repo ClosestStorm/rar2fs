@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2012-01-11  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Implemented getxattr() and listxattr()
+
+        * Fixed build errors on OpenSolaris
+
+        * Fixed issue with fdatasync() missing on some platforms
+
 2012-01-10  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a bug introduced in previous version resulting

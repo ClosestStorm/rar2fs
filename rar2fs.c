@@ -50,6 +50,9 @@
 #ifdef HAVE_SCHED_H
 # include <sched.h>
 #endif
+#ifdef HAVE_SYS_XATTR_H
+# include <sys/xattr.h>
+#endif
 #include <assert.h>
 #include "version.h"
 #include "debug.h"
@@ -1087,7 +1090,11 @@ static int CALLBACK index_callback(UINT msg, LPARAM UserData,
                 if (eofd->coff == eofd->toff) {
                         eofd->size += P2;
                         write(eofd->fd, (char*)P1, P2);
+#ifdef HAVE_FDATASYNC
                         fdatasync(eofd->fd);      /* XXX needed!? */
+#else
+                        fsync(eofd->fd);          /* XXX needed!? */
+#endif
                         eofd->toff += P2;
                         eofd->coff = eofd->toff;
                 }
@@ -2918,6 +2925,41 @@ static int rar2_utime(const char *path, const struct timespec tv[2])
         return 0;
 }
 
+#ifdef HAVE_SETXATTR
+
+/*!
+*****************************************************************************
+*
+****************************************************************************/
+static int rar2_getxattr(const char *path, const char *name, char *value,
+                size_t size)
+{
+        ENTER_("%s", path);
+        char *tmp;
+        ABS_ROOT(tmp, path);
+        size = getxattr(tmp, name, value, size);
+        if (size != -1)
+                return size;
+        return -errno;
+}
+
+/*!
+*****************************************************************************
+*
+****************************************************************************/
+static int rar2_listxattr(const char *path, char *list, size_t size)
+{
+        ENTER_("%s", path);
+        char *tmp;
+        ABS_ROOT(tmp, path);
+        size = listxattr(tmp, list, size);
+        if (size != -1)
+                return size;
+        return -errno;
+}
+
+#endif
+
 /*!
  *****************************************************************************
  *
@@ -3037,7 +3079,11 @@ static struct fuse_operations rar2_operations = {
         .release = rar2_release,
         .read = rar2_read,
         .flush = rar2_flush,
-        .readlink = rar2_readlink
+        .readlink = rar2_readlink,
+#ifdef HAVE_SETXATTR
+        .getxattr = rar2_getxattr,
+        .listxattr = rar2_listxattr,
+#endif
 };
 
 struct work_task_data {
@@ -3078,13 +3124,10 @@ static int work(struct fuse_args *args)
                 cpu_set_t cpu_mask;
                 CPU_ZERO(&cpu_mask);
                 CPU_SET(0, &cpu_mask);
-                if (sched_getaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved)) {
+                if (sched_getaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved))
                         perror("sched_getaffinity");
-                } else {
-                        if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask)) {
-                                perror("sched_setaffinity");
-                        }
-                }
+                else if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask))
+                        perror("sched_setaffinity");
         }
 #endif
 
@@ -3151,9 +3194,8 @@ static int work(struct fuse_args *args)
 
 #if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
         if (OBJ_SET(OBJ_NO_SMP)) {
-                if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved)) {
+                if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved))
                         perror("sched_setaffinity");
-                }
         }
 #endif
 
@@ -3256,7 +3298,8 @@ static struct option longopts[] = {
  *****************************************************************************
  *
  ****************************************************************************/
-static int rar2fs_opt_proc(void *data, const char *arg, int key, struct fuse_args *outargs)
+static int rar2fs_opt_proc(void *data, const char *arg, int key,
+                struct fuse_args *outargs)
 {
         const char* const argv[2] = {outargs->argv[0], arg};
 
@@ -3295,14 +3338,16 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key, struct fuse_arg
                         "    -V   --version         print version\n"
                         "\n", outargs->argv[0]);
                 fuse_opt_add_arg(outargs, "-ho");
-                fuse_main(outargs->argc, outargs->argv, NULL, NULL);
+                fuse_main(outargs->argc, outargs->argv,
+                                (struct fuse_operations*)NULL, NULL);
                 print_help();
                 exit(0);
 
         case KEY_VERSION:
                 print_version();
                 fuse_opt_add_arg(outargs, "--version");
-                fuse_main(outargs->argc, outargs->argv, NULL, NULL);
+                fuse_main(outargs->argc, outargs->argv,
+                                (struct fuse_operations*)NULL, NULL);
                 exit(0);
 
         default:
@@ -3326,8 +3371,10 @@ int main(int argc, char *argv[])
         long ps = -1;
 #if defined ( _SC_PAGE_SIZE )
         ps = sysconf(_SC_PAGE_SIZE);
-#elif defined ( _SC_PAGESIZE )
+#else
+#if defined ( _SC_PAGESIZE )
         ps = sysconf(_SC_PAGESIZE);
+#endif
 #endif
         if (ps != -1)
                 page_size = ps;

@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rar2fs, 1.13.29, [http://code.google.com/p/rar2fs])
+AC_INIT(rar2fs, 1.13.30, [http://code.google.com/p/rar2fs])
 AC_PREREQ([2.61])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_TARGET
@@ -60,7 +60,7 @@ AC_FUNC_FORK
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
 AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
-AC_CHECK_FUNCS([mktime atexit dup3 fs_stat_dev ftruncate getcwd getpass lchown memchr memmove memset mkdir realpath rmdir select setlocale strchr strdup strerror strpbrk strrchr strstr strtol strtoul utime setxattr])
+AC_CHECK_FUNCS([mktime atexit dup3 fs_stat_dev ftruncate getcwd getpass lchown memchr memmove memset mkdir realpath rmdir select setlocale strchr strdup strerror strpbrk strrchr strstr strtol strtoul utime setxattr fdatasync])
 
 # Check for GNU library extension fmemopen()
 #
