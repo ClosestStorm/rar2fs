@@ -28,6 +28,7 @@ AX_C_BIGENDIAN_CROSS
 AC_FUNC_ALLOCA
 AC_CHECK_HEADERS([errno.h arpa/inet.h fcntl.h limits.h locale.h malloc.h stddef.h sys/file.h sys/mount.h sys/param.h sys/statvfs.h syslog.h utime.h wchar.h])
 AC_CHECK_HEADERS([execinfo.h ucontext.h sched.h])
+AC_CHECK_HEADERS([sys/xattr.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_DIRENT
