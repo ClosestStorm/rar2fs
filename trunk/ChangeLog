@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2012-01-12  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed yet another build problem on OS X due to 
+          additional argument required for Fuse4x
+
 2012-01-11  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a problem with xattr functions taking additional
