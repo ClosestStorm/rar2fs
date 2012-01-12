@@ -2927,14 +2927,19 @@ static int rar2_utime(const char *path, const struct timespec tv[2])
 *****************************************************************************
 *
 ****************************************************************************/
+#ifdef XATTR_ADD_OPT
+static int rar2_getxattr(const char *path, const char *name, char *value,
+                size_t size, uint32_t position)
+#else
 static int rar2_getxattr(const char *path, const char *name, char *value,
                 size_t size)
+#endif
 {
         ENTER_("%s", path);
         char *tmp;
         ABS_ROOT(tmp, path);
 #ifdef XATTR_ADD_OPT
-        size = getxattr(tmp, name, value, size, 0, 0);
+        size = getxattr(tmp, name, value, size, position, 0);
 #else
         size = getxattr(tmp, name, value, size);
 #endif
