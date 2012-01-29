@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2012-01-29  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a bug when caching path name for folders inside
+          RAR archives for which the root folder entry is not
+          present in the file header.
+
 2012-01-12  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed yet another build problem on OS X due to 

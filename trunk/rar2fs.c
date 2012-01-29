@@ -160,7 +160,7 @@ unsigned int rar2_ticks;
 int fs_terminated = 0;
 
 static void syncdir(const char *dir);
-static int  extract_rar(char *arch, const char *file, char *passwd, FILE * fp,
+static int  extract_rar(char *arch, const char *file, char *passwd, FILE *fp,
                         void *arg);
 
 struct eof_data {
@@ -1547,7 +1547,7 @@ static int listrar(const char *path, dir_entry_list_t **buffer,
                         if (!display) {
                                 if (!strcmp(basename(rar_name), rar_name)) {
                                         char *mp;
-                                        ABS_MP(mp, "/", rar_name);
+                                        ABS_MP(mp, path, rar_name);
                                         dir_elem_t *entry_p = cache_path_get(mp);
                                         if (entry_p == NULL) {
                                                 printd(3, "Adding %s to cache\n", mp);
