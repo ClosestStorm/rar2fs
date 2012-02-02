@@ -1,6 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rar2fs, 1.13.33, [http://code.google.com/p/rar2fs])
+AC_INIT([rar2fs],
+        [m4_esyscmd(./get-version.sh version.h)],
+        [http://code.google.com/p/rar2fs])
 AC_PREREQ([2.61])
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_TARGET
