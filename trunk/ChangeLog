@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2012-02-02  Hans Beckerus <hans.beckerus@gmail.com>
+  
+        * Released 1.14.0
+
+        * Built against unrar source v4.1.4
+
 2012-01-29  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a bug when caching path name for folders inside
