@@ -2949,7 +2949,7 @@ static int rar2_getxattr(const char *path, const char *name, char *value,
                         return size;
                 return -errno;
         }
-        return -ENODATA;
+        return -ENOTSUP;
 }
 
 /*!
@@ -2972,7 +2972,7 @@ static int rar2_listxattr(const char *path, char *list, size_t size)
                         return size;
                 return -errno;
         }
-        return -ENODATA;
+        return -ENOTSUP;
 }
 
 #endif

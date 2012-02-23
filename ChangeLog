@@ -2,8 +2,13 @@ rar2fs ChangeLog file.
 
 2012-02-23  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Changed return from xattr functions from ENODATA 
+          to ENOTSUP for files inside RAR archives.
+ 
+2012-02-23  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Fixed an issue with 'echo' in get-version.sh that
-          caused some platform like OS X to produce invalid
+          caused some systems, eg. OS X, to produce invalid
           configure scripts.
           
 2012-02-23  Hans Beckerus <hans.beckerus@gmail.com>

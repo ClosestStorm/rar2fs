@@ -342,7 +342,7 @@ AC_LANG_POP
 # until its effect can be undone. Instead $ac_c_werror_flag is manipulated
 # directly. Dirty but effective!
 # Also, we check using -Wunused-result since GCC has a special treatment of
-# the '-Wno-' form. If there is as -Wunused-result it is here assumed that
+# the '-Wno-' form. If there is a -Wunused-result it is here assumed that
 # there is also a -Wno-unused-result and vice versa.
 #
 AH_TEMPLATE([HAVE_NO_UNUSED_RESULT],
