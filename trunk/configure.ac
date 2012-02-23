@@ -341,6 +341,9 @@ AC_LANG_POP
 # Note that AC_LANG_WERROR is not used here since it is more or less useless
 # until its effect can be undone. Instead $ac_c_werror_flag is manipulated
 # directly. Dirty but effective!
+# Also, we check using -Wunused-result since GCC has a special treatment of
+# the '-Wno-' form. If there is as -Wunused-result it is here assumed that
+# there is also a -Wno-unused-result and vice versa.
 #
 AH_TEMPLATE([HAVE_NO_UNUSED_RESULT],
             [Define to 1 if compiler can disable warning for functions declared
@@ -365,13 +368,13 @@ AH_VERBATIM([HAVE_NO_UNUSED_RESULT_],[
 AC_LANG_PUSH(C)
 ac_c_werror_flag=yes
 save_CFLAGS=$CFLAGS
-CFLAGS="$CFLAGS -Wno-unused-result"
+CFLAGS="$CFLAGS -Wunused-result"
 AC_MSG_CHECKING([if compiler supports -Wno-unused-result])
 AC_TRY_COMPILE([#include<stdio.h>],[
-        fread(NULL, 0, 0, NULL);
     ],
     [AC_MSG_RESULT([yes])
         AC_DEFINE([HAVE_NO_UNUSED_RESULT],[1])
+        CFLAGS="$save_CFLAGS -Wno-unused-result"
     ],
     [AC_MSG_RESULT([no])
         CFLAGS=$save_CFLAGS
