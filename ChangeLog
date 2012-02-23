@@ -2,6 +2,12 @@ rar2fs ChangeLog file.
 
 2012-02-23  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Fixed an issue with 'echo' in get-version.sh that
+          caused some platform like OS X to produce invalid
+          configure scripts.
+          
+2012-02-23  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Removed all but one call to pthread_exit. At least 
           one has been identified to cause C++ runtime crashes 
           on some systems due to the forced unwind.
