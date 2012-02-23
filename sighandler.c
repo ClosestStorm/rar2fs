@@ -55,7 +55,9 @@
 
 static void stack_trace(int sig, siginfo_t *info, void *secret)
 {
+#ifdef REG_PC
         ucontext_t *uc = (ucontext_t *)secret;
+#endif
 
         /* Do something useful with siginfo_t */
         char buf[256];

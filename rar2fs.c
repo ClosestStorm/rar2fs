@@ -284,7 +284,7 @@ static FILE *popen_(const dir_elem_t *entry_p, pid_t *cpid, void **mmap_addr,
                         }
 #endif
                 } else {
-#ifdef HAVE_FMEMOPEN
+#if defined ( HAVE_FMEMOPEN ) && defined ( HAVE_MMAP )
                         maddr = mmap(0, P_ALIGN_(entry_p->msize), PROT_READ,
                                                 MAP_SHARED, fd, 0);
                         if (maddr != MAP_FAILED) {
@@ -611,10 +611,7 @@ static int lread_rar_idx(char *buf, size_t size, off_t offset, IOContext *op)
                 memcpy(buf, op->buf->idx.data_p->bytes + off, size);
                 return size;
         }
-        size = (size_t)pread(op->buf->idx.fd, buf, size, off + sizeof(IdxHead));
-        if ((ssize_t)size == -1)
-                return -errno;
-        return size;
+        return pread(op->buf->idx.fd, buf, size, off + sizeof(IdxHead));
 }
 
 /*!
@@ -628,8 +625,6 @@ static int lread_rar(char *buf, size_t size, off_t offset,
         int n = 0;
 
         assert(op && "bad context data");
-
-        errno = 0;
 
         if ((offset + size) > op->entry_p->stat.st_size) {
                 size = offset < op->entry_p->stat.st_size
@@ -668,7 +663,7 @@ check_idx:
                                 offset += tmp;
                                 n += tmp;
                         } else {
-                                printd(1, "read: I/O error\n");
+                                printd(1, "%s: Input/output error\n", __func__);
                                 n = -EIO;
                                 goto out;
                         }
@@ -677,8 +672,7 @@ check_idx:
                  * file is most likely a request for index information.
                  */
                 } else if ((((offset - op->pos) / (op->entry_p->stat.st_size * 1.0) * 100) > 95.0 &&
-                                op->seq > 1 && op->seq < 15) ||
-                                (offset + size) > op->entry_p->stat.st_size) {
+                                op->seq > 1 && op->seq < 15)) {
                         op->seq--;      /* pretend it never happened */
 
                         /*
@@ -777,10 +771,8 @@ check_idx:
         }
 
 out:
-        printd(3, "%s: RETURN %d\n", __func__, errno ? -errno : n);
-        if (errno)
-                perror("read");
-        return errno ? -errno : n;
+        printd(3, "%s: RETURN %d\n", __func__, n);
+        return n;
 }
 
 /*!
@@ -1376,7 +1368,7 @@ static int listrar_rar(const char *path, dir_entry_list_t **buffer,
         if (next->Method == FHD_STORING && !need_password) {
                 struct stat st;
                 (void)fstat(fd, &st);
-#ifdef HAVE_FMEMOPEN
+#if defined ( HAVE_FMEMOPEN ) && defined ( HAVE_MMAP )
                 maddr = mmap(0, P_ALIGN_(st.st_size), PROT_READ, MAP_SHARED, fd, 0);
                 if (maddr != MAP_FAILED)
                         fp = fmemopen(maddr + (next->Offset + next->HeadSize), GET_RAR_PACK_SZ(next), "r");
@@ -1769,6 +1761,7 @@ static int inline convert_fake_iso(const char *root, char *name)
                 if (l < 3)
                         name = realloc(name, strlen(name) + 1 + (3 - l));
                 strcpy(name + (strlen(name) - l), "iso");
+                return 1;
         }
         return 0;
 }
@@ -1800,18 +1793,20 @@ static void readdir_scan(const char *dir, const char *root,
                 while (i < n) {
                         if (!f) {
                                 char *tmp = namelist[i]->d_name;
-                                char *tmp2;
+                                char *tmp2 = NULL;
 #ifdef _DIRENT_HAVE_D_TYPE
-                                tmp2 = NULL;
-                                if (namelist[i]->d_type != DT_LNK) {
+                                if (namelist[i]->d_type == DT_REG) {
+#else
+                                char* path;
+                                struct stat st;
+                                ABS_MP(path, root, tmp);
+                                (void)stat(path, &st);
+                                if (S_ISREG(st.st_mode)) {
 #endif
                                         tmp2 = strdup(tmp);
-                                        if (!convert_fake_iso(root, tmp2)) {
+                                        if (convert_fake_iso(root, tmp2))
                                                 DIR_ENTRY_ADD(*next, tmp2, NULL);
-                                        }
-#ifdef _DIRENT_HAVE_D_TYPE
                                 }
-#endif
                                 DIR_ENTRY_ADD(*next, tmp, NULL);
                                 if (tmp2 != NULL)
                                         free(tmp2);
@@ -2012,11 +2007,14 @@ static int rar2_readdir2(const char *path, void *buffer,
         DIR_LIST_RST(next);
 
         int c = 0;
+        int c_end = OBJ_INT(OBJ_SEEK_LENGTH, 0);
         dir_entry_list_t *arch_next = arch_list_root.next;
         while (arch_next) {
                 if (!c++)
                         password = get_password(arch_next->entry.name, tmpbuf);
                 (void)listrar(path, &next, arch_next->entry.name, password);
+                if (c == c_end)
+                        break;
                 arch_next = arch_next->next;
         }
 
@@ -2095,7 +2093,7 @@ static void *reader_task(void *arg)
 #endif
         }
         printd(4, "Reader thread stopped\n");
-        pthread_exit(NULL);
+        return NULL;
 }
 
 /*!
@@ -2646,17 +2644,19 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                                 if (!op->terminate) {
                                         op->terminate = 1;
                                         WAKE_THREAD(op->pfd1, 0);
-                                        pthread_join(op->thread, NULL);
                                 }
-                                close(op->pfd1[0]);
-                                close(op->pfd1[1]);
-                                close(op->pfd2[0]);
-                                close(op->pfd2[1]);
+                                pthread_join(op->thread, NULL);
                                 if (pclose_(FH_TOFP(op->fh), op->pid)) {
                                         printd(4, "child closed abnormaly");
                                 }
                                 printd(4, "PIPE %p closed towards child %05d\n",
                                        FH_TOFP(op->fh), op->pid);
+
+                                close(op->pfd1[0]);
+                                close(op->pfd1[1]);
+                                close(op->pfd2[0]);
+                                close(op->pfd2[1]);
+
                                 if (op->entry_p->flags.mmap) {
                                         fclose(op->mmap_fp);
                                         if (op->mmap_addr != MAP_FAILED) {
@@ -2936,16 +2936,20 @@ static int rar2_getxattr(const char *path, const char *name, char *value,
 #endif
 {
         ENTER_("%s", path);
-        char *tmp;
-        ABS_ROOT(tmp, path);
+
+        if (!access_chk(path, 0)) {
+                char *tmp;
+                ABS_ROOT(tmp, path);
 #ifdef XATTR_ADD_OPT
-        size = getxattr(tmp, name, value, size, position, 0);
+                size = getxattr(tmp, name, value, size, position, 0);
 #else
-        size = getxattr(tmp, name, value, size);
+                size = getxattr(tmp, name, value, size);
 #endif
-        if (size != -1)
-                return size;
-        return -errno;
+                if (size != -1)
+                        return size;
+                return -errno;
+        }
+        return -ENODATA;
 }
 
 /*!
@@ -2955,16 +2959,20 @@ static int rar2_getxattr(const char *path, const char *name, char *value,
 static int rar2_listxattr(const char *path, char *list, size_t size)
 {
         ENTER_("%s", path);
-        char *tmp;
-        ABS_ROOT(tmp, path);
+
+        if (!access_chk(path, 0)) {
+                char *tmp;
+                ABS_ROOT(tmp, path);
 #ifdef XATTR_ADD_OPT
-        size = listxattr(tmp, list, size, 0);
+                size = listxattr(tmp, list, size, 0);
 #else
-        size = listxattr(tmp, list, size);
+                size = listxattr(tmp, list, size);
 #endif
-        if (size != -1)
-                return size;
-        return -errno;
+                if (size != -1)
+                        return size;
+                return -errno;
+        }
+        return -ENODATA;
 }
 
 #endif
@@ -3112,7 +3120,6 @@ static void *work_task(void *data)
         wdt->status = wdt->mt ? fuse_loop_mt(wdt->fuse) : fuse_loop(wdt->fuse);
         wdt->work_task_exited = 1;
         pthread_exit(NULL);
-        return NULL;
 }
 
 /*!
@@ -3374,7 +3381,7 @@ int main(int argc, char *argv[])
 {
         int res = 0;
 
-        /*openlog("rarfs2", LOG_NOWAIT|LOG_PID, 0); */
+        /*openlog("rarfs2", LOG_NOWAIT|LOG_PID, 0);*/
         configdb_init();
 
         long ps = -1;
@@ -3438,11 +3445,6 @@ int main(int argc, char *argv[])
         /* Clean up what has not already been taken care of */
         fuse_opt_free_args(&args);
         configdb_destroy();
-
-        /* Why nothing is ever simple ? */
-#ifndef __APPLE__
-        pthread_exit(NULL);
-#endif
 
         return res;
 }

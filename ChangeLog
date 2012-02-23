@@ -1,5 +1,30 @@
 rar2fs ChangeLog file.
 
+2012-02-23  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Removed all but one call to pthread_exit. At least 
+          one has been identified to cause C++ runtime crashes 
+          on some systems due to the forced unwind.
+
+        * Updated xattr functions to return ENODATA for files
+          residing inside RAR archives.
+
+        * Fixed an issue with '--seek-length' not taking effect
+          when mounting single archives. This resulted in some
+          increased system load at mount time.
+
+        * Fixed a misuse of errno that could result in false
+          read errors for files in compressed RAR archives.
+ 
+        * Fixed an issue during scanning of directories causing
+          unnecessary calls to cache invalidate.
+
+        * Fixed a warning about unused variable if REG_PC is
+          not defined.
+
+        * Updated the check for '-Wno-unused-result' support
+          by the compiler. It did not work as expected.
+
 2012-02-02  Hans Beckerus <hans.beckerus@gmail.com>
   
         * Released 1.14.0
