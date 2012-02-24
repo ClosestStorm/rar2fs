@@ -2449,6 +2449,8 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                         buf->idx.fd = -1;
                         if (!preload_index(buf, path)) {
                                 entry_p->flags.save_eof = 0;
+                                entry_p->flags.direct_io = 0;
+                                fi->direct_io = 0;
                         } else {
                                 /* Was the file removed ? */
                                 if (OBJ_SET(OBJ_SAVE_EOF) && !entry_p->flags.save_eof) {
