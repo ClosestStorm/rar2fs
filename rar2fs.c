@@ -626,6 +626,12 @@ static int lread_rar(char *buf, size_t size, off_t offset,
 
         assert(op && "bad context data");
 
+        ++op->seq;
+
+        printd(3,
+               "PID %05d calling %s(), seq = %d, size=%zu, offset=%llu/%llu\n",
+               getpid(), __func__, op->seq, size, offset, op->pos);
+
         if ((offset + size) > op->entry_p->stat.st_size) {
                 size = offset < op->entry_p->stat.st_size
                         ? op->entry_p->stat.st_size - offset
@@ -633,11 +639,6 @@ static int lread_rar(char *buf, size_t size, off_t offset,
         }
         if (!size)
                 goto out;
-
-        ++op->seq;
-        printd(3,
-               "PID %05d calling %s(), seq = %d, size=%zu, offset=%llu/%llu\n",
-               getpid(), __func__, op->seq, size, offset, op->pos);
 
         /* Check for exception case */
         if (offset != op->pos) {
@@ -653,9 +654,9 @@ check_idx:
                         if (delta <= IOB_HIST_SZ) {
                                 size_t pos = (op->buf->ri - delta) &
                                         (IOB_SZ - 1);
-                                size_t chunk = op->pos > IOB_HIST_SZ
+                                size_t chunk = pos > IOB_HIST_SZ
                                         ? IOB_HIST_SZ
-                                        : op->pos;
+                                        : pos;
                                 chunk = chunk > size ? size : size - chunk;
                                 size_t tmp = copyFrom(buf, op->buf, chunk, pos);
                                 size -= tmp;
@@ -672,7 +673,7 @@ check_idx:
                  * file is most likely a request for index information.
                  */
                 } else if ((((offset - op->pos) / (op->entry_p->stat.st_size * 1.0) * 100) > 95.0 &&
-                                op->seq > 1 && op->seq < 15)) {
+                                op->seq < 15)) {
                         op->seq--;      /* pretend it never happened */
 
                         /*
@@ -686,8 +687,10 @@ check_idx:
                         if (op->entry_p->flags.save_eof) {
                                 op->entry_p->flags.save_eof = 0;
                                 if (!extract_index(op->entry_p, offset)) {
-                                        if (!preload_index(op->buf, op->entry_p->name_p))
+                                        if (!preload_index(op->buf, op->entry_p->name_p)) {
+                                                op->seq++;
                                                 goto check_idx;
+                                        }
                                 }
                         }
                         fi->direct_io = 1;

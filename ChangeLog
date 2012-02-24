@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2012-02-24  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a serious calculation error in one of the
+          paths dealing with compressed RARs.
+
 2012-02-23  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Changed return from xattr functions from ENODATA 
