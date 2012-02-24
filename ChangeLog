@@ -2,6 +2,13 @@ rar2fs ChangeLog file.
 
 2012-02-24  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * When a .r2i file is successfully loaded any direct I/O
+          information is now purged from the cache. It might 
+          still not take effect immediately depending on how the
+          client internal cache is handled. 
+ 
+2012-02-24  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Fixed a serious calculation error in one of the
           paths dealing with compressed RARs.
 
