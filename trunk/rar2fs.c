@@ -2807,7 +2807,9 @@ static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
                 struct fuse_file_info *fi)
 {
         int res;
+#if 0
         int direct_io = fi->direct_io;
+#endif
 
         ENTER_("%s   size=%zu, offset=%llu, fh=%llu", path, size, offset, fi->fh);
 
@@ -2829,10 +2831,13 @@ static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
                 res = lread_rar(buffer, size, offset, fi);
         }
 
+#if 0
         if (res < 0 && direct_io) {
-                errno = -res;   /* convert to proper errno */
+                errno = -res;   /* convert to proper errno? */
                 return -1;
         }
+#endif
+
         return res;
 }
 
@@ -3056,7 +3061,7 @@ static int rar2_getxattr(const char *path, const char *name, char *value,
                 ABS_ROOT(tmp, path);
 #ifdef XATTR_ADD_OPT
                 size = getxattr(tmp, name, value, size, position,
-                        XATTR_NOFOLLOW);
+                                        XATTR_NOFOLLOW);
 #else
                 size = lgetxattr(tmp, name, value, size);
 #endif
@@ -3108,8 +3113,8 @@ static int rar2_setxattr(const char *path, const char *name, const char *value,
                 char *tmp;
                 ABS_ROOT(tmp, path);
 #ifdef XATTR_ADD_OPT
-                size = setxattr(tmp, name, value, size, position, flags,
-                        XATTR_NOFOLLOW);
+                size = setxattr(tmp, name, value, size, position,
+                                        flags | XATTR_NOFOLLOW);
 #else
                 size = lsetxattr(tmp, name, value, size, flags);
 #endif
