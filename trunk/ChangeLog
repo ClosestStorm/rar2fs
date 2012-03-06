@@ -1,5 +1,16 @@
 rar2fs ChangeLog file.
 
+2012-03-06  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed yet another calculation bug in the exception
+          path when dealing with the history buffer.
+
+        * Added hiding of mount point in case of a file system
+          loop (recursive mount).
+
+        * Completed the xattr suit of functions.
+          Also changed to no longer follow symbolic links.
+
 2012-02-24  Hans Beckerus <hans.beckerus@gmail.com>
 
         * When a .r2i file is successfully loaded any direct I/O
