@@ -630,7 +630,7 @@ static int lread_rar_idx(char *buf, size_t size, off_t offset, IOContext *op)
  *****************************************************************************
  *
  ****************************************************************************/
-static void dump_buf(FILE *fp, char* buf, off_t offset, size_t size)
+static void dump_buf(int seq, FILE *fp, char* buf, off_t offset, size_t size)
 {
         int i;
         char out[128];
@@ -638,7 +638,7 @@ static void dump_buf(FILE *fp, char* buf, off_t offset, size_t size)
         size_t size_saved = size;
 
         memset(out, 0, 128);
-        fprintf(fp, "offset: %llu   size: %zu   buf: %p", offset, size, buf);
+        fprintf(fp, "seq=%d offset: %llu   size: %zu   buf: %p", seq, offset, size, buf);
         size = size > 64 ? 64 : size;
         if (fp) {
                 for (i = 0; i < size; i++) {
@@ -723,10 +723,14 @@ check_idx:
                 }
                 /* Check for backward read */
                 if (offset < op->pos) {
-                        off_t delta = op->pos - offset;
-                        if (delta <= IOB_HIST_SZ) {
-                                size_t pos = (op->buf->ri - delta) &
-                                        (IOB_SZ - 1);
+                        printd(3, "seq=%d    history access    offset=%llu"
+                                                " size=%zu  op->pos=%llu"
+                                                "  split=%d\n",
+                                                op->seq,offset,size,
+                                                op->pos,
+                                                (offset + size) > op->pos);
+                        if ((op->pos - offset) <= IOB_HIST_SZ) {
+                                size_t pos = offset & (IOB_SZ-1);
                                 size_t chunk = (offset + size) > op->pos
                                         ? op->pos - offset
                                         : size;
@@ -736,7 +740,10 @@ check_idx:
                                 offset += tmp;
                                 n += tmp;
                         } else {
-                                printd(1, "%s: Input/output error\n", __func__);
+                                printd(1, "%s: Input/output error   offset=%llu"
+                                                        "  pos=%llu\n",
+                                                        __func__,
+                                                        offset, op->pos);
                                 n = -EIO;
                                 goto out;
                         }
@@ -745,7 +752,11 @@ check_idx:
                  * file is most likely a request for index information.
                  */
                 } else if ((((offset - op->pos) / (op->entry_p->stat.st_size * 1.0) * 100) > 95.0 &&
-                                op->seq < 15)) {
+                                op->seq < 10)) {
+                        printd(3, "seq=%d    long jump hack1    offset=%llu,"
+                                                " size=%zu, buf->offset=%llu\n",
+                                                op->seq, offset, size,
+                                                op->buf->offset);
                         op->seq--;      /* pretend it never happened */
 
                         /*
@@ -781,17 +792,7 @@ check_idx:
         if ((offset + size) > op->buf->offset)
                 sync_thread_read(op->pfd1, op->pfd2);
         if ((offset + size) > op->buf->offset) {
-                if (offset < op->buf->offset) {
-                        int off = offset - op->pos;
-                        size_t tmp = readFrom(buf, op->buf,
-                                                op->buf->offset - offset,
-                                                off);
-                        op->pos += (off + tmp);
-                        size -= tmp;
-                        offset += tmp;
-                        buf += tmp;
-                        n += tmp;
-                } else {
+                if (offset >= op->buf->offset) {
                         /*
                          * This is another hack! At this point an early read
                          * far beyond the current stream position is most
@@ -801,9 +802,15 @@ check_idx:
                          * again fall-back to best effort. Also making sure
                          * direct I/O is forced from now on to not cause any
                          * fake data to propagate in sub-sequent reads.
+                         * This case is very likely for multi-part AVI 2.0.
                          */
-                        if (op->seq > 1 && op->seq < 20 &&
-                                        ((offset + size) - op->buf->offset) > IOB_SZ) {
+                        if (op->seq < 15 && ((offset + size) - op->buf->offset)
+                                        > (IOB_SZ - IOB_HIST_SZ)) {
+                                printd(3, "seq=%d    long jump hack2    offset=%llu,"
+                                                " size=%zu, buf->offset=%llu\n",
+                                                op->seq, offset, size,
+                                                op->buf->offset);
+                                op->seq--;      /* pretend it never happened */
                                 fi->direct_io = 1;
                                 op->entry_p->flags.direct_io = 1;
                                 memset(buf, 0, size);
@@ -814,23 +821,28 @@ check_idx:
 
                 pthread_mutex_lock(&op->mutex);
                 if (!op->terminate) {   /* make sure thread is running */
-                        /* Take control of reader thread */
-                        sync_thread_noread(op->pfd1, op->pfd2);
                         pthread_mutex_unlock(&op->mutex);
+                        /* Take control of reader thread */
+                        sync_thread_noread(op->pfd1, op->pfd2); /* XXX really not needed due to call above */
                         while (!feof(FH_TOFP(op->fh)) &&
-                                        (offset + size) > op->buf->offset) {
+                                        offset > op->buf->offset) {
                                 /* consume buffer */
                                 op->pos += op->buf->used;
                                 op->buf->ri = op->buf->wi;
+                                op->buf->used = 0;
                                 (void)readTo(op->buf, FH_TOFP(op->fh),
-                                                IOB_NO_HIST);
+                                                IOB_SAVE_HIST);
                         }
-                        /* Save history only if safe to do so */
+
                         if (!feof(FH_TOFP(op->fh))) {
-                                op->buf->ri += (offset - op->pos);
-                                op->buf->ri &= (IOB_SZ - 1);
+                                op->buf->ri = offset & (IOB_SZ - 1);
                                 op->buf->used -= (offset - op->pos);
                                 op->pos = offset;
+
+                                /* Pull in rest of data if needed */
+                                if ((op->buf->offset - offset) < size)
+                                        (void)readTo(op->buf, FH_TOFP(op->fh),
+                                                        IOB_SAVE_HIST);
                         }
                 } else {
                         pthread_mutex_unlock(&op->mutex);
@@ -840,7 +852,7 @@ check_idx:
         if (size) {
                 int off = offset - op->pos;
                 n += readFrom(buf, op->buf, size, off);
-                op->pos += (off + n);
+                op->pos += (off + size);
                 if (!op->terminate)
                         WAKE_THREAD(op->pfd1, 0);
         }
@@ -849,7 +861,7 @@ out:
 
 #ifdef DEBUG_READ
         if (n > 0)
-                dump_buf(op->dbg_fp, buf_saved, offset_saved, n);
+                dump_buf(op->seq, op->dbg_fp, buf_saved, offset_saved, n);
 #endif
 
         printd(3, "%s: RETURN %d\n", __func__, n);
@@ -2761,6 +2773,10 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                                 close(op->pfd1[1]);
                                 close(op->pfd2[0]);
                                 close(op->pfd2[1]);
+
+#ifdef DEBUG_READ
+                                fclose(op->dbg_fp);
+#endif
 
                                 if (op->entry_p->flags.mmap) {
                                         fclose(op->mmap_fp);

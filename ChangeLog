@@ -1,6 +1,18 @@
 rar2fs ChangeLog file.
 
+2012-03-14  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Released 1.14.6
+
+        * Fixed some bugs that could result in read buffer
+          not being filled correctly for compressed archives.
+
+        * History buffer should now be preserved when large
+          forward jumps are made in the stream.
+
 2012-03-06  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Released 1.14.5
 
         * Fixed yet another calculation bug in the exception
           path when dealing with the history buffer.
