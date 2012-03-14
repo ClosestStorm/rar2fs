@@ -119,10 +119,7 @@ size_t readFrom(char* dest, IoBuf* src, size_t size, size_t off)
  ****************************************************************************/
 size_t copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
 {
-        size_t used = src->used;
-
         size_t tot = 0;
-        size = size > used ? used : size;    /* can not read more than used */
         unsigned int chunk = IOB_SZ - pos;   /* assume one large chunk */
         chunk = chunk < size ? chunk : size; /* reconsider assumption */
         while (size) {
