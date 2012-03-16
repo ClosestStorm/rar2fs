@@ -39,19 +39,7 @@ pthread_mutex_t file_access_mutex;
 #define PATH_CACHE_SZ  (1024)
 static dir_elem_t path_cache[PATH_CACHE_SZ];
 
-/* djb2 xor variant (favored by Bernstein) */
-static unsigned int
-get_hash(const char* s)
-{
-        unsigned int hash = 5381;
-        int c;
-
-        while((c = *s++)) {
-                /* hash = hash * 33 ^ c */
-                hash = ((hash << 5) + hash) ^ c;
-        }
-        return hash & (PATH_CACHE_SZ - 1);
-}
+#define GET_HASH(p) get_hash(p) & (PATH_CACHE_SZ - 1)
 
 #define FREE_CACHE_MEM(e)\
         do {\
@@ -67,7 +55,7 @@ get_hash(const char* s)
  ****************************************************************************/
 dir_elem_t *cache_path_alloc(const char* path)
 {
-        dir_elem_t* p = &path_cache[get_hash(path)];
+        dir_elem_t* p = &path_cache[GET_HASH(path)];
         if (p->rar_p) {
                 if (p->name_p && !strcmp(path, p->name_p))
                         return p;
@@ -89,7 +77,7 @@ dir_elem_t *cache_path_alloc(const char* path)
  ****************************************************************************/
 dir_elem_t *cache_path_get(const char* path)
 {
-        int hash = get_hash(path);
+        int hash = GET_HASH(path);
         dir_elem_t* p = &path_cache[hash];
         while (p) {
                 if (p->name_p && !strcmp(path, p->name_p))
@@ -176,7 +164,7 @@ void inval_cache_path(const char* path)
 {
         int i;
         if (path) {
-                int hash = get_hash(path);
+                int hash = GET_HASH(path);
                 printd(3, "Invalidating cache path %s\n", path);
                 dir_elem_t* e_p = &path_cache[hash];
                 dir_elem_t* p = e_p;
