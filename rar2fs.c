@@ -108,17 +108,19 @@ struct io_handle {
                 IOContext *context;     /* type = IO_TYPE_RAR/IO_TYPE_RAW */
                 int fd;                 /* type = IO_TYPE_NRM/IO_TYPE_ISO */
                 uint64_t bits;
-        };
+        } u;
         dir_elem_t *entry_p;            /* type = IO_TYPE_ISO */
 };
 
 #define FH_ZERO(fh)            ((fh) = 0)
 #define FH_ISSET(fh)           (fh)
-#define FH_SETCONTEXT(fh, v)   (FH_TOIO(fh)->context = (v))
+#define FH_SETCONTEXT(fh, v)   (FH_TOIO(fh)->u.context = (v))
+#define FH_SETFD(fh, v)        (FH_TOIO(fh)->u.fd = (v))
 #define FH_SETIO(fh, v)        ((fh) = (uintptr_t)(v))
 #define FH_SETENTRY(fh, v)     (FH_TOIO(fh)->entry_p = (v))
 #define FH_SETTYPE(fh, v)      (FH_TOIO(fh)->type = (v))
-#define FH_TOCONTEXT(fh)       (FH_TOIO(fh)->context)
+#define FH_TOCONTEXT(fh)       (FH_TOIO(fh)->u.context)
+#define FH_TOFD(fh)            (FH_TOIO(fh)->u.fd)
 #define FH_TOENTRY(fh)         (FH_TOIO(fh)->entry_p)
 #define FH_TOIO(fh)            ((struct io_handle*)(uintptr_t)(fh))
 
@@ -887,13 +889,10 @@ static int lflush(const char *path, struct fuse_file_info *fi)
  ****************************************************************************/
 static int lrelease(const char *path, struct fuse_file_info *fi)
 {
-        struct io_handle *io;
-
         ENTER_("%s", path);
 
-        io = FH_TOIO(fi->fh);
-        close(io->fd);
-        free(io);
+        close(FH_TOFD(fi->fh));
+        free(FH_TOIO(fi->fh));
         FH_ZERO(fi->fh);
         return 0;
 }
@@ -906,12 +905,10 @@ static int lread(const char *path, char *buffer, size_t size, off_t offset,
                 struct fuse_file_info *fi)
 {
         int res;
-        struct io_handle *io;
 
         ENTER_("%s   size = %zu, offset = %llu", path, size, offset);
 
-        io = FH_TOIO(fi->fh);
-        res = pread(io->fd, buffer, size, offset);
+        res = pread(FH_TOFD(fi->fh), buffer, size, offset);
         if (res == -1)
                 return -errno;
         return res;
@@ -928,9 +925,9 @@ static int lopen(const char *path, struct fuse_file_info *fi)
         if (fd == -1)
                 return -errno;
         struct io_handle *io = malloc(sizeof(struct io_handle));
-        io->type = IO_TYPE_NRM;
-        io->fd = fd;
         FH_SETIO(fi->fh, io);
+        FH_SETTYPE(fi->fh, IO_TYPE_NRM);
+        FH_SETFD(fi->fh, fd);
         return 0;
 }
 
@@ -2181,7 +2178,7 @@ static int rar2_readdir2(const char *path, void *buffer,
  ****************************************************************************/
 static void *reader_task(void *arg)
 {
-        IOContext *op = (IOContext *) arg;
+        IOContext *op = (IOContext *)arg;
         op->terminate = 0;
 
         printd(4, "Reader thread started, fp=%p\n", op->fp);
@@ -2873,7 +2870,7 @@ static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
         int res;
         struct io_handle *io;
 
-        assert(FH_ISSET(fi->fh) && "bad context data");
+        assert(FH_ISSET(fi->fh) && "bad I/O handle");
 
         io = FH_TOIO(fi->fh);
         if (!io)
@@ -2934,9 +2931,8 @@ static int rar2_write(const char *path, const char *buffer, size_t size,
 {
         ENTER_("%s", path);
         char *root;
-        struct io_handle *io = FH_TOIO(fi->fh);
         ABS_ROOT(root, path);
-        size_t n = pwrite(io->fd, buffer, size, offset);
+        size_t n = pwrite(FH_TOFD(fi->fh), buffer, size, offset);
         return n >= 0 ? n : -errno;
 }
 
@@ -2992,9 +2988,9 @@ static int rar2_create(const char *path, mode_t mode, struct fuse_file_info *fi)
                         if (!FH_ISSET(fi->fh)) {
                                 struct io_handle *io =
                                         malloc(sizeof(struct io_handle));
-                                io->type = IO_TYPE_NRM;
-                                io->fd = fd;
                                 FH_SETIO(fi->fh, io);
+                                FH_SETTYPE(fi->fh, IO_TYPE_NRM);
+                                FH_SETFD(fi->fh, fd);
                         }
                         return 0;
                 }
