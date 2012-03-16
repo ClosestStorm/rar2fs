@@ -2,6 +2,10 @@ rar2fs ChangeLog file.
 
 2012-03-16  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Fixed some OpenSolaris build errors
+
+2012-03-16  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Removed an unnecessary cache lookup at every
           read call
 
