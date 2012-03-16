@@ -102,18 +102,24 @@ struct io_handle {
         int type;
 #define IO_TYPE_NRM 0
 #define IO_TYPE_RAR 1
+#define IO_TYPE_RAW 2
+#define IO_TYPE_ISO 3
         union {
-                IOContext *context;     /* type = IO_TYPE_RAR */
-                int fd;                 /* type = IO_TYPE_NRM */
+                IOContext *context;     /* type = IO_TYPE_RAR/IO_TYPE_RAW */
+                int fd;                 /* type = IO_TYPE_NRM/IO_TYPE_ISO */
                 uint64_t bits;
         };
+        dir_elem_t *entry_p;            /* type = IO_TYPE_ISO */
 };
 
 #define FH_ZERO(fh)            ((fh) = 0)
 #define FH_ISSET(fh)           (fh)
 #define FH_SETCONTEXT(fh, v)   (FH_TOIO(fh)->context = (v))
 #define FH_SETIO(fh, v)        ((fh) = (uintptr_t)(v))
+#define FH_SETENTRY(fh, v)     (FH_TOIO(fh)->entry_p = (v))
+#define FH_SETTYPE(fh, v)      (FH_TOIO(fh)->type = (v))
 #define FH_TOCONTEXT(fh)       (FH_TOIO(fh)->context)
+#define FH_TOENTRY(fh)         (FH_TOIO(fh)->entry_p)
 #define FH_TOIO(fh)            ((struct io_handle*)(uintptr_t)(fh))
 
 #define WAIT_THREAD(pfd) \
@@ -695,7 +701,6 @@ static int lread_rar(char *buf, size_t size, off_t offset,
         off_t offset_saved = offset;
 #endif
 
-        assert(op && "bad context data");
         op->seq++;
 
         printd(3,
@@ -2433,8 +2438,15 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                 return lopen(root, fi);
         }
         if (entry_p->flags.fake_iso) {
+                int res;
                 ABS_ROOT(root, entry_p->file_p);
-                return lopen(root, fi);
+                res = lopen(root, fi);
+                if (res == 0) {
+                        /* Override defaults */
+                        FH_SETTYPE(fi->fh, IO_TYPE_ISO);
+                        FH_SETENTRY(fi->fh, entry_p);
+                }
+                return res;
         }
         /* For files inside RAR archives create() type of calls are not permitted */
         if (fi->flags & (O_CREAT | O_WRONLY | O_RDWR | O_TRUNC))
@@ -2456,9 +2468,9 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                         goto open_error;
                                 printd(3, "Opened %s\n", entry_p->rar_p);
                                 FH_SETIO(fi->fh, io);
+                                FH_SETTYPE(fi->fh, IO_TYPE_RAW);
                                 FH_SETCONTEXT(fi->fh, op);
                                 printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
-                                io->type = IO_TYPE_RAR;
                                 op->fp = fp;
                                 op->pid = 0;
                                 op->entry_p = entry_p;
@@ -2520,14 +2532,14 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                 /* Open PIPE(s) and create child process */
                 fp = popen_(entry_p, &pid, &mmap_addr, &mmap_fp, &mmap_fd);
                 if (fp != NULL) {
-                        io->type = IO_TYPE_RAR;
-                        op->entry_p = entry_p;
-                        op->seq = 0;
-                        op->pos = 0;
                         FH_SETIO(fi->fh, io);
+                        FH_SETTYPE(fi->fh, IO_TYPE_RAR);
                         FH_SETCONTEXT(fi->fh, op);
                         printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC",
                                                 path, FH_TOCONTEXT(fi->fh));
+                        op->entry_p = entry_p;
+                        op->seq = 0;
+                        op->pos = 0;
                         op->fp = fp;
                         op->pid = pid;
                         printd(4, "PIPE %p created towards child %d\n",
@@ -2777,7 +2789,8 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                 return 0;
         }
 
-        if (FH_TOIO(fi->fh)->type != 0) {
+        if (FH_TOIO(fi->fh)->type == IO_TYPE_RAR ||
+                        FH_TOIO(fi->fh)->type == IO_TYPE_RAW) {
                 IOContext *op = FH_TOCONTEXT(fi->fh);
                 if (op->fp) {
                         if (op->entry_p->flags.raw) {
@@ -2858,7 +2871,11 @@ static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
                 struct fuse_file_info *fi)
 {
         int res;
-        struct io_handle *io = FH_TOIO(fi->fh);
+        struct io_handle *io;
+
+        assert(FH_ISSET(fi->fh) && "bad context data");
+
+        io = FH_TOIO(fi->fh);
         if (!io)
                return -EACCES;
 #if 0
@@ -2867,19 +2884,15 @@ static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
 
         ENTER_("%s   size=%zu, offset=%llu, fh=%llu", path, size, offset, fi->fh);
 
-        dir_elem_t *entry_p;
-        pthread_mutex_lock(&file_access_mutex);
-        entry_p = cache_path_get(path);
-        pthread_mutex_unlock(&file_access_mutex);
-        if (!entry_p) {
+        if (io->type == IO_TYPE_NRM) {
                 char *root;
                 ABS_ROOT(root, path);
                 res = lread(root, buffer, size, offset, fi);
-        } else if (entry_p->flags.fake_iso) {
+        } else if (io->type == IO_TYPE_ISO) {
                 char *root;
-                ABS_ROOT(root, entry_p->file_p);
+                ABS_ROOT(root, io->entry_p->file_p);
                 res = lread(root, buffer, size, offset, fi);
-        } else if (entry_p->flags.raw) {
+        } else if (io->type == IO_TYPE_RAW) {
                 res = lread_raw(buffer, size, offset, fi);
         } else {
                 res = lread_rar(buffer, size, offset, fi);
