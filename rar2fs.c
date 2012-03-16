@@ -74,27 +74,8 @@ typedef struct {
         off_t pos;
 } VolHandle;
 
-typedef struct IOContext IOContext;
-typedef union {
-        int fd;
-        FILE *fp;
-        IOContext *context;
-        uint64_t bits;
-} IOFileHandle;
-
-#define FH_ZERO(fh)            (((IOFileHandle *)(fh))->bits=0)
-#define FH_ISSET(fh)           (fh)
-#define FH_ISADDR(fh)          (FH_ISSET(fh) && !FH_ISFP(fh))
-#define FH_ISFP(fh)            (FH_ISSET(fh) && ((fh)&0x1))
-#define FH_SETFP(fh, v)        {((IOFileHandle*)(fh))->bits = ((uint64_t)(size_t)(v))|0x1ULL;}
-#define FH_SETFD(fh, v)        FH_SETFP(fh, ((v)<<1))
-#define FH_SETCONTEXT(fh, v)   {((IOFileHandle *)(fh))->bits = ((uint64_t)(size_t)(v))&~0x1ULL;}
-#define FH_TOFP(fh)            ((FILE *)(size_t)(((uint64_t)(size_t)(((IOFileHandle)(fh)).fp))&~0x1ULL))
-#define FH_TOFD(fh)            (((IOFileHandle)(fh)).fd>>1)
-#define FH_TOCONTEXT(fh)       (((IOFileHandle)(fh)).context)
-
-struct IOContext {
-        IOFileHandle fh;
+typedef struct  {
+        FILE* fp;
         off_t pos;
         IoBuf *buf;
         pid_t pid;
@@ -115,7 +96,25 @@ struct IOContext {
 #ifdef DEBUG_READ
         FILE *dbg_fp;
 #endif
+} IOContext;
+
+struct io_handle {
+        int type;
+#define IO_TYPE_NRM 0
+#define IO_TYPE_RAR 1
+        union {
+                IOContext *context;     /* type = IO_TYPE_RAR */
+                int fd;                 /* type = IO_TYPE_NRM */
+                uint64_t bits;
+        };
 };
+
+#define FH_ZERO(fh)            ((fh) = 0)
+#define FH_ISSET(fh)           (fh)
+#define FH_SETCONTEXT(fh, v)   (FH_TOIO(fh)->context = (v))
+#define FH_SETIO(fh, v)        ((fh) = (uintptr_t)(v))
+#define FH_TOCONTEXT(fh)       (FH_TOIO(fh)->context)
+#define FH_TOIO(fh)            ((struct io_handle*)(uintptr_t)(fh))
 
 #define WAIT_THREAD(pfd) \
         do {\
@@ -457,8 +456,6 @@ static int lread_raw(char *buf, size_t size, off_t offset,
 {
         int n = 0;
         IOContext *op = FH_TOCONTEXT(fi->fh);
-        if (!op)
-                return -EACCES;
 
         op->seq++;
 
@@ -524,8 +521,8 @@ static int lread_raw(char *buf, size_t size, off_t offset,
                                                 perror("open");
                                                 return 0;       /* EOF */
                                         }
-                                        fclose(FH_TOFP(op->fh));
-                                        FH_SETFP(&op->fh, fp);
+                                        fclose(op->fp);
+                                        op->fp = fp;
                                         force_seek = 1;
                                 } else {
                                         return 0;               /* EOF */
@@ -534,7 +531,7 @@ static int lread_raw(char *buf, size_t size, off_t offset,
                                 if (op->volHdl && op->volHdl[vol].fp)
                                         fp = op->volHdl[vol].fp;
                                 else
-                                        fp = FH_TOFP(op->fh);
+                                        fp = op->fp;
                         }
 seek_check:
                         if (force_seek || offset != op->pos) {
@@ -548,7 +545,7 @@ seek_check:
                         printd(3, "size = %zu, chunk = %llu\n", size, chunk);
                         chunk = size < chunk ? size : chunk;
                 } else {
-                        fp = FH_TOFP(op->fh);
+                        fp = op->fp;
                         chunk = size;
                         if (!offset || offset != op->pos) {
                                 src_off = offset + op->entry_p->offset;
@@ -690,8 +687,8 @@ static void dump_buf(int seq, FILE *fp, char* buf, off_t offset, size_t size)
 static int lread_rar(char *buf, size_t size, off_t offset,
                 struct fuse_file_info *fi)
 {
-        IOContext *op = FH_TOCONTEXT(fi->fh);
         int n = 0;
+        IOContext* op = FH_TOCONTEXT(fi->fh);
 
 #ifdef DEBUG_READ
         char *buf_saved = buf;
@@ -824,24 +821,24 @@ check_idx:
                         pthread_mutex_unlock(&op->mutex);
                         /* Take control of reader thread */
                         sync_thread_noread(op->pfd1, op->pfd2); /* XXX really not needed due to call above */
-                        while (!feof(FH_TOFP(op->fh)) &&
+                        while (!feof(op->fp) &&
                                         offset > op->buf->offset) {
                                 /* consume buffer */
                                 op->pos += op->buf->used;
                                 op->buf->ri = op->buf->wi;
                                 op->buf->used = 0;
-                                (void)readTo(op->buf, FH_TOFP(op->fh),
+                                (void)readTo(op->buf, op->fp,
                                                 IOB_SAVE_HIST);
                         }
 
-                        if (!feof(FH_TOFP(op->fh))) {
+                        if (!feof(op->fp)) {
                                 op->buf->ri = offset & (IOB_SZ - 1);
                                 op->buf->used -= (offset - op->pos);
                                 op->pos = offset;
 
                                 /* Pull in rest of data if needed */
                                 if ((op->buf->offset - offset) < size)
-                                        (void)readTo(op->buf, FH_TOFP(op->fh),
+                                        (void)readTo(op->buf, op->fp,
                                                         IOB_SAVE_HIST);
                         }
                 } else {
@@ -885,9 +882,14 @@ static int lflush(const char *path, struct fuse_file_info *fi)
  ****************************************************************************/
 static int lrelease(const char *path, struct fuse_file_info *fi)
 {
+        struct io_handle *io;
+
         ENTER_("%s", path);
-        close(FH_TOFD(fi->fh));
-        FH_ZERO(&fi->fh);
+
+        io = FH_TOIO(fi->fh);
+        close(io->fd);
+        free(io);
+        FH_ZERO(fi->fh);
         return 0;
 }
 
@@ -899,10 +901,12 @@ static int lread(const char *path, char *buffer, size_t size, off_t offset,
                 struct fuse_file_info *fi)
 {
         int res;
+        struct io_handle *io;
 
         ENTER_("%s   size = %zu, offset = %llu", path, size, offset);
 
-        res = pread(FH_TOFD(fi->fh), buffer, size, offset);
+        io = FH_TOIO(fi->fh);
+        res = pread(io->fd, buffer, size, offset);
         if (res == -1)
                 return -errno;
         return res;
@@ -918,7 +922,10 @@ static int lopen(const char *path, struct fuse_file_info *fi)
         int fd = open(path, fi->flags);
         if (fd == -1)
                 return -errno;
-        FH_SETFD(&fi->fh, fd);
+        struct io_handle *io = malloc(sizeof(struct io_handle));
+        io->type = IO_TYPE_NRM;
+        io->fd = fd;
+        FH_SETIO(fi->fh, io);
         return 0;
 }
 
@@ -1596,15 +1603,20 @@ static int listrar(const char *path, dir_entry_list_t **buffer,
         off_t FileDataEnd;
         RARArchiveListEx L;
         RARArchiveListEx *next = &L;
+        dir_entry_list_t *prev_add = NULL;
         if (!RARListArchiveEx(&hdl, next, &FileDataEnd)) {
                 pthread_mutex_unlock(&file_access_mutex);
                 return 1;
         }
 
+        uint32_t last_hash = 0;
         const unsigned int MainHeaderSize = RARGetMainHeaderSize(hdl);
         const unsigned int MainHeaderFlags = RARGetMainHeaderFlags(hdl);
 
         while (next) {
+                char *key;
+                uint32_t hash;
+
                 BS_TO_UNIX(next->FileName);
 
                 /* Skip compressed image files */
@@ -1614,6 +1626,8 @@ static int listrar(const char *path, dir_entry_list_t **buffer,
                         next = next->next;
                         continue;
                 }
+
+
                 int display = 0;
                 char *rar_name = strdup(next->FileName);
                 char *tmp1 = rar_name;
@@ -1649,8 +1663,15 @@ static int listrar(const char *path, dir_entry_list_t **buffer,
                                                 set_rarstats(entry_p, next, 1);
                                         }
 
-                                        if (buffer)
-                                                DIR_ENTRY_ADD(*buffer, basename(entry_p->name_p), &entry_p->stat);
+                                        hash = get_hash(rar_name);
+                                        if (buffer && (!prev_add ||
+                                                        last_hash != hash ||
+                                                        /* extra mile at collision */
+                                                        strcmp((*buffer)->entry.name, prev_add->entry.name))) {
+                                                DIR_ENTRY_ADD(*buffer, rar_name, &entry_p->stat);
+                                                last_hash = hash;
+                                                prev_add = *buffer;
+                                        }
                                 }
                         }
                 } else if (!strcmp(path + strlen(rar_root) + 1, rar_name)) {
@@ -1766,9 +1787,15 @@ static int listrar(const char *path, dir_entry_list_t **buffer,
 
 cache_hit:
 
-                if (display && buffer) {
-                        char *tmp = basename(entry_p->name_p);
-                        DIR_ENTRY_ADD(*buffer, tmp, &entry_p->stat);
+                key = basename(entry_p->name_p);
+                hash = get_hash(key);
+                if (display && buffer &&
+                                (!prev_add || last_hash != hash ||
+                                /* extra mile at collision */
+                                strcmp((*buffer)->entry.name, prev_add->entry.name))) {
+                        DIR_ENTRY_ADD(*buffer, key, &entry_p->stat);
+                        last_hash = hash;
+                        prev_add = *buffer;
                 }
 
                 next = next->next;
@@ -2152,7 +2179,7 @@ static void *reader_task(void *arg)
         IOContext *op = (IOContext *) arg;
         op->terminate = 0;
 
-        printd(4, "Reader thread started, fp=%p\n", FH_TOFP(op->fh));
+        printd(4, "Reader thread started, fp=%p\n", op->fp);
 
         int fd = op->pfd1[0];
         int nfsd = fd + 1;
@@ -2182,8 +2209,8 @@ static void *reader_task(void *arg)
                 printd(4, "Reader thread wakeup, select()=%d\n", retval);
                 char buf[2];
                 NO_UNUSED_RESULT read(fd, buf, 1);      /* consume byte */
-                if (buf[0] < 2 /*&& !feof(FH_TOFP(op->fh))*/)
-                        (void)readTo(op->buf, FH_TOFP(op->fh), IOB_SAVE_HIST);
+                if (buf[0] < 2 /*&& !feof(op->fp)*/)
+                        (void)readTo(op->buf, op->fp, IOB_SAVE_HIST);
                 if (buf[0]) {
                         printd(4, "Reader thread acknowledge\n");
                         int fd = op->pfd2[1];
@@ -2192,7 +2219,7 @@ static void *reader_task(void *arg)
                 }
 #if 0
                 /* Early termination */
-                if (feof(FH_TOFP(op->fh))) {
+                if (feof(op->fp)) {
                         if (!pthread_mutex_trylock(&op->mutex)) {
                                 op->terminate = 1;
                                 pthread_mutex_unlock(&op->mutex);
@@ -2416,20 +2443,23 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
         FILE *fp = NULL;
         IoBuf *buf = NULL;
         IOContext *op = NULL;
+        struct io_handle* io = NULL;
         pid_t pid = 0;
 
         if (!FH_ISSET(fi->fh)) {
                 if (entry_p->flags.raw) {
                         FILE *fp = fopen(entry_p->rar_p, "r");
                         if (fp != NULL) {
+                                io = malloc(sizeof(struct io_handle));
                                 op = malloc(sizeof(IOContext));
-                                if (!op)
+                                if (!op || !io)
                                         goto open_error;
-
                                 printd(3, "Opened %s\n", entry_p->rar_p);
-                                FH_SETFP(&op->fh, fp);
-                                FH_SETCONTEXT(&fi->fh, op);
+                                FH_SETIO(fi->fh, io);
+                                FH_SETCONTEXT(fi->fh, op);
                                 printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
+                                io->type = IO_TYPE_RAR;
+                                op->fp = fp;
                                 op->pid = 0;
                                 op->entry_p = entry_p;
                                 op->seq = 0;
@@ -2481,24 +2511,27 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                         goto open_error;
                 IOB_RST(buf);
 
+                io = malloc(sizeof(struct io_handle));
                 op = malloc(sizeof(IOContext));
-                if (!op)
+                if (!op || !io)
                         goto open_error;
                 op->buf = buf;
 
                 /* Open PIPE(s) and create child process */
                 fp = popen_(entry_p, &pid, &mmap_addr, &mmap_fp, &mmap_fd);
                 if (fp != NULL) {
+                        io->type = IO_TYPE_RAR;
                         op->entry_p = entry_p;
                         op->seq = 0;
                         op->pos = 0;
-                        FH_SETCONTEXT(&fi->fh, op);
+                        FH_SETIO(fi->fh, io);
+                        FH_SETCONTEXT(fi->fh, op);
                         printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC",
                                                 path, FH_TOCONTEXT(fi->fh));
-                        FH_SETFP(&op->fh, fp);
+                        op->fp = fp;
                         op->pid = pid;
                         printd(4, "PIPE %p created towards child %d\n",
-                                                FH_TOFP(op->fh), pid);
+                                                op->fp, pid);
 
                         /*
                          * Create pipes to be used between threads.
@@ -2743,9 +2776,10 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                 pthread_mutex_unlock(&file_access_mutex);
                 return 0;
         }
-        if (FH_ISADDR(fi->fh)) {
+
+        if (FH_TOIO(fi->fh)->type != 0) {
                 IOContext *op = FH_TOCONTEXT(fi->fh);
-                if (FH_TOFP(op->fh)) {
+                if (op->fp) {
                         if (op->entry_p->flags.raw) {
                                 if (op->volHdl) {
                                         int j;
@@ -2755,19 +2789,19 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                                         }
                                         free(op->volHdl);
                                 }
-                                fclose(FH_TOFP(op->fh));
-                                printd(3, "Closing file handle %p\n", FH_TOFP(op->fh));
+                                fclose(op->fp);
+                                printd(3, "Closing file handle %p\n", op->fp);
                         } else {
                                 if (!op->terminate) {
                                         op->terminate = 1;
                                         WAKE_THREAD(op->pfd1, 0);
                                 }
                                 pthread_join(op->thread, NULL);
-                                if (pclose_(FH_TOFP(op->fh), op->pid)) {
+                                if (pclose_(op->fp, op->pid)) {
                                         printd(4, "child closed abnormaly");
                                 }
                                 printd(4, "PIPE %p closed towards child %05d\n",
-                                       FH_TOFP(op->fh), op->pid);
+                                               op->fp, op->pid);
 
                                 close(op->pfd1[0]);
                                 close(op->pfd1[1]);
@@ -2805,7 +2839,8 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                         free(op->buf);
                 }
                 free(op);
-                FH_ZERO(&fi->fh);
+                free(FH_TOIO(fi->fh));
+                FH_ZERO(fi->fh);
         } else {
                 char *root;
                 ABS_ROOT(root, path);
@@ -2823,6 +2858,9 @@ static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
                 struct fuse_file_info *fi)
 {
         int res;
+        struct io_handle *io = FH_TOIO(fi->fh);
+        if (!io)
+               return -EACCES;
 #if 0
         int direct_io = fi->direct_io;
 #endif
@@ -2864,9 +2902,14 @@ static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
 static int rar2_truncate(const char *path, off_t offset)
 {
         ENTER_("%s", path);
-        char *root;
-        ABS_ROOT(root, path);
-        return -truncate(root, offset);
+        if (!access_chk(path, 0)) {
+                char *root;
+                ABS_ROOT(root, path);
+                if (!truncate(root, offset))
+                        return 0;
+                return -errno;
+        }
+        return -EPERM;
 }
 
 /*!
@@ -2878,8 +2921,9 @@ static int rar2_write(const char *path, const char *buffer, size_t size,
 {
         ENTER_("%s", path);
         char *root;
+        struct io_handle *io = FH_TOIO(fi->fh);
         ABS_ROOT(root, path);
-        size_t n = pwrite(FH_TOFD(fi->fh), buffer, size, offset);
+        size_t n = pwrite(io->fd, buffer, size, offset);
         return n >= 0 ? n : -errno;
 }
 
@@ -2932,7 +2976,13 @@ static int rar2_create(const char *path, mode_t mode, struct fuse_file_info *fi)
                         int fd = creat(root, mode);
                         if (fd == -1)
                                 return -errno;
-                        FH_SETFD(&fi->fh, fd);
+                        if (!FH_ISSET(fi->fh)) {
+                                struct io_handle *io =
+                                        malloc(sizeof(struct io_handle));
+                                io->type = IO_TYPE_NRM;
+                                io->fd = fd;
+                                FH_SETIO(fi->fh, io);
+                        }
                         return 0;
                 }
         }

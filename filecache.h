@@ -90,6 +90,25 @@ typedef struct dir_elem dir_elem_t;
 
 extern pthread_mutex_t file_access_mutex;
 
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static inline uint32_t
+get_hash(const char* s)
+{
+        /* djb2 xor variant (favored by Bernstein) */
+
+        uint32_t hash = 5381;
+        int c;
+
+        while((c = *s++)) {
+                /* hash = hash * 33 ^ c */
+                hash = ((hash << 5) + hash) ^ c;
+        }
+        return hash;
+}
+
 dir_elem_t*
 cache_path_alloc(const char* path);
 
