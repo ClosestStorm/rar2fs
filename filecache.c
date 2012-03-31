@@ -32,30 +32,33 @@
 #include "debug.h"
 #include "filecache.h"
 #include "configdb.h"
+#include "hash.h"
 
-extern char* src_path;
+extern char *src_path;
 pthread_mutex_t file_access_mutex;
 
 #define PATH_CACHE_SZ  (1024)
 static dir_elem_t path_cache[PATH_CACHE_SZ];
 
-#define GET_HASH(p) get_hash(p) & (PATH_CACHE_SZ - 1)
-
 #define FREE_CACHE_MEM(e)\
         do {\
-                if ((e)->name_p)     free ((e)->name_p);\
-                if ((e)->rar_p)      free ((e)->rar_p);\
-                if ((e)->file_p)     free ((e)->file_p);\
-                if ((e)->password_p) free ((e)->password_p);\
+                if ((e)->name_p)\
+                        free ((e)->name_p);\
+                if ((e)->rar_p)\
+                        free ((e)->rar_p);\
+                if ((e)->file_p)\
+                        free ((e)->file_p);\
+                if ((e)->password_p)\
+                        free ((e)->password_p);\
         } while(0)
 
 /*!
  *****************************************************************************
  *
  ****************************************************************************/
-dir_elem_t *cache_path_alloc(const char* path)
+dir_elem_t *cache_path_alloc(const char *path)
 {
-        dir_elem_t* p = &path_cache[GET_HASH(path)];
+        dir_elem_t *p = &path_cache[get_hash(path, PATH_CACHE_SZ)];
         if (p->rar_p) {
                 if (p->name_p && !strcmp(path, p->name_p))
                         return p;
@@ -67,6 +70,7 @@ dir_elem_t *cache_path_alloc(const char* path)
                 p->next_p = malloc(sizeof(dir_elem_t));
                 p = p->next_p;
                 memset(p, 0, sizeof(dir_elem_t));
+                p->dir_hash = get_hash(basename(path), 0);
         }
         return p;
 }
@@ -75,10 +79,10 @@ dir_elem_t *cache_path_alloc(const char* path)
  *****************************************************************************
  *
  ****************************************************************************/
-dir_elem_t *cache_path_get(const char* path)
+dir_elem_t *cache_path_get(const char *path)
 {
-        int hash = GET_HASH(path);
-        dir_elem_t* p = &path_cache[hash];
+        int hash = get_hash(path, PATH_CACHE_SZ);
+        dir_elem_t *p = &path_cache[hash];
         while (p) {
                 if (p->name_p && !strcmp(path, p->name_p))
                         return p;
@@ -91,16 +95,16 @@ dir_elem_t *cache_path_get(const char* path)
  *****************************************************************************
  *
  ****************************************************************************/
-dir_elem_t *cache_path(const char* path, struct stat *stbuf)
+dir_elem_t *cache_path(const char *path, struct stat *stbuf)
 {
-        dir_elem_t* e_p = cache_path_get(path);
+        dir_elem_t *e_p = cache_path_get(path);
         if (e_p && !e_p->flags.fake_iso) {
                 if (stbuf)
                         memcpy(stbuf, &e_p->stat, sizeof(struct stat));
                 return e_p;
         } else  { /* CACHE MISS */
                 struct stat st;
-                char* root;
+                char *root;
 
                 printd(3, "MISS    %s   (collision: %s)\n", path,
                                 (e_p && e_p->name_p) ? e_p->name_p : "no");
@@ -122,9 +126,9 @@ dir_elem_t *cache_path(const char* path, struct stat *stbuf)
 
                         /* Try the image file extensions one by one */
                         for (i = 0; i < OBJ_CNT(obj); i++) {
-                                char* tmp = (OBJ_STR(obj, i));
+                                char *tmp = (OBJ_STR(obj, i));
                                 int l = strlen(tmp ? tmp : "");
-                                char* root1 = strdup(root);
+                                char *root1 = strdup(root);
                                 if (l > 4)
                                         root1 = realloc(root1, strlen(root1) + 1 + (l - 4));
                                 strcpy(root1 + (strlen(root1) - 4), tmp ? tmp : "");
@@ -160,18 +164,18 @@ dir_elem_t *cache_path(const char* path, struct stat *stbuf)
  *****************************************************************************
  *
  ****************************************************************************/
-void inval_cache_path(const char* path)
+void inval_cache_path(const char *path)
 {
         int i;
         if (path) {
-                int hash = GET_HASH(path);
+                int hash = get_hash(path, PATH_CACHE_SZ);
                 printd(3, "Invalidating cache path %s\n", path);
-                dir_elem_t* e_p = &path_cache[hash];
-                dir_elem_t* p = e_p;
+                dir_elem_t *e_p = &path_cache[hash];
+                dir_elem_t *p = e_p;
 
                 /* Search collision chain */
                 while (p->next_p) {
-                        dir_elem_t* prev_p = p;
+                        dir_elem_t *prev_p = p;
                         p = p->next_p;
                         if (p->name_p && !strcmp(path, p->name_p)) {
                                 FREE_CACHE_MEM(p);
@@ -193,8 +197,8 @@ void inval_cache_path(const char* path)
         } else {
                 printd(3, "Invalidating all cache entries\n");
                 for (i = 0; i < PATH_CACHE_SZ;i++) {
-                        dir_elem_t* e_p = &path_cache[i];
-                        dir_elem_t* p = e_p;
+                        dir_elem_t *e_p = &path_cache[i];
+                        dir_elem_t *p = e_p;
 
                         /* Search collision chain */
                         while (p->next_p) {

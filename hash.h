@@ -26,58 +26,27 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef IOBUFFER_H_
-#define IOBUFFER_H_
+#ifndef HASH_H_
+#define HASH_H_
 
 #include <platform.h>
-#include "index.h"
 
-#define IOB_SZ_DEFAULT           (4 * 1024 * 1024)
-#ifdef USE_STATIC_IOB_
-#define IOB_SZ                   IOB_SZ_DEFAULT
-#define IOB_HIST_SZ              (IOB_SZ/2)
-#else
-#define IOB_SZ                   (iob_sz)
-#define IOB_HIST_SZ              (iob_hist_sz)
-#endif
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static inline uint32_t get_hash(const char *s, uint32_t mask)
+{
+        /* djb2 xor variant (favored by Bernstein) */
 
-#define IOB_NO_HIST 0
-#define IOB_SAVE_HIST 1
+        uint32_t hash = 5381;
+        int c;
 
-#define IOB_RST(b)  (memset((b), 0, sizeof(struct io_buf) + IOB_SZ))
-
-struct idx_info {
-        int fd;
-        int mmap;
-        struct idx_data *data_p;
-};
-
-struct io_buf {
-        struct idx_info idx;
-        off_t offset;
-        volatile size_t ri;
-        volatile size_t wi;
-        size_t used;
-        uint8_t data_p[];
-};
-
-size_t
-readTo(struct io_buf *dest, FILE *fp, int hist);
-
-size_t
-readFrom(char *dest, struct io_buf *src, size_t size, size_t off);
-
-size_t
-copyFrom(char *dest, struct io_buf *src, size_t size, size_t pos);
-
-extern size_t iob_hist_sz;
-extern size_t iob_sz;
-
-void
-iobuffer_init();
-
-void
-iobuffer_destroy();
+        while((c = *s++)) {
+                /* hash = hash * 33 ^ c */
+                hash = ((hash << 5) + hash) ^ c;
+        }
+        return hash & (mask - 1);
+}
 
 #endif
-

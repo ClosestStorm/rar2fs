@@ -44,7 +44,7 @@ typedef enum {
  *****************************************************************************
  *
  ****************************************************************************/
-static inline int count_c(char c, char* s)
+static inline int count_c(char c, char *s)
 {
         int cnt = 0;
         while(*s) {
@@ -58,16 +58,16 @@ static inline int count_c(char c, char* s)
  *****************************************************************************
  *
  ****************************************************************************/
-static void parse_riff(IdxHead* h, FILE* fp, off_t sz)
+static void parse_riff(struct idx_head *h, FILE *fp, off_t sz)
 {
         char s[256];
-        char* needle = NULL;
+        char *needle = NULL;
         while (!needle && !feof(fp)) {
                 NO_UNUSED_RESULT fgets(s, sizeof(s), fp);
                 needle = strstr(s, "idx1");
         }
-        char* tmp = alloca(strlen(needle));
-        char* tmp2 = tmp;
+        char *tmp = alloca(strlen(needle));
+        char *tmp2 = tmp;
         int cnt = 0;
         while(*needle) {
                 if (*needle != 32 || !cnt) {
@@ -104,10 +104,10 @@ static void parse_riff(IdxHead* h, FILE* fp, off_t sz)
  *****************************************************************************
  *
  ****************************************************************************/
-static void parse_ebml(IdxHead* h, FILE* fp, off_t sz)
+static void parse_ebml(struct idx_head *h, FILE *fp, off_t sz)
 {
         char s[256];
-        char* needle = NULL;
+        char *needle = NULL;
         while (!needle && !feof(fp)) {
                 NO_UNUSED_RESULT fgets(s, sizeof(s), fp);
                 needle = strstr(s, "Cues");
@@ -172,8 +172,9 @@ static char *map_file(int fd, size_t size)
         NO_UNUSED_RESULT ftruncate(fd, size);
 
         /* Map the file into address space */
-        char* addr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-        if (addr == MAP_FAILED) return NULL;
+        char *addr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+        if (addr == MAP_FAILED)
+                return NULL;
         return addr;
 }
 
@@ -181,7 +182,7 @@ static char *map_file(int fd, size_t size)
  *****************************************************************************
  *
  ****************************************************************************/
-int main(int argn, char* argv[])
+int main(int argn, char *argv[])
 {
         setlocale(LC_CTYPE, "");
         if (argn != 3) {
@@ -190,15 +191,15 @@ int main(int argn, char* argv[])
                 printf("   <source file>   RIFF(.avi)/EBML(.mkv) source file\n");
                 exit(0);
         }
-        char* dump = argv[1];
-        char* src_file = argv[2];
+        char *dump = argv[1];
+        char *src_file = argv[2];
 
-        FILE* fd_dump = fopen(dump, "r");
+        FILE *fd_dump = fopen(dump, "r");
         if (!fd_dump) {
                 printf("Failed to open dump file %s\n", dump);
                 exit(-1);
         }
-        FILE* fd_src = fopen(src_file, "r");
+        FILE *fd_src = fopen(src_file, "r");
         if (!fd_src) {
                 printf("Failed to open source file %s\n", src_file);
                 fclose(fd_dump);
@@ -222,7 +223,7 @@ int main(int argn, char* argv[])
         fstat(fileno(fd_src),&stat_src);
         /* XXX error check */
 
-        IdxHead head;
+        struct idx_head head;
         head.size = 0;
         head.magic = R2I_MAGIC;
         head.version = 0;
@@ -240,7 +241,7 @@ int main(int argn, char* argv[])
         }
 
         if (head.size) {
-                char* dest;
+                char *dest;
                 STR_DUP(dest, src_file);
                 strcpy(&dest[strlen(dest)-4], ".r2i");
                 fseeko(fd_src, head.offset, SEEK_SET);
@@ -249,17 +250,17 @@ int main(int argn, char* argv[])
                 if (fd == -1)
                         return 1;
 
-                size_t map_size = (head.size+sizeof(IdxHead) + 4096) & ~4095;
+                size_t map_size = (head.size + sizeof(struct idx_head) + 4096) & ~4095;
 
-                char* addr = map_file(fd, map_size);
+                char *addr = map_file(fd, map_size);
                 if (!addr) {
                         printf("Internal error %x\n", MAP_FAILED_);
                         return 1;
                 }
 
-                char* tmp = addr;
-                memcpy(tmp, &head, sizeof(IdxHead));
-                tmp += sizeof(IdxHead);
+                char *tmp = addr;
+                memcpy(tmp, &head, sizeof(struct idx_head));
+                tmp += sizeof(struct idx_head);
                 if ((fread(tmp, 1, head.size, fd_src) != head.size) && ferror(fd_src))
                         return 1;
 

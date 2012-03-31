@@ -42,7 +42,7 @@ size_t iob_sz = 0;
  *****************************************************************************
  *
  ****************************************************************************/
-size_t readTo(IoBuf* dest, FILE* fp, int hist)
+size_t readTo(struct io_buf *dest, FILE *fp, int hist)
 {
         unsigned tot = 0;
         unsigned int lri = dest->ri;  /* read once */
@@ -83,7 +83,7 @@ size_t readTo(IoBuf* dest, FILE* fp, int hist)
  *****************************************************************************
  *
  ****************************************************************************/
-size_t readFrom(char* dest, IoBuf* src, size_t size, size_t off)
+size_t readFrom(char *dest, struct io_buf *src, size_t size, size_t off)
 {
         size_t tot = 0;
         unsigned int lri = src->ri; /* read once */
@@ -117,7 +117,7 @@ size_t readFrom(char* dest, IoBuf* src, size_t size, size_t off)
  *****************************************************************************
  *
  ****************************************************************************/
-size_t copyFrom(char* dest, IoBuf* src, size_t size, size_t pos)
+size_t copyFrom(char *dest, struct io_buf *src, size_t size, size_t pos)
 {
         size_t tot = 0;
         unsigned int chunk = IOB_SZ - pos;   /* assume one large chunk */
