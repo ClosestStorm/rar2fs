@@ -32,19 +32,21 @@
 #include <platform.h>
 #include <sys/stat.h>
 #include <pthread.h>
+#include <hash.h>
 
 typedef struct dir_elem dir_elem;
 __extension__
 struct dir_elem {
-        char* name_p;
-        char* rar_p;
-        char* file_p;
-        char* password_p;
+        char *name_p;
+        char *rar_p;
+        char *file_p;
+        char *password_p;
         struct stat stat;
-        off_t offset;     /* >0: offset in rar file (raw read) */
+        uint32_t dir_hash;
+        off_t offset;           /* >0: offset in rar file (raw read) */
         union {
-                off_t vsize;      /* >0: volume file size (raw read) */
-                off_t msize;      /* >0: mmap size */
+                off_t vsize;    /* >0: volume file size (raw read) */
+                off_t msize;    /* >0: mmap size */
         };
         off_t vsize_real;
         off_t vsize_next;
@@ -64,7 +66,7 @@ struct dir_elem {
                 unsigned int avi_tested:1;
                 unsigned int save_eof:1;
         } flags;
-        struct dir_elem* next_p;
+        struct dir_elem *next_p;
 };
 typedef struct dir_elem dir_elem_t;
 
@@ -90,36 +92,17 @@ typedef struct dir_elem dir_elem_t;
 
 extern pthread_mutex_t file_access_mutex;
 
-/*!
- *****************************************************************************
- *
- ****************************************************************************/
-static inline uint32_t
-get_hash(const char* s)
-{
-        /* djb2 xor variant (favored by Bernstein) */
+dir_elem_t *
+cache_path_alloc(const char *path);
 
-        uint32_t hash = 5381;
-        int c;
+dir_elem_t *
+cache_path_get(const char *path);
 
-        while((c = *s++)) {
-                /* hash = hash * 33 ^ c */
-                hash = ((hash << 5) + hash) ^ c;
-        }
-        return hash;
-}
-
-dir_elem_t*
-cache_path_alloc(const char* path);
-
-dir_elem_t*
-cache_path_get(const char* path);
-
-dir_elem_t*
-cache_path(const char* path, struct stat *stbuf);
+dir_elem_t *
+cache_path(const char *path, struct stat *stbuf);
 
 void
-inval_cache_path(const char* path);
+inval_cache_path(const char *path);
 
 void
 filecache_init();

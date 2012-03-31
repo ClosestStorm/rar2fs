@@ -26,51 +26,37 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef DIRLIST_H
-#define DIRLIST_H
+#ifndef DIRLIST_H_
+#define DIRLIST_H_
 
-struct stat;
+#include <platform.h>
 
-typedef struct dir_entry_list dir_entry_list_t;
+typedef struct dir_entry_list dir_entry_list;
+
+__extension__
 struct dir_entry_list {
         struct dir_entry {
                 char *name;
-                struct stat *st;
+                uint32_t hash;
+                union {
+                        struct stat *st;
+                        void *head_flag;
+                };
                 int valid;
         } entry;
-        dir_entry_list_t *next;
+        struct dir_entry_list *next;
 };
 
-#define DIR_LIST_RST(l) \
-        do {\
-                (l)->next = NULL;\
-                (l)->entry.name = NULL;\
-                (l)->entry.st = NULL;\
-        } while(0)
+void dir_list_open(struct dir_entry_list *root);
 
-#define DIR_ENTRY_ADD(l, n, s) \
-        do {\
-                (l)->next = malloc(sizeof(dir_entry_list_t));\
-                if ((l)->next) {\
-                        (l)=(l)->next;\
-                        (l)->entry.name=strdup(n);\
-                        (l)->entry.st=(s);\
-                        (l)->entry.valid=1; /* assume entry is valid */ \
-                        (l)->next = NULL;\
-                }\
-        } while (0)
+void dir_list_close(struct dir_entry_list *root);
 
-#define DIR_LIST_EMPTY(l) (!(l)->next)
+void dir_list_free(struct dir_entry_list *root);
 
-#define DIR_LIST_FREE(l) \
-        do {\
-                dir_entry_list_t* next = (l)->next;\
-                while(next) {\
-                        dir_entry_list_t* tmp = next;\
-                        next = next->next;\
-                        free(tmp->entry.name);\
-                        free(tmp);\
-                }\
-        } while(0)
+struct dir_entry_list *dir_entry_add_hash(struct dir_entry_list *l,
+        const char *key, struct stat *st, uint32_t hash);
+
+struct dir_entry_list *dir_entry_add(struct dir_entry_list *l,
+        const char *key, struct stat *st);
 
 #endif

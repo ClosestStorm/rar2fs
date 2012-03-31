@@ -1,5 +1,14 @@
 rar2fs ChangeLog file.
 
+2012-03-31  Hans Beckerus <hans.beckerus@gmail.com>
+ 
+        * Added use of a hash instead of string comparison to
+          improve performance of readdir() calls.
+
+        * Code clean-up
+
+        * New file(s): dirlist.c, hash.h
+
 2012-03-16  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed some OpenSolaris build errors

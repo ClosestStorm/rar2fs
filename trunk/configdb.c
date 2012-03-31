@@ -106,13 +106,13 @@ int collect_obj(int obj, const char *s)
         OBJ_(obj)->is_set = 1;
 
         if (OBJ_(obj)->read_from_file && s && *s == '/') {
-                FILE* fp = fopen(s, "r");
+                FILE *fp = fopen(s, "r");
                 if (fp) {
                         struct stat st;
                         (void)fstat(fileno(fp), &st);
                         s1 = malloc(st.st_size * 2);
                         if (s1) {
-                                char* s2 = s1;
+                                char *s2 = s1;
                                 NO_UNUSED_RESULT fread(s1, 1, st.st_size, fp);
                                 while(*s1) {
                                         if (*s1=='\n') *s1=';';

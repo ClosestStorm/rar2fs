@@ -33,17 +33,17 @@
 
 #define R2I_MAGIC     (htonl(0x72326900))   /* 'r2i ' */
 
-typedef struct {
+struct idx_head {
         uint32_t magic;
         uint16_t version;
         uint16_t spare;
         off_t offset;
         size_t size;
-} IdxHead;
+};
 
-typedef struct {
-        IdxHead head;
+struct idx_data {
+        struct idx_head head;
         char bytes[1]; /* start of data bytes */
-} IdxData;
+};
 
 #endif
