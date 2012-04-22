@@ -352,12 +352,14 @@ static FILE *popen_(const dir_elem_t *entry_p, pid_t *cpid, void **mmap_addr,
                         _exit(EXIT_FAILURE);
                 }
 #endif
+                char *safe_path = strdup(entry_p->name_p);
                 ret = extract_rar(entry_p->rar_p,
                                   entry_p->flags.mmap
-                                        ? basename(entry_p->name_p)
+                                        ? basename(safe_path)
                                         : entry_p->file_p,
                                   entry_p->password_p, fp,
                                   (void *)(uintptr_t) pfd[1]);
+                free(safe_path);
                 close(pfd[1]);
                 _exit(ret);
         } else if (pid < 0) {
@@ -1038,9 +1040,9 @@ static int rar2_getattr(const char *path, struct stat *stbuf)
          */
         if (CHK_FILTER(path))
                 return -ENOENT;
-        char *dir = alloca(strlen(path) + 1);
-        strcpy(dir, path);
-        syncdir(dirname(dir));
+        char *safe_path = strdup(path);
+        syncdir(dirname(safe_path));
+        free(safe_path);
         pthread_mutex_lock(&file_access_mutex);
         dir_elem_t *e_p = cache_path_get(path);
         pthread_mutex_unlock(&file_access_mutex);
@@ -1226,7 +1228,7 @@ static int extract_index(const dir_elem_t *entry_p, off_t offset)
         ABS_ROOT(r2i, entry_p->name_p);
         strcpy(&r2i[strlen(r2i) - 3], "r2i");
 
-        eofd.fd = open(r2i, O_WRONLY|O_CREAT|O_EXCL, 
+        eofd.fd = open(r2i, O_WRONLY|O_CREAT|O_EXCL,
                         S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
         if (eofd.fd == -1)
                 goto index_error;
@@ -1493,18 +1495,20 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
         } else {
                 FILE *fp_ = RARGetFileHandle(hdl);
                 off_t curr_pos = ftello(fp_);
+                char *safe_path = strdup(entry_p->name_p);
                 fseeko(fp_, 0, SEEK_SET);
 #ifdef HAVE_FMEMOPEN
-                maddr = extract_to(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p, E_TO_MEM);
+                maddr = extract_to(basename(safe_path), GET_RAR_SZ(next), fp_, entry_p, E_TO_MEM);
                 if (maddr != MAP_FAILED)
                         fp = fmemopen(maddr, GET_RAR_SZ(next), "r");
 #else
-                fp = extract_to(basename(entry_p->name_p), GET_RAR_SZ(next), fp_, entry_p, E_TO_TMP);
+                fp = extract_to(basename(safe_path), GET_RAR_SZ(next), fp_, entry_p, E_TO_TMP);
                 if (fp == MAP_FAILED) {
                         fp = NULL;
                         printd(1, "Extract to tmpfile failed\n");
                 }
 #endif
+                free(safe_path);
                 fseeko(fp_, curr_pos, SEEK_SET);
                 msize = GET_RAR_SZ(next);
                 mflags = 2;
@@ -1526,9 +1530,8 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                                 /* Allocate a cache entry for this file */
                                 char *mp2;
                                 char *rar_dir = strdup(next2->FileName);
-                                char *tmp1 = rar_dir;
                                 ABS_MP(mp2, path, basename(rar_dir));
-                                free(tmp1);
+                                free(rar_dir);
 
                                 entry2_p = cache_path_get(mp2);
                                 if (!entry2_p) {
@@ -1651,7 +1654,8 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                          * faked by adding it to the cache.
                          */
                         if (!display) {
-                                if (!strcmp(basename(rar_name), rar_name)) {
+                                char *safe_path = strdup(rar_name);
+                                if (!strcmp(basename(safe_path), rar_name)) {
                                         char *mp;
                                         ABS_MP(mp, path, rar_name);
                                         dir_elem_t *entry_p = cache_path_get(mp);
@@ -1669,6 +1673,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                                         *buffer, rar_name,
                                                         &entry_p->stat, entry_p->dir_hash);
                                 }
+                                free(safe_path);
                         }
                 } else if (!strcmp(path + strlen(rar_root) + 1, rar_name)) {
                         display = 1;
@@ -1682,9 +1687,8 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                         next->FileName);
                 } else {
                         char *rar_dir = strdup(next->FileName);
-                        char *tmp1 = rar_dir;
                         ABS_MP(mp, path, basename(rar_dir));
-                        free(tmp1);
+                        free(rar_dir);
                 }
 
                 if (!IS_RAR_DIR(next) && OBJ_SET(OBJ_FAKE_ISO)) {
@@ -1774,12 +1778,14 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
 
 cache_hit:
 
-                if (display && buffer)
+                if (display && buffer) {
+                        char *safe_path = strdup(entry_p->name_p);
                         *buffer = dir_entry_add_hash(
-                                        *buffer, basename(entry_p->name_p),
+                                        *buffer, basename(safe_path),
                                         &entry_p->stat,
                                         entry_p->dir_hash);
-
+                        free(safe_path);
+                }
                 next = next->next;
         }
 
@@ -2356,9 +2362,9 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                          */
                         if (CHK_FILTER(path))
                                 return -ENOENT;
-                        char *dir = alloca(strlen(path) + 1);
-                        strcpy(dir, path);
-                        syncdir(dirname(dir));
+                        char *safe_path = strdup(path);
+                        syncdir(dirname(safe_path));
+                        free(safe_path);
                         pthread_mutex_lock(&file_access_mutex);
                         entry_p = cache_path_get(path);
                         pthread_mutex_unlock(&file_access_mutex);
@@ -2624,10 +2630,9 @@ static inline int access_chk(const char *path, int new_file)
          * type of error/message.
          */
         if (new_file) {
-                char *p = strdup(path);
-                char *tmp = p;  /* In case p is destroyed by dirname() */
+                char *p = strdup(path); /* In case p is destroyed by dirname() */
                 e = (void *)cache_path_get(dirname(p));
-                free(tmp);
+                free(p);
         } else {
                 e = (void *)cache_path_get(path);
         }

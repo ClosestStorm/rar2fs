@@ -70,7 +70,9 @@ dir_elem_t *cache_path_alloc(const char *path)
                 p->next_p = malloc(sizeof(dir_elem_t));
                 p = p->next_p;
                 memset(p, 0, sizeof(dir_elem_t));
-                p->dir_hash = get_hash(basename(path), 0);
+                char *safe_path = strdup(path);
+                p->dir_hash = get_hash(basename(safe_path), 0);
+                free(safe_path);
         }
         return p;
 }
