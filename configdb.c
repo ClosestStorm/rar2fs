@@ -259,8 +259,12 @@ int chk_obj(int obj, char *path)
         if (obj == OBJ_EXCLUDE) {
                 while (i != OBJ_CNT(obj)) {
                         char *tmp = OBJ_STR(OBJ_EXCLUDE, i);
-                        if (!strcmp(basename(path), tmp ? tmp : ""))
+                        char *safe_path = strdup(path);
+                        if (!strcmp(basename(safe_path), tmp ? tmp : "")) {
+                                free(safe_path);
                                 return 1;
+                        }
+                        free(safe_path);
                         ++i;
                 }
         } else if (obj == OBJ_FAKE_ISO || obj == OBJ_IMG_TYPE) {

@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2012-04-22  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Corrected some calls to POSIX style basename() to
+          make sure a safe string copy is provided.
+
+        * Removed some usage of alloca()
+
 2012-03-31  Hans Beckerus <hans.beckerus@gmail.com>
  
         * Added use of a hash instead of string comparison to
@@ -25,7 +32,7 @@ rar2fs ChangeLog file.
         * Fixed a problem for folders inside RAR archives
           that could lead to unnecessary cache invalidates.
 
-        * Some code clean up 
+        * Some code clean-up 
 
 2012-03-14  Hans Beckerus <hans.beckerus@gmail.com>
 
