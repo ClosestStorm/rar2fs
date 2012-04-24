@@ -622,7 +622,7 @@ static int lread_rar_idx(char *buf, size_t size, off_t offset,
         size = (off + size) > s
                 ? size - ((off + size) - s)
                 : size;
-        printd(3, "Copying %u bytes from preloaded offset @ %llu\n",
+        printd(3, "Copying %zu bytes from preloaded offset @ %llu\n",
                                                 size, offset);
         if (op->buf->idx.mmap) {
                 memcpy(buf, op->buf->idx.data_p->bytes + off, size);
