@@ -29,6 +29,7 @@
 #include <platform.h>
 #include <memory.h>
 #include <string.h>
+#include <libgen.h>
 #include "debug.h"
 #include "filecache.h"
 #include "configdb.h"
