@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2012-04-28  Hans Beckerus <hans.beckerus@gmail.com>
+      
+        * Fixed some compilation warnings on OSX
+
+        * Added dependency to .svn/entries for proper
+          rebuild of SVNREV
+
 2012-04-22  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Corrected some calls to POSIX style basename() to

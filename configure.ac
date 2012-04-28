@@ -278,6 +278,7 @@ AC_SUBST(UNRAR_LIBS)
 AC_MSG_CHECKING(for source revision in SVN)
 SVNREV=`$AWK '{if(NR==4){print $0;exit}}' .svn/entries 2>/dev/null`
 if test x"$SVNREV" != x; then
+    AC_SUBST([CONFIG_STATUS_DEPENDENCIES], ['$(top_srcdir)/.svn/entries'])
     CFLAGS="$CFLAGS -DSVNREV=$SVNREV"
     echo $SVNREV
 else
