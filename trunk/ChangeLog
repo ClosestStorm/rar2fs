@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2012-04-29  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Released 1.15.0
+
+        * Fixed build errors using Makefile.mk
+
 2012-04-28  Hans Beckerus <hans.beckerus@gmail.com>
       
         * Fixed some compilation warnings on OSX
