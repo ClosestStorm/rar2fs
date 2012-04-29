@@ -81,7 +81,7 @@ ifneq ("$(FUSE_LIB)", "")
 LIB_DIR+=-L$(FUSE_LIB)
 endif
 
-OBJECTS=dllext.o configdb.o filecache.o iobuffer.o sighandler.o rar2fs.o 
+OBJECTS=dllext.o configdb.o filecache.o iobuffer.o sighandler.o dirlist.o rar2fs.o 
 DEPS=.deps
 
 all:	rar2fs mkr2i
