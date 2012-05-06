@@ -241,24 +241,47 @@ void PASCAL RARNextVolumeName(char* arch, bool oldstylevolume)
 
 static int RarErrorToDll(int ErrCode)
 {
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
    switch(ErrCode)
    {
-      case FATAL_ERROR:
+      case RARX_FATAL:
          return(ERAR_EREAD);
-      case CRC_ERROR:
+      case RARX_CRC:
          return(ERAR_BAD_DATA);
-      case WRITE_ERROR:
+      case RARX_WRITE:
          return(ERAR_EWRITE);
-      case OPEN_ERROR:
+      case RARX_OPEN:
          return(ERAR_EOPEN);
-      case CREATE_ERROR:
+      case RARX_CREATE:
          return(ERAR_ECREATE);
-      case MEMORY_ERROR:
+      case RARX_MEMORY:
          return(ERAR_NO_MEMORY);
-      case SUCCESS:
+      case RARX_SUCCESS:
          return(0);
       default:
-         return(ERAR_UNKNOWN);
+         ;
    }
+#else
+    switch(ErrCode)
+    {
+       case FATAL_ERROR:
+          return(ERAR_EREAD);
+       case CRC_ERROR:
+          return(ERAR_BAD_DATA);
+       case WRITE_ERROR:
+          return(ERAR_EWRITE);
+       case OPEN_ERROR:
+          return(ERAR_EOPEN);
+       case CREATE_ERROR:
+          return(ERAR_ECREATE);
+       case MEMORY_ERROR:
+          return(ERAR_NO_MEMORY);
+       case SUCCESS:
+          return(0);
+       default:
+          ;
+    }
+#endif
+    return(ERAR_UNKNOWN);
 }
 
