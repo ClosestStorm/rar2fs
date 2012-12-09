@@ -10,6 +10,12 @@ AM_INIT_AUTOMAKE
 AC_CONFIG_MACRO_DIR(m4)
 AM_CONFIG_HEADER(config.h)
 
+AM_CONDITIONAL([LINUX],
+               [case $host_os in *linux*) true;; *) false;; esac])
+
+# Save CFLAGS (if defined by user; othwerwise NONE)
+USER_CFLAGS=${CFLAGS-NONE} 
+
 # Checks for programs.
 AC_PROG_CC_STDC
 if test x"$GCC" != x"yes"; then
@@ -196,8 +202,10 @@ if test x"$enableval" != x"no"; then
 fi
 if test "$debug_level" != ""; then
     AC_DEFINE_UNQUOTED(DEBUG_, $debug_level, Define run-time debug level)
-    : ${CXXFLAGS="-g -O0"}
-    : ${CFLAGS="-g -O0"}
+    if test "$USER_CFLAGS" = "NONE"; then
+        CXXFLAGS="-g -O0"
+        CFLAGS="-g -O0"
+    fi
 else
     CPPFLAGS="$CPPFLAGS -DNDEBUG" 
 fi
@@ -218,9 +226,11 @@ LDFLAGS="$LDFLAGS $FUSE_LDFLAGS $PTHREAD_CFLAGS $PTHREAD_LIBS"
 AC_CHECK_LIB(fuse4x,fuse_new, [FUSE_LIBS="-lfuse4x"],
     [ AC_CHECK_LIB(fuse_ino64,fuse_new, [FUSE_LIBS="-lfuse_ino64"],
         [ AC_CHECK_LIB(fuse,fuse_new, [FUSE_LIBS="-lfuse"],
-            [AC_MSG_ERROR([
-                Can't find fuse library - add alternative library search path using
-                --with-fuse-lib and rerun configure. ])
+            [ AC_CHECK_LIB(osxfuse,fuse_new, [FUSE_LIBS="-losxfuse"],
+                [AC_MSG_ERROR([
+                    Can't find fuse library - add alternative library search path using
+                    --with-fuse-lib and rerun configure. ])
+            ],)
         ],)
     ],)
 ],)
@@ -403,6 +413,8 @@ AC_TRY_LINK([],[return 0;],
 )
 ac_c_werror_flag=
 AC_LANG_POP
+
+AC_PROG_LN_S
 
 # Do some final preparations before we finish
 #

@@ -47,13 +47,13 @@ size_t readTo(struct io_buf *dest, FILE *fp, int hist)
         unsigned tot = 0;
         unsigned int lri = dest->ri;  /* read once */
         unsigned int lwi = dest->wi;  /* read once */
-        int left = (int)SPACE_LEFT(lri, lwi)-1;   /* -1 to avoid wi = ri */
-        if (IOB_HIST_SZ && hist==IOB_SAVE_HIST) {
-                left = left > IOB_HIST_SZ ? left-IOB_HIST_SZ : 0;
+        size_t left = SPACE_LEFT(lri, lwi) - 1;   /* -1 to avoid wi = ri */
+        if (IOB_HIST_SZ && hist == IOB_SAVE_HIST) {
+                left = left > IOB_HIST_SZ ? left - IOB_HIST_SZ : 0;
                 if (!left)
                         return 0; /* quick exit */
         }
-        unsigned int chunk = IOB_SZ-lwi;     /* assume one large chunk */
+        unsigned int chunk = IOB_SZ - lwi;   /* assume one large chunk */
         chunk = chunk < left ? chunk : left; /* reconsider assumption */
         while (left > 0) {
                 size_t n = fread(dest->data_p + lwi, 1, chunk, fp);
@@ -87,7 +87,7 @@ size_t readFrom(char *dest, struct io_buf *src, size_t size, size_t off)
 {
         size_t tot = 0;
         unsigned int lri = src->ri; /* read once */
-        int used = src->used;
+        size_t used = src->used;
         if (off) {
                 /* consume offset */
                 off = off < used ? off : used;
