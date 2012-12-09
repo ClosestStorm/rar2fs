@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2012-12-09  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added support for OSX fuse
+   
+        * Added hook to install mount.rar2fs
+
+        * Built against unrar source v4.2.4
+        
 2012-05-06  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Released 1.15.1

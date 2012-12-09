@@ -883,6 +883,7 @@ out:
 static int lflush(const char *path, struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
+        (void)path;             /* touch */
         (void)fi;               /* touch */
         return 0;
 }
@@ -894,6 +895,8 @@ static int lflush(const char *path, struct fuse_file_info *fi)
 static int lrelease(const char *path, struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
+
+        (void)path;             /* touch */
 
         close(FH_TOFD(fi->fh));
         free(FH_TOIO(fi->fh));
@@ -911,6 +914,8 @@ static int lread(const char *path, char *buffer, size_t size, off_t offset,
         int res;
 
         ENTER_("%s   size = %zu, offset = %llu", path, size, offset);
+
+        (void)path;             /* touch */
 
         res = pread(FH_TOFD(fi->fh), buffer, size, offset);
         if (res == -1)
@@ -1217,7 +1222,7 @@ static int extract_index(const dir_elem_t *entry_p, off_t offset)
                 {entry_p->rar_p, RAR_OM_EXTRACT, ERAR_EOPEN, NULL, 0, 0, 0};
         struct RARHeaderData header;
         HANDLE hdl = 0;
-        struct idx_head head = {R2I_MAGIC, 0, };
+        struct idx_head head = {R2I_MAGIC, 0, 0, 0, 0};
         char *r2i;
 
         struct eof_data eofd;
@@ -1825,7 +1830,7 @@ static int f2(SCANDIR_ARG3 e)
 static void syncdir_scan(const char *dir, const char *root)
 {
         struct dirent **namelist;
-        int f;
+        unsigned int f;
         int (*filter[]) (SCANDIR_ARG3) = {f0, f1, f2};
 #ifdef USE_RAR_PASSWORD
         char tmpbuf[MAXPASSWORD];
@@ -1864,7 +1869,7 @@ static void syncdir_scan(const char *dir, const char *root)
  *****************************************************************************
  *
  ****************************************************************************/
-static int inline convert_fake_iso(const char *root, char *name)
+static inline int convert_fake_iso(char *name)
 {
         if (OBJ_SET(OBJ_FAKE_ISO)) {
                 int l = OBJ_CNT(OBJ_FAKE_ISO)
@@ -1888,7 +1893,7 @@ static void readdir_scan(const char *dir, const char *root,
                 struct dir_entry_list **next)
 {
         struct dirent **namelist;
-        int f;
+        unsigned int f;
         int (*filter[]) (SCANDIR_ARG3) = {f0, f1, f2};
 #ifdef USE_RAR_PASSWORD
         char tmpbuf[MAXPASSWORD];
@@ -1926,7 +1931,7 @@ static void readdir_scan(const char *dir, const char *root,
                                 if (S_ISREG(st.st_mode)) {
 #endif
                                         tmp2 = strdup(tmp);
-                                        if (convert_fake_iso(root, tmp2))
+                                        if (convert_fake_iso(tmp2))
                                                 *next = dir_entry_add(*next, tmp2, NULL);
                                 }
                                 *next = dir_entry_add(*next, tmp, NULL);
@@ -1983,6 +1988,9 @@ static int rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
                 off_t offset, struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
+
+        (void)offset;           /* touch */
+        (void)fi;               /* touch */
 
 #ifdef USE_RAR_PASSWORD
         char tmpbuf[MAXPASSWORD];
@@ -2076,6 +2084,9 @@ static int rar2_readdir2(const char *path, void *buffer,
                 struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
+
+        (void)offset;           /* touch */
+        (void)fi;               /* touch */
 
 #ifdef USE_RAR_PASSWORD
         char tmpbuf[MAXPASSWORD];
@@ -2258,7 +2269,7 @@ static inline int pow_(int b, int n)
  ****************************************************************************/
 
 #define LE_BYTES_TO_W32(b) \
-        *((b)+3) * 16777216 + *((b)+2) * 65537 + *((b)+1) * 256 + *(b)
+        (uint32_t)(*((b)+3) * 16777216 + *((b)+2) * 65537 + *((b)+1) * 256 + *(b))
 
 static int check_avi_type(struct io_context *op)
 {
@@ -2450,8 +2461,9 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                                         RARNextVolumeName(tmp, !entry_p->vtype);
                                                 }
                                                 free(tmp);
-                                        } else
+                                        } else {
                                                 printd(1, "Failed to allocate resource (%u)\n", __LINE__);
+                                        }
                                 } else {
                                         op->volHdl = NULL;
                                 }
@@ -2647,6 +2659,8 @@ static void *rar2_init(struct fuse_conn_info *conn)
 {
         ENTER_();
 
+        (void)conn;             /* touch */
+
         filecache_init();
         iobuffer_init();
         sighandler_init();
@@ -2671,6 +2685,8 @@ static void *rar2_init(struct fuse_conn_info *conn)
 static void rar2_destroy(void *data)
 {
         ENTER_();
+
+        (void)data;             /* touch */
 
         iobuffer_destroy();
         filecache_destroy();
@@ -2699,7 +2715,7 @@ static int rar2_readlink(const char *path, char *buf, size_t buflen)
         char *tmp;
         ABS_ROOT(tmp, path);
         buflen = readlink(tmp, buf, buflen);
-        if (buflen >= 0) {
+        if ((ssize_t)buflen >= 0) {
                 buf[buflen] = 0;
                 return 0;
         }
@@ -2878,10 +2894,13 @@ static int rar2_truncate(const char *path, off_t offset)
 static int rar2_write(const char *path, const char *buffer, size_t size,
                 off_t offset, struct fuse_file_info *fi)
 {
-        ENTER_("%s", path);
         char *root;
+        ssize_t n;
+
+        ENTER_("%s", path);
+
         ABS_ROOT(root, path);
-        size_t n = pwrite(FH_TOFD(fi->fh), buffer, size, offset);
+        n = pwrite(FH_TOFD(fi->fh), buffer, size, offset);
         return n >= 0 ? n : -errno;
 }
 
@@ -3051,6 +3070,8 @@ static int rar2_rmdir(const char *path)
 static int rar2_utime_deprecated(const char *path, struct utimbuf *ut)
 {
         ENTER_("%s", path);
+        (void)path;             /* touch */
+        (void)ut;               /* touch */
         return 0;
 }
 
@@ -3061,6 +3082,8 @@ static int rar2_utime_deprecated(const char *path, struct utimbuf *ut)
 static int rar2_utime(const char *path, const struct timespec tv[2])
 {
         ENTER_("%s", path);
+        (void)path;             /* touch */
+        (void)tv;               /* touch */
         return 0;
 }
 
@@ -3089,7 +3112,7 @@ static int rar2_getxattr(const char *path, const char *name, char *value,
 #else
                 size = lgetxattr(tmp, name, value, size);
 #endif
-                if (size == -1)
+                if ((ssize_t)size == -1)
                         return -errno;
                 return size;
         }
@@ -3112,7 +3135,7 @@ static int rar2_listxattr(const char *path, char *list, size_t size)
 #else
                 size = llistxattr(tmp, list, size);
 #endif
-                if (size == -1)
+                if ((ssize_t)size == -1)
                         return -errno;
                 return size;
         }
@@ -3142,7 +3165,7 @@ static int rar2_setxattr(const char *path, const char *name, const char *value,
 #else
                 size = lsetxattr(tmp, name, value, size, flags);
 #endif
-                if (size == -1)
+                if ((ssize_t)size == -1)
                         return -errno;
                 return 0;
         }
@@ -3526,6 +3549,8 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key,
                 struct fuse_args *outargs)
 {
         const char* const argv[2] = {outargs->argv[0], arg};
+
+        (void)data;             /* touch */
 
         switch (key) {
         case FUSE_OPT_KEY_NONOPT:
