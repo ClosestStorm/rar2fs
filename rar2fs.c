@@ -739,8 +739,8 @@ check_idx:
                                                 (offset + size) > op->pos);
                         if ((uint32_t)(op->pos - offset) <= IOB_HIST_SZ) {
                                 size_t pos = offset & (IOB_SZ-1);
-                                size_t chunk = (offset + size) > op->pos
-                                        ? op->pos - offset
+                                size_t chunk = (off_t)(offset + size) > op->pos
+                                        ? (size_t)(op->pos - offset)
                                         : size;
                                 size_t tmp = copyFrom(buf, op->buf, chunk, pos);
                                 size -= tmp;
