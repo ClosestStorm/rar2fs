@@ -465,7 +465,7 @@ static char *get_vname(int t, const char *str, int vol, int len, int pos)
 static int lread_raw(char *buf, size_t size, off_t offset,
                 struct fuse_file_info *fi)
 {
-        int n = 0;
+        size_t n = 0;
         struct io_context *op = FH_TOCONTEXT(fi->fh);
 
         op->seq++;
@@ -473,7 +473,7 @@ static int lread_raw(char *buf, size_t size, off_t offset,
         printd(3, "PID %05d calling %s(), seq = %d, offset=%llu\n", getpid(),
                __func__, op->seq, offset);
 
-        off_t chunk;
+        size_t chunk;
         int tot = 0;
         int force_seek = 0;
 
@@ -483,7 +483,7 @@ static int lread_raw(char *buf, size_t size, off_t offset,
          * volume usually is of much less size than the others and conseqently
          * the chunk based calculation will not detect this.
          */
-        if ((offset + size) >= op->entry_p->stat.st_size) {
+        if ((off_t)(offset + size) >= op->entry_p->stat.st_size) {
                 if (offset > op->entry_p->stat.st_size)
                         return 0;       /* EOF */
                 size = op->entry_p->stat.st_size - offset;
@@ -553,7 +553,7 @@ seek_check:
                                 fseeko(fp, src_off, SEEK_SET);
                                 force_seek = 0;
                         }
-                        printd(3, "size = %zu, chunk = %llu\n", size, chunk);
+                        printd(3, "size = %zu, chunk = %zu\n", size, chunk);
                         chunk = size < chunk ? size : chunk;
                 } else {
                         fp = op->fp;
@@ -564,7 +564,7 @@ seek_check:
                                 fseeko(fp, src_off, SEEK_SET);
                         }
                 }
-                n = fread(buf, 1, (size_t) chunk, fp);
+                n = fread(buf, 1, chunk, fp);
                 printd(3, "Read %d bytes from vol=%d, base=%d\n", n, op->vno,
                        op->entry_p->vno_base);
                 if (n != chunk) {
@@ -616,7 +616,7 @@ static int lread_rar_idx(char *buf, size_t size, off_t offset,
         size_t s = op->buf->idx.data_p->head.size;
         off_t off = (offset - o);
 
-        if (off >= s)
+        if (off >= (off_t)s)
                 return -EIO;
 
         size = (off + size) > s
@@ -713,7 +713,7 @@ static int lread_rar(char *buf, size_t size, off_t offset,
                "PID %05d calling %s(), seq = %d, size=%zu, offset=%llu/%llu\n",
                getpid(), __func__, op->seq, size, offset, op->pos);
 
-        if ((offset + size) >= op->entry_p->stat.st_size) {
+        if ((off_t)(offset + size) >= op->entry_p->stat.st_size) {
                 size = offset < op->entry_p->stat.st_size
                         ? op->entry_p->stat.st_size - offset
                         : 0;    /* EOF */
@@ -737,7 +737,7 @@ check_idx:
                                                 op->seq,offset,size,
                                                 op->pos,
                                                 (offset + size) > op->pos);
-                        if ((op->pos - offset) <= IOB_HIST_SZ) {
+                        if ((uint32_t)(op->pos - offset) <= IOB_HIST_SZ) {
                                 size_t pos = offset & (IOB_SZ-1);
                                 size_t chunk = (offset + size) > op->pos
                                         ? op->pos - offset
@@ -797,9 +797,9 @@ check_idx:
          * This should not be happening frequently. If it does it is an
          * indication that the I/O buffer is set too small.
          */
-        if ((offset + size) > op->buf->offset)
+        if ((off_t)(offset + size) > op->buf->offset)
                 sync_thread_read(op->pfd1, op->pfd2);
-        if ((offset + size) > op->buf->offset) {
+        if ((off_t)(offset + size) > op->buf->offset) {
                 if (offset >= op->buf->offset) {
                         /*
                          * This is another hack! At this point an early read
@@ -848,7 +848,7 @@ check_idx:
                                 op->pos = offset;
 
                                 /* Pull in rest of data if needed */
-                                if ((op->buf->offset - offset) < size)
+                                if ((size_t)(op->buf->offset - offset) < size)
                                         (void)readTo(op->buf, op->fp,
                                                         IOB_SAVE_HIST);
                         }

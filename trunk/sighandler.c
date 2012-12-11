@@ -37,7 +37,7 @@
 
 #ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
 #if !defined ( HAVE_EXECINFO_H ) || !defined ( HAVE_UCONTEXT_H )
-#define stack_trace(a,b,c)
+#define stack_trace(a,b,c) (void)(a);(void)(b);(void)(c)
 #else
 #include <execinfo.h>
 #include <ucontext.h>
