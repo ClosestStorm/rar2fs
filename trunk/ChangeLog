@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2013-01-08  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added blunt support for unicode filenames
+
+        * Fixed some compilation warnings in the compatibility
+          build mode
+
 2012-12-11  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed some compilation warnings on OS X Lion 

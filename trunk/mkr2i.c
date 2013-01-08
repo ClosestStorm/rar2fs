@@ -16,7 +16,6 @@
 */
 
 #include <platform.h>
-#include <locale.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -25,6 +24,9 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/file.h>
+#ifdef HAVE_LOCALE_H
+# include <locale.h>
+#endif
 #include "index.h"
 
 #define MAP_FAILED_   (0x1)
@@ -184,7 +186,9 @@ static char *map_file(int fd, size_t size)
  ****************************************************************************/
 int main(int argn, char *argv[])
 {
+#ifdef HAVE_SETLOCALE
         setlocale(LC_CTYPE, "");
+#endif
         if (argn != 3) {
                 printf("Usage: mkr2i <dump file> <source file>\n");
                 printf("   <dump file>     AVI-Mux GUI RIFF/EBML dump file (txt)\n");

@@ -39,6 +39,12 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <syslog.h>
+#ifdef HAVE_WCHAR_H
+# include <wchar.h>
+#endif
+#ifdef HAVE_LOCALE_H
+# include <locale.h>
+#endif
 #ifdef HAVE_MMAP
 # include <sys/mman.h>
 #endif
@@ -1198,7 +1204,7 @@ static int CALLBACK index_callback(UINT msg, LPARAM UserData,
                 }
                 if (eofd->coff == eofd->toff) {
                         eofd->size += P2;
-                        write(eofd->fd, (char*)P1, P2);
+                        NO_UNUSED_RESULT write(eofd->fd, (char*)P1, P2);
                         fdatasync(eofd->fd);      /* XXX needed!? */
                         eofd->toff += P2;
                         eofd->coff = eofd->toff;
@@ -1262,7 +1268,8 @@ static int extract_index(const dir_elem_t *entry_p, off_t offset)
                                 head.offset = offset;
                                 head.size = eofd.size;
                                 lseek(eofd.fd, (off_t)0, SEEK_SET);
-                                write(eofd.fd, (void*)&head, sizeof(struct idx_head));
+                                NO_UNUSED_RESULT write(eofd.fd, (void*)&head,
+                                                sizeof(struct idx_head));
                         }
                         break;
                 }
@@ -1591,6 +1598,23 @@ file_error:
                         if (*s == 92) *s = '/'; \
         } while(0)
 
+static inline size_t
+wide_to_char(char *dst, const wchar_t *src, size_t size)
+{
+#ifdef HAVE_WCSTOMBS
+        if (*src) {
+                size_t n = wcstombs(NULL, src, 0);
+                if (n != (size_t)-1) {
+                        if (size >= (n + 1))
+                                return wcstombs(dst, src, size);
+                }
+                /* Translation failed! Possibly a call to snprintf()
+                 * using "%ls" could be added here as fall-back. */
+        }
+#endif
+        return -1;
+}
+
 static int listrar(const char *path, struct dir_entry_list **buffer,
                 const char *arch, const char *Password)
 {
@@ -1627,6 +1651,9 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
         const unsigned int MainHeaderFlags = RARGetMainHeaderFlags(hdl);
 
         while (next) {
+                if (next->Flags & LHD_UNICODE)
+                        (void)wide_to_char(next->FileName, next->FileNameW, 
+                                                sizeof(next->FileName));
                 BS_TO_UNIX(next->FileName);
 
                 /* Skip compressed image files */
@@ -3613,6 +3640,10 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key,
 int main(int argc, char *argv[])
 {
         int res = 0;
+
+#ifdef HAVE_SETLOCALE
+        setlocale(LC_CTYPE, "");
+#endif
 
         /*openlog("rarfs2", LOG_NOWAIT|LOG_PID, 0);*/
         configdb_init();
