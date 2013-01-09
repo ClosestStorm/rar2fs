@@ -175,6 +175,7 @@ pthread_attr_t thread_attr;
 unsigned int rar2_ticks;
 int fs_terminated = 0;
 int fs_loop = 0;
+mode_t umask_ = 0022;
 
 static void syncdir(const char *dir);
 static int  extract_rar(char *arch, const char *file, char *passwd, FILE *fp,
@@ -1167,8 +1168,8 @@ static int get_vformat(const char *s, int t, int *l, int *p)
 #endif
 #define GET_RAR_MODE(l) \
         ((l)->HostOS != HOST_UNIX && (l)->HostOS != HOST_BEOS \
-                ? IS_RAR_DIR(l) ? (S_IFDIR|0777) \
-                : (S_IFREG|0666) : (l)->FileAttr)
+                ? IS_RAR_DIR(l) ? (S_IFDIR|(0777&~umask_)) \
+                : (S_IFREG|(0666&~umask_)) : (l)->FileAttr)
 #define GET_RAR_SZ(l) \
         (IS_RAR_DIR(l) ? 4096 : (((l)->UnpSizeHigh * 0x100000000ULL) | \
                 (l)->UnpSize))
@@ -3643,6 +3644,11 @@ int main(int argc, char *argv[])
 
 #ifdef HAVE_SETLOCALE
         setlocale(LC_CTYPE, "");
+#endif
+
+#ifdef HAVE_UMASK
+        umask_ = umask(0); 
+        umask(umask_);    
 #endif
 
         /*openlog("rarfs2", LOG_NOWAIT|LOG_PID, 0);*/
