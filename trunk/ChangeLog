@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2013-01-10  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a fuse4x detection problem in the compatible
+          build system.
+
+        * Added support for OSX fuse in the compatible 
+          build system.
+
 2013-01-09  Hans Beckerus <hans.beckerus@gmail.com>
 
         * When default permission is applied to a file or 
