@@ -30,14 +30,22 @@ ifeq ($(UNAME), Darwin)
 DEFINES+=-D_DARWIN_C_SOURCE
 ifeq ($(USE_OSX_64_BIT_INODES), n)
 ifeq "$(wildcard $(FUSE_LIB)/libfuse4x.dylib)" ""
+ifeq "$(wildcard $(FUSE_LIB)/libosxfuse.dylib)" ""
 LIBS+=-lfuse
+else
+LIBS+=-losxfuse
+endif
 else
 LIBS+=-lfuse4x
 endif
 DEFINES+=-D_DARWIN_NO_64_BIT_INODE
 else
-ifeq "$(wildcard $(FUSE_LIB)/fuse4x.dylib)" ""
+ifeq "$(wildcard $(FUSE_LIB)/libfuse4x.dylib)" ""
+ifeq "$(wildcard $(FUSE_LIB)/libosxfuse.dylib)" ""
 LIBS+=-lfuse_ino64
+else
+LIBS+=-losxfuse
+endif
 else
 LIBS+=-lfuse4x
 endif
