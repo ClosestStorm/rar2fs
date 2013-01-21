@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2013-01-21  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a problem with function fmemopen() not being
+          detected properly on systems supporting it.
+          The change will not take effect until 'autoreconf'
+          is executed before a 'configure' and/or 'make'.
+
 2013-01-10  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a fuse4x detection problem in the compatible

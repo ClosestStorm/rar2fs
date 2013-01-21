@@ -102,7 +102,7 @@ fi
 
 # Check for GNU library extension fmemopen()
 #
-AC_CHECK_FUNC(fmemopen)
+AC_CHECK_FUNCS(fmemopen)
 
 # Check for lockf() and/or flock()
 # On eg. OpenSolaris there is only a POSIX lockf() function.
