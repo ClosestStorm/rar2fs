@@ -49,6 +49,8 @@ static dir_elem_t path_cache[PATH_CACHE_SZ];
                         free ((e)->rar_p);\
                 if ((e)->file_p)\
                         free ((e)->file_p);\
+                if ((e)->file2_p)\
+                        free ((e)->file2_p);\
                 if ((e)->password_p)\
                         free ((e)->password_p);\
         } while(0)
@@ -201,11 +203,12 @@ void inval_cache_path(const char *path)
                 printd(3, "Invalidating all cache entries\n");
                 for (i = 0; i < PATH_CACHE_SZ;i++) {
                         dir_elem_t *e_p = &path_cache[i];
-                        dir_elem_t *p = e_p;
-
+                        dir_elem_t *p_next = e_p->next_p;
+ 
                         /* Search collision chain */
-                        while (p->next_p) {
-                                p = p->next_p;
+                        while (p_next) {
+                                dir_elem_t *p = p_next;
+                                p_next = p->next_p;
                                 FREE_CACHE_MEM(p);
                                 free(p);
                         }
@@ -231,5 +234,6 @@ void filecache_init()
  ****************************************************************************/
 void filecache_destroy()
 {
+        inval_cache_path(NULL);
         pthread_mutex_destroy(&file_access_mutex);
 }

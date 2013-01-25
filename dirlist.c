@@ -1,4 +1,3 @@
-#include <stdio.h>
 /*
     Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
 
@@ -83,9 +82,14 @@ void dir_list_close(struct dir_entry_list *root)
                 while (next->next) {
                         if (next->entry.hash == next->next->entry.hash &&
                                         !strcmp(next->entry.name, next->next->entry.name)) {
-                                /* A duplicate. Rare but possible. */
-                                next->entry.valid = 0;
-                        }
+                                /* 
+                                 * A duplicate. Rare but possible.
+                                 * Make sure the current entry is kept marked
+                                 * as valid since back-end fs entries should
+                                 * always have priority.
+                                 */
+                                next->next->entry.valid = 0;
+                        } 
                         next = next->next;
                 }
         }
@@ -111,7 +115,7 @@ void dir_list_free(struct dir_entry_list *root)
  *
  ****************************************************************************/
 struct dir_entry_list *dir_entry_add_hash(struct dir_entry_list *l,
-                const char *key, struct stat *st, uint32_t hash)
+                const char *key, struct stat *st, uint32_t hash, int type)
 {
         int dir_entry_add_skip_ = 0;
         if (l->entry.head_flag != DIR_LIST_HEAD_) {
@@ -124,9 +128,11 @@ struct dir_entry_list *dir_entry_add_hash(struct dir_entry_list *l,
                 : NULL;
         if (l->next) {
                 l=l->next;
+                l->entry.head_flag = 0;
                 l->entry.name = strdup(key);
                 l->entry.hash = hash;
                 l->entry.st = st;
+                l->entry.type = type;
                 l->entry.valid = 1; /* assume entry is valid */
                 l->next = NULL;
         }
@@ -138,7 +144,7 @@ struct dir_entry_list *dir_entry_add_hash(struct dir_entry_list *l,
  *
  ****************************************************************************/
 struct dir_entry_list *dir_entry_add(struct dir_entry_list *l, const char *key,
-                struct stat *st)
+                struct stat *st, int type)
 {
         l->next = malloc(sizeof(struct dir_entry_list));
         if (l->next) {
@@ -146,6 +152,7 @@ struct dir_entry_list *dir_entry_add(struct dir_entry_list *l, const char *key,
                 l->entry.name = strdup(key);
                 l->entry.hash = 0;
                 l->entry.st = st;
+                l->entry.type = type;
                 l->entry.valid = 1; /* assume entry is valid */
                 l->next = NULL;
         }
