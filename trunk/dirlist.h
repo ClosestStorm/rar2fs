@@ -31,6 +31,10 @@
 
 #include <platform.h>
 
+/* Directory entry types */
+#define DIR_E_RAR 0
+#define DIR_E_NRM 1
+
 typedef struct dir_entry_list dir_entry_list;
 
 __extension__
@@ -42,6 +46,7 @@ struct dir_entry_list {
                         struct stat *st;
                         void *head_flag;
                 };
+                int type;
                 int valid;
         } entry;
         struct dir_entry_list *next;
@@ -54,9 +59,9 @@ void dir_list_close(struct dir_entry_list *root);
 void dir_list_free(struct dir_entry_list *root);
 
 struct dir_entry_list *dir_entry_add_hash(struct dir_entry_list *l,
-        const char *key, struct stat *st, uint32_t hash);
+        const char *key, struct stat *st, uint32_t hash, int type);
 
 struct dir_entry_list *dir_entry_add(struct dir_entry_list *l,
-        const char *key, struct stat *st);
+        const char *key, struct stat *st, int type);
 
 #endif

@@ -1,5 +1,49 @@
 rar2fs ChangeLog file.
 
+2013-01-25  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Improved support for folders located in leaf RAR
+          files contained in a master archive.
+          This will also solve the problem reported in
+          issue #11.
+
+        * Fixed a crash (SEGV) when invalidating the entire 
+          file cache.
+
+        * Went back to use the classic zombie prevention 
+          method by using SA_NOCLDWAIT when setting up the
+          signal handler for SIGCHLD. 
+
+        * File type detection in scandir() improved to reduce 
+          the already low probability of ambigious entries
+          even further. Still there is not a 100% guarantee,
+          but very close.
+
+        * Optimizations in the folder processing by removing
+          some extranous calls to strlen()/strdup() etc.
+
+        * Fixed an issue when the root folder entry was
+          located in the end of the archive header.
+          Forced stats were applied when in fact it should
+          have been taken from the archive itself.
+
+        * Now also umask is applied when forced directory
+          entries are added to the cache.
+
+        * When mounting archives the file cache is now
+          populated in advance. Before this change it was
+          possible to get a false "No such file or directory"
+          error if the mounted folder was not listed first
+          (using eg. ls).
+
+        * When mounting an archive a missing release of some
+          resources has been added when the file system is
+          terminated. This was not a true memory leak but tools
+          like valgrind could complain.
+
+        * Now returns -EPERM instead of -EACCES in case of
+          write operations targeting the contents of an archive.
+
 2013-01-21  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a problem with function fmemopen() not being

@@ -148,18 +148,16 @@ void sighandler_init()
 {
         struct sigaction act;
 
-        if (OBJ_SET(OBJ_UNRAR_PATH)) {
-                /* Avoid child zombies for SIGCHLD */
-                sigaction(SIGCHLD, NULL, &act);
+        /* Avoid child zombies for SIGCHLD */
+        sigaction(SIGCHLD, NULL, &act);
 #ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
-                act.sa_sigaction = sig_handler;
-                act.sa_flags |= SA_SIGINFO;
+        act.sa_sigaction = sig_handler;
+        act.sa_flags |= SA_SIGINFO;
 #else
-                act.sa_handler = sig_handler;
+        act.sa_handler = sig_handler;
 #endif
-                act.sa_flags |= (SA_NOCLDWAIT);
-                sigaction(SIGCHLD, &act, NULL);
-        }
+        act.sa_flags |= (SA_NOCLDWAIT);
+        sigaction(SIGCHLD, &act, NULL);
 
         sigaction(SIGUSR1, NULL, &act);
         sigemptyset(&act.sa_mask);

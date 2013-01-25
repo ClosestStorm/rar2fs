@@ -40,6 +40,7 @@ struct dir_elem {
         char *name_p;
         char *rar_p;
         char *file_p;
+        char *file2_p;
         char *password_p;
         struct stat stat;
         uint32_t dir_hash;
@@ -61,7 +62,8 @@ struct dir_elem {
                 unsigned int image:1;
                 unsigned int fake_iso:1;
                 unsigned int mmap:2;
-                unsigned int :23;
+                unsigned int force_dir:1;
+                unsigned int :22;
                 unsigned int direct_io:1;
                 unsigned int avi_tested:1;
                 unsigned int save_eof:1;
