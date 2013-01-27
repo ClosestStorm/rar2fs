@@ -177,7 +177,7 @@ int fs_terminated = 0;
 int fs_loop = 0;
 mode_t umask_ = 0022;
 
-static int  extract_rar(char *arch, const char *file, char *passwd, FILE *fp,
+static int extract_rar(char *arch, const char *file, char *passwd, FILE *fp,
                         void *arg);
 
 struct eof_data {
@@ -206,11 +206,12 @@ static void *extract_to(const char *file, off_t sz, FILE *fp,
         printd(3, "Extracting %llu bytes resident in %s\n", sz, entry_p->rar_p);
         pid_t pid = fork();
         if (pid == 0) {
+                int ret;
                 close(out_pipe[0]);
-                (void)extract_rar(entry_p->rar_p, file, entry_p->password_p, fp,
-                                  (void *)(uintptr_t) out_pipe[1]);
+                ret = extract_rar(entry_p->rar_p, file, entry_p->password_p, fp,
+                                        (void *)(uintptr_t) out_pipe[1]);
                 close(out_pipe[1]);
-                _exit(EXIT_SUCCESS);
+                _exit(ret);
         } else if (pid < 0) {
                 close(out_pipe[0]);
                 close(out_pipe[1]);
@@ -229,24 +230,29 @@ static void *extract_to(const char *file, off_t sz, FILE *fp,
                 tmp = tmpfile();
 
         off_t off = 0;
+        ssize_t n;
         do {
                 /* read from pipe into buffer */
-                ssize_t n = read(out_pipe[0], buffer + off, sz - off);
+                n = read(out_pipe[0], buffer + off, sz - off);
                 if (n == -1) {
                         if (errno == EINTR)
                                 continue;
                         perror("read");
-                        free(buffer);
-                        buffer = MAP_FAILED;
                         break;
                 }
                 off += n;
-        } while (off != sz);
+        } while (n && off != sz);
+
+        /* Check for incomplete buffer error */
+        if (off != sz) {
+                free(buffer);
+                return MAP_FAILED;
+        }
 
         printd(4, "Read %llu bytes from PIPE %d\n", off, out_pipe[0]);
         close(out_pipe[0]);
 
-        if (tmp && (buffer != MAP_FAILED)) {
+        if (tmp) {
                 if (!fwrite(buffer, sz, 1, tmp)) {
                         fclose(tmp);
                         tmp = MAP_FAILED;
@@ -255,6 +261,7 @@ static void *extract_to(const char *file, off_t sz, FILE *fp,
                 free(buffer);
                 return tmp;
         }
+
         return buffer;
 }
 
@@ -1424,7 +1431,6 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
  *****************************************************************************
  *
  ****************************************************************************/
-
 #define NEED_PASSWORD() \
         ((MainHeaderFlags & MHD_PASSWORD) || (next->Flags & LHD_PASSWORD))
 #define BS_TO_UNIX(p) \
@@ -1433,6 +1439,7 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
                 while(*s++) \
                         if (*s == 92) *s = '/'; \
         } while(0)
+#define CHRCMP(s, c) (!(s[0] == (c) && s[1] == '\0'))
 
 /*!
  *****************************************************************************
@@ -1566,9 +1573,9 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 char *tmp2 = strdup(next2->FileName);
                 char *rar_name = dirname(tmp2);
 
-                if (!strcmp(rar_root, path) || !strcmp("/", path)) {
-                         if (!strcmp(".", rar_name))
-                                 display = 1;
+                if (!strcmp(rar_root, path) || !CHRCMP(path, '/')) {
+                        if (!CHRCMP(rar_name, '.'))
+                                display = 1;
 
                         /*
                          * Handle the rare case when the root folder does not have
@@ -1728,8 +1735,8 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                 free(tmp2);
                 tmp2 = rar_name;
 
-                if (!strcmp(rar_root, path) || !strcmp("/", path)) {
-                        if (!strcmp(".", rar_name))
+                if (!strcmp(rar_root, path) || !CHRCMP(path, '/')) {
+                        if (!CHRCMP(rar_name, '.'))
                                 display = 1;
 
                         /*
@@ -1894,6 +1901,7 @@ cache_hit:
 
 #undef NEED_PASSWORD
 #undef BS_TO_UNIX
+#undef CHRCMP
 
 /*!
  *****************************************************************************
@@ -3666,7 +3674,7 @@ static int work(struct fuse_args *args)
 static void print_version()
 {
 #ifdef SVNREV
-        printf("rar2fs v%u.%u.%u build %d (DLL version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
+        printf("rar2fs v%u.%u.%u-%d (DLL version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
 #else
         printf("rar2fs v%u.%u.%u (DLL version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
 #endif
