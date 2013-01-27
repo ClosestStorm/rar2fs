@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2012-01-27  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a very rare error case to prevent a lock-up
+           
+        * Removed a few more calls to strcmp()
+
 2013-01-25  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Improved support for folders located in leaf RAR
