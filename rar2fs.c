@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2012 Hans Beckerus (hans.beckerus@gmail.com)
+    Copyright (C) 2009-2013 Hans Beckerus (hans.beckerus@gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -3676,9 +3676,9 @@ static int work(struct fuse_args *args)
 static void print_version()
 {
 #ifdef SVNREV
-        printf("rar2fs v%u.%u.%u-%d (DLL version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
+        printf("rar2fs v%u.%u.%u-%d (DLL version %d)    Copyright (C) 2009-2013 Hans Beckerus\n",
 #else
-        printf("rar2fs v%u.%u.%u (DLL version %d)    Copyright (C) 2009-2012 Hans Beckerus\n",
+        printf("rar2fs v%u.%u.%u (DLL version %d)    Copyright (C) 2009-2013 Hans Beckerus\n",
 #endif
                RAR2FS_MAJOR_VER,
                RAR2FS_MINOR_VER, RAR2FS_PATCH_LVL,
