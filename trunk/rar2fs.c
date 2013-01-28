@@ -1074,16 +1074,17 @@ static int get_vformat(const char *s, int t, int *l, int *p)
         int len = 0;
         int pos = 0;
         int vol = 0;
+        const size_t SLEN = strlen(s);
         if (t) {
                 int dot = 0;
-                len = strlen(s) - 1;
+                len = SLEN - 1;
                 while (dot < 2 && len >= 0) {
                         if (s[len--] == '.')
                                 ++dot;
                 }
                 if (len >= 0) {
                         pos = len + 1;
-                        len = strlen(&s[pos]);
+                        len = SLEN - pos;
                         if (len >= 10) {
                                 pos += 5;       /* - ".part" */
                                 len -= 9;       /* - ".ext" */
@@ -1092,14 +1093,14 @@ static int get_vformat(const char *s, int t, int *l, int *p)
                 }
         } else {
                 int dot = 0;
-                len = strlen(s) - 1;
+                len = SLEN - 1;
                 while (dot < 1 && len >= 0) {
                         if (s[len--] == '.')
                                 ++dot;
                 }
                 if (len >= 0) {
                         pos = len + 1;
-                        len = strlen(&s[pos]);
+                        len = SLEN - pos;
                         if (len == 4) {
                                 pos += 2;
                                 len -= 2;
@@ -1548,6 +1549,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
         char *rar_root = dirname(tmp1);
         size_t rar_root_len = strlen(rar_root);
         size_t path_len = strlen(path);
+        int is_root_path = (!strcmp(rar_root, path) || !CHRCMP(path, '/'));
 
         while (next2) {
                 dir_elem_t *entry2_p;
@@ -1573,7 +1575,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 char *tmp2 = strdup(next2->FileName);
                 char *rar_name = dirname(tmp2);
 
-                if (!strcmp(rar_root, path) || !CHRCMP(path, '/')) {
+                if (is_root_path) {
                         if (!CHRCMP(rar_name, '.'))
                                 display = 1;
 
@@ -1714,6 +1716,8 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
         free(tmp1);
         tmp1 = rar_root;
         rar_root += strlen(OBJ_STR2(OBJ_SRC, 0));
+        size_t rar_root_len = strlen(rar_root);
+        int is_root_path = (!strcmp(rar_root, path) || !CHRCMP(path, '/'));
 
         while (next) {
                 if (next->Flags & LHD_UNICODE)
@@ -1735,7 +1739,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                 free(tmp2);
                 tmp2 = rar_name;
 
-                if (!strcmp(rar_root, path) || !CHRCMP(path, '/')) {
+                if (is_root_path) {
                         if (!CHRCMP(rar_name, '.'))
                                 display = 1;
 
@@ -1771,7 +1775,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                 }
                                 free(safe_path);
                         }
-                } else if (!strcmp(path + strlen(rar_root) + 1, rar_name)) {
+                } else if (!strcmp(path + rar_root_len + 1, rar_name)) {
                         display = 1;
                 }
                 free(tmp2);
