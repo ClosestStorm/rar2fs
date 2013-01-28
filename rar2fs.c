@@ -31,6 +31,7 @@
 #include <sys/statvfs.h>
 #include <sys/select.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
@@ -49,7 +50,6 @@
 # include <sys/mman.h>
 #endif
 #include <limits.h>
-#include <time.h>
 #include <pthread.h>
 #include <ctype.h>
 #ifdef HAVE_SCHED_H
@@ -3282,24 +3282,27 @@ static int rar2_rmdir(const char *path)
  *****************************************************************************
  *
  ****************************************************************************/
-static int rar2_utime_deprecated(const char *path, struct utimbuf *ut)
+static int rar2_utimens(const char *path, const struct timespec ts[2])
 {
         ENTER_("%s", path);
-        (void)path;             /* touch */
-        (void)ut;               /* touch */
-        return 0;
-}
 
-/*!
- *****************************************************************************
- *
- ****************************************************************************/
-static int rar2_utime(const char *path, const struct timespec tv[2])
-{
-        ENTER_("%s", path);
-        (void)path;             /* touch */
-        (void)tv;               /* touch */
-        return 0;
+        if (!access_chk(path, 0)) {
+	        int res;
+	        struct timeval tv[2];
+                char *root;
+                ABS_ROOT(root, path);
+
+	        tv[0].tv_sec = ts[0].tv_sec;
+	        tv[0].tv_usec = ts[0].tv_nsec / 1000;
+	        tv[1].tv_sec = ts[1].tv_sec;
+	        tv[1].tv_usec = ts[1].tv_nsec / 1000;
+
+	        res = utimes(root, tv);
+	        if (res == -1)
+		        return -errno;
+                return 0;
+        }
+	return -EPERM;
 }
 
 #ifdef HAVE_SETXATTR
@@ -3534,8 +3537,7 @@ static int check_libfuse(int verbose)
 static struct fuse_operations rar2_operations = {
         .init = rar2_init,
         .statfs = rar2_statfs,
-        .utime = rar2_utime_deprecated,
-        .utimens = rar2_utime,
+        .utimens = rar2_utimens,
         .destroy = rar2_destroy,
         .open = rar2_open,
         .release = rar2_release,

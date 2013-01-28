@@ -34,7 +34,7 @@ AX_C_BIGENDIAN_CROSS
 
 # Checks for header files.
 AC_FUNC_ALLOCA
-AC_CHECK_HEADERS([errno.h arpa/inet.h fcntl.h limits.h locale.h malloc.h stddef.h sys/file.h sys/mount.h sys/param.h sys/statvfs.h syslog.h utime.h wchar.h])
+AC_CHECK_HEADERS([errno.h arpa/inet.h fcntl.h limits.h locale.h malloc.h stddef.h sys/file.h sys/mount.h sys/param.h sys/statvfs.h syslog.h wchar.h])
 AC_CHECK_HEADERS([execinfo.h ucontext.h sched.h])
 AC_CHECK_HEADERS([sys/xattr.h])
 
@@ -68,7 +68,7 @@ AC_FUNC_FORK
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
 AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
-AC_CHECK_FUNCS([mktime atexit dup3 fs_stat_dev ftruncate getcwd getpass lchown memchr memmove memset mkdir realpath rmdir select setlocale strchr strdup strerror strpbrk strrchr strstr strtol strtoul utime fdatasync wcstombs umask])
+AC_CHECK_FUNCS([mktime atexit dup3 fs_stat_dev ftruncate getcwd getpass lchown memchr memmove memset mkdir realpath rmdir select setlocale strchr strdup strerror strpbrk strrchr strstr strtol strtoul utimes fdatasync wcstombs umask])
 
 ########################################################
 # Check for extended attribute support

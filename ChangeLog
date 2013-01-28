@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2013-01-28  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added proper implementation of utimes()
+
 2013-01-27  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a very rare error case to prevent a lock-up
