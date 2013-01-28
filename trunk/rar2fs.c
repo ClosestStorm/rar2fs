@@ -1104,7 +1104,9 @@ static int get_vformat(const char *s, int t, int *l, int *p)
                         if (len == 4) {
                                 pos += 2;
                                 len -= 2;
-                                if (!strncmp(&s[pos - 1], "rar", 3)) {
+                                if (s[pos - 1] == 'r' && 
+                                    s[pos    ] == 'a' &&
+                                    s[pos + 1] == 'r') {
                                         vol = 1;
                                 } else {
                                         errno = 0;

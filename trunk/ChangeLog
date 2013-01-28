@@ -2,6 +2,11 @@ rar2fs ChangeLog file.
 
 2013-01-28  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Replaced a call to strncmp() with an inline short
+          byte sequence check.
+
+2013-01-28  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Got rid of some more unnecessary calls to
           strlen() and strcmp()
 
