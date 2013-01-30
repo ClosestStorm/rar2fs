@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2013-01-30  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Removed the limititation that main archive must
+          not be a volume when encapsulating other RAR
+          files for proper display/extraction.
+
 2013-01-28  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Replaced a call to strncmp() with an inline short

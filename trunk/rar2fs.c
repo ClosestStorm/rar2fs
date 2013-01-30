@@ -193,8 +193,8 @@ static int preload_index(struct io_buf *buf, const char *path);
  *****************************************************************************
  *
  ****************************************************************************/
-static void *extract_to(const char *file, off_t sz, FILE *fp,
-                const dir_elem_t *entry_p, int oper)
+static void *extract_to(const char *file, off_t sz, const dir_elem_t *entry_p,
+                                int oper)
 {
         ENTER_("%s", file);
 
@@ -208,8 +208,8 @@ static void *extract_to(const char *file, off_t sz, FILE *fp,
         if (pid == 0) {
                 int ret;
                 close(out_pipe[0]);
-                ret = extract_rar(entry_p->rar_p, file, entry_p->password_p, fp,
-                                        (void *)(uintptr_t) out_pipe[1]);
+                ret = extract_rar(entry_p->rar_p, file, entry_p->password_p,
+                                        NULL, (void *)(uintptr_t) out_pipe[1]);
                 close(out_pipe[1]);
                 _exit(ret);
         } else if (pid < 0) {
@@ -292,7 +292,7 @@ static FILE *popen_(const dir_elem_t *entry_p, pid_t *cpid, void **mmap_addr,
                 if (entry_p->flags.mmap == 2) {
 #ifdef HAVE_FMEMOPEN
                         maddr = extract_to(entry_p->file_p, entry_p->msize,
-                                                NULL, entry_p, E_TO_MEM);
+                                                entry_p, E_TO_MEM);
                         if (maddr != MAP_FAILED) {
                                 fp = fmemopen(maddr, entry_p->msize, "r");
                                 if (fp == NULL) {
@@ -302,7 +302,7 @@ static FILE *popen_(const dir_elem_t *entry_p, pid_t *cpid, void **mmap_addr,
                         }
 #else
                         fp = extract_to(entry_p->file_p, entry_p->msize,
-                                                NULL, entry_p, E_TO_TMP);
+                                                entry_p, E_TO_TMP);
                         if (fp == MAP_FAILED) {
                                 printd(1, "Extract to tmpfile failed\n");
                                 goto error;
@@ -1104,7 +1104,7 @@ static int get_vformat(const char *s, int t, int *l, int *p)
                         if (len == 4) {
                                 pos += 2;
                                 len -= 2;
-                                if (s[pos - 1] == 'r' && 
+                                if (s[pos - 1] == 'r' &&
                                     s[pos    ] == 'a' &&
                                     s[pos + 1] == 'r') {
                                         vol = 1;
@@ -1322,6 +1322,8 @@ extract_error:
 
         if (!fp)
                 RARCloseArchive(hdl);
+        else
+                RARFreeArchive(hdl);
         return ret;
 }
 
@@ -1470,8 +1472,8 @@ wide_to_char(char *dst, const wchar_t *src, size_t size)
  *
  ****************************************************************************/
 static int listrar_rar(const char *path, struct dir_entry_list **buffer,
-                const char *arch, HANDLE hdl, const RARArchiveListEx *next,
-                const dir_elem_t *entry_p, int need_password)
+                const char *arch,  HANDLE hdl, const RARArchiveListEx *next,
+                const dir_elem_t *entry_p)
 {
         printd(3, "%llu byte RAR file %s found in archive %s\n",
                GET_RAR_PACK_SZ(next), entry_p->name_p, arch);
@@ -1489,13 +1491,14 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
         char *maddr = MAP_FAILED;
         off_t msize = 0;
         int mflags = 0;
+        const unsigned int MainHeaderFlags = RARGetMainHeaderFlags(hdl);
 
-        int fd = fileno(RARGetFileHandle(hdl));
-        if (fd == -1)
-                goto file_error;
-
-        if (next->Method == FHD_STORING && !need_password) {
+        if (next->Method == FHD_STORING && 
+                        !(MainHeaderFlags & (MHD_PASSWORD | MHD_VOLUME))) {
                 struct stat st;
+                int fd = fileno(RARGetFileHandle(hdl));
+                if (fd == -1)
+                        goto file_error;
                 (void)fstat(fd, &st);
 #if defined ( HAVE_FMEMOPEN ) && defined ( HAVE_MMAP )
                 maddr = mmap(0, P_ALIGN_(st.st_size), PROT_READ, MAP_SHARED, fd, 0);
@@ -1509,23 +1512,17 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 msize = st.st_size;
                 mflags = 1;
         } else {
-                FILE *fp_ = RARGetFileHandle(hdl);
-                off_t curr_pos = ftello(fp_);
-                char *safe_path = strdup(entry_p->name_p);
-                fseeko(fp_, 0, SEEK_SET);
 #ifdef HAVE_FMEMOPEN
-                maddr = extract_to(next->FileName, GET_RAR_SZ(next), fp_, entry_p, E_TO_MEM);
+                maddr = extract_to(next->FileName, GET_RAR_SZ(next), entry_p, E_TO_MEM);
                 if (maddr != MAP_FAILED)
                         fp = fmemopen(maddr, GET_RAR_SZ(next), "r");
 #else
-                fp = extract_to(next->FileName, GET_RAR_SZ(next), fp_, entry_p, E_TO_TMP);
+                fp = extract_to(next->FileName, GET_RAR_SZ(next), entry_p, E_TO_TMP);
                 if (fp == MAP_FAILED) {
                         fp = NULL;
                         printd(1, "Extract to tmpfile failed\n");
                 }
 #endif
-                free(safe_path);
-                fseeko(fp_, curr_pos, SEEK_SET);
                 msize = GET_RAR_SZ(next);
                 mflags = 2;
         }
@@ -1620,13 +1617,15 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 printd(3, "Looking up %s in cache\n", mp);
                 entry2_p = cache_path_get(rar_file);
                 if (entry2_p)  {
-                        /* Check if this was a forced/fake entry. In that
-                         * case invalidate and replace it with a proper one.
+                        /*
+                         * Check if this was a forced/fake entry. In that
+                         * case update it with proper stats.
                          */
-                        if (!entry2_p->flags.force_dir)
-                                goto cache_hit;
-                        else
-                                inval_cache_path(rar_file);
+                        if (entry2_p->flags.force_dir) {
+                                set_rarstats(entry2_p, next2, 0);
+                                entry2_p->flags.force_dir = 0;
+                        }
+                        goto cache_hit;
                 }
 
                 /* Allocate a cache entry for this file */
@@ -1640,7 +1639,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 entry2_p->flags.mmap = mflags;
                 entry2_p->msize = msize;
                 entry2_p->flags.multipart = 0;
-                entry2_p->flags.raw = 0;
+                entry2_p->flags.raw = 0;        /* no raw support yet */
                 entry2_p->flags.save_eof = 0;
                 entry2_p->flags.direct_io = 1;
                 set_rarstats(entry2_p, next2, 0);
@@ -1672,7 +1671,7 @@ file_error:
                         free(maddr);
         }
 
-        return hdl2 ? 1 : 0;
+        return hdl2 ? 0 : 1;
 }
 
 /*!
@@ -1803,13 +1802,15 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                 printd(3, "Looking up %s in cache\n", mp);
                 dir_elem_t *entry_p = cache_path_get(mp);
                 if (entry_p)  {
-                        /* Check if this was a forced/fake entry. In that
-                         * case invalidate and replace it with a proper one.
+                        /* 
+                         * Check if this was a forced/fake entry. In that
+                         * case update it with proper stats.
                          */
-                        if (!entry_p->flags.force_dir)
-                                goto cache_hit;
-                        else
-                                inval_cache_path(mp);
+                        if (entry_p->flags.force_dir) {
+                                set_rarstats(entry_p, next, 0);
+                                entry_p->flags.force_dir = 0;
+                        }
+                        goto cache_hit;
                 }
 
                 /* Allocate a cache entry for this file */
@@ -1822,17 +1823,16 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                         ? strdup(Password)
                         : entry_p->password_p);
 
-                /* Check for .rar inside archive */
-                if (!(MainHeaderFlags & MHD_VOLUME) &&
-                                OBJ_INT(OBJ_SEEK_DEPTH, 0)) {
-                        /* Check for .rar file */
-                        if (IS_RAR(entry_p->name_p)) {
-                                if (listrar_rar(path, buffer, arch, hdl, next, entry_p, NEED_PASSWORD())) {
-                                        /* We are done with this rar file (.rar will never display!) */
-                                        inval_cache_path(mp);
-                                        next = next->next;
-                                        continue;
-                                }
+                /* Check for .rar file inside archive */
+                if (OBJ_INT(OBJ_SEEK_DEPTH, 0) && IS_RAR(entry_p->name_p)) {
+                        int vno = !(MainHeaderFlags & MHD_VOLUME)
+                                ? 1
+                                : get_vformat(arch, entry_p->vtype, NULL, NULL);
+                        if (vno > 1 || !listrar_rar(path, buffer, arch, hdl, next, entry_p)) {
+                                /* We are done with this rar file (.rar will never display!) */
+                                inval_cache_path(mp);
+                                next = next->next;
+                                continue;
                         }
                 }
 
@@ -1846,7 +1846,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                 entry_p->flags.multipart = 1;
                                 entry_p->flags.image = IS_IMG(next->FileName);
                                 entry_p->vtype = MainHeaderFlags & MHD_NEWNUMBERING ? 1 : 0;
-                                entry_p->vno_base = get_vformat(entry_p->rar_p, entry_p->vtype, &len, &pos);
+                                entry_p->vno_base = get_vformat(arch, entry_p->vtype, &len, &pos);
 
                                 if (len > 0) {
                                         entry_p->vlen = len;
@@ -3025,9 +3025,12 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                 printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "FREE", path, op);
                 if (op->buf) {
                         /* XXX clean up */
-                        if (op->buf->idx.data_p != MAP_FAILED &&
+#ifdef HAVE_MMAP
+                        if (op->buf->idx.data_p != MAP_FAILED && 
                                         op->buf->idx.mmap)
-                                munmap((void *)op->buf->idx.data_p, P_ALIGN_(op->buf->idx.data_p->head.size));
+                                munmap((void *)op->buf->idx.data_p, 
+                                                P_ALIGN_(op->buf->idx.data_p->head.size));
+#endif
                         if (op->buf->idx.data_p != MAP_FAILED &&
                                         !op->buf->idx.mmap)
                                 free(op->buf->idx.data_p);
@@ -3293,22 +3296,22 @@ static int rar2_utimens(const char *path, const struct timespec ts[2])
         ENTER_("%s", path);
 
         if (!access_chk(path, 0)) {
-	        int res;
-	        struct timeval tv[2];
+                int res;
+                struct timeval tv[2];
                 char *root;
                 ABS_ROOT(root, path);
 
-	        tv[0].tv_sec = ts[0].tv_sec;
-	        tv[0].tv_usec = ts[0].tv_nsec / 1000;
-	        tv[1].tv_sec = ts[1].tv_sec;
-	        tv[1].tv_usec = ts[1].tv_nsec / 1000;
+                tv[0].tv_sec = ts[0].tv_sec;
+                tv[0].tv_usec = ts[0].tv_nsec / 1000;
+                tv[1].tv_sec = ts[1].tv_sec;
+                tv[1].tv_usec = ts[1].tv_nsec / 1000;
 
-	        res = utimes(root, tv);
-	        if (res == -1)
-		        return -errno;
+                res = utimes(root, tv);
+                if (res == -1)
+                        return -errno;
                 return 0;
         }
-	return -EPERM;
+        return -EPERM;
 }
 
 #ifdef HAVE_SETXATTR
