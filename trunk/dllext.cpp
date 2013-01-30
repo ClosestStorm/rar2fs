@@ -62,10 +62,11 @@ HANDLE PASCAL RARInitArchive(struct RAROpenArchiveData *r, FileHandle fh)
 
 HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh)
 {
+  DataSet *Data=NULL;
   try
   {
     r->OpenResult=0;
-    DataSet *Data=new DataSet;
+    Data=new DataSet;
     Data->Cmd.DllError=0;
     Data->OpenMode=r->OpenMode;
     Data->Cmd.FileArgs->AddString("*");
@@ -107,11 +108,30 @@ HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh)
     Data->Extract.ExtractArchiveInit(&Data->Cmd,Data->Arc);
     return((HANDLE)Data);
   }
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
+  catch (RAR_EXIT ErrCode)
+  {
+    if (Data!=NULL && Data->Cmd.DllError!=0)
+      r->OpenResult=Data->Cmd.DllError;
+    else
+      r->OpenResult=RarErrorToDll(ErrCode);
+    if (Data != NULL)
+      delete Data;
+    return(NULL);
+  }
+  catch (std::bad_alloc) // Catch 'new' exception.
+  {
+    r->OpenResult=ERAR_NO_MEMORY;
+    if (Data != NULL)
+      delete Data;
+  }
+#else
   catch (int ErrCode)
   {
     r->OpenResult=RarErrorToDll(ErrCode);
-    return(NULL);
   }
+#endif
+  return(NULL);
 }
 
 
@@ -126,77 +146,89 @@ int PASCAL RARFreeArchive(HANDLE hArcData)
 
 int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N, off_t* FileDataEnd)
 {
-   uint FileCount=0;
-   try {
-      DataSet *Data=*(DataSet**)hArcData;
-      Archive& Arc = Data->Arc;
-      while(Arc.ReadHeader()>0)
-      {
-         int HeaderType=Arc.GetHeaderType();
-         if (HeaderType==ENDARC_HEAD)
-         {
-            break;
-         }
-         switch(HeaderType)
-         {
-            case FILE_HEAD:
-               if (FileCount)
-               {
-                  N->next = new RARArchiveListEx;
-                  N = N->next;
-               }
-               FileCount++;
+  uint FileCount=0;
+  try {
+     DataSet *Data=*(DataSet**)hArcData;
+     Archive& Arc = Data->Arc;
+     while(Arc.ReadHeader()>0)
+     {
+       int HeaderType=Arc.GetHeaderType();
+       if (HeaderType==ENDARC_HEAD)
+       {
+         break;
+       }
+       switch(HeaderType)
+       {
+         case FILE_HEAD:
+           if (FileCount)
+           {
+             N->next = new RARArchiveListEx;
+             N = N->next;
+           }
+           FileCount++;
 
-               IntToExt(Arc.NewLhd.FileName,Arc.NewLhd.FileName);
-               strncpyz(N->FileName,Arc.NewLhd.FileName,ASIZE(N->FileName));
-               if (*Arc.NewLhd.FileNameW)
-                  wcsncpy(N->FileNameW,Arc.NewLhd.FileNameW,ASIZE(N->FileNameW));
-               else
-               {
+           IntToExt(Arc.NewLhd.FileName,Arc.NewLhd.FileName);
+           strncpyz(N->FileName,Arc.NewLhd.FileName,ASIZE(N->FileName));
+           if (*Arc.NewLhd.FileNameW)
+             wcsncpy(N->FileNameW,Arc.NewLhd.FileNameW,ASIZE(N->FileNameW));
+           else
+           {
 #ifdef _WIN_ALL
-                  char AnsiName[NM];
-                  OemToChar(Arc.NewLhd.FileName,AnsiName);
-                  CharToWide(AnsiName,N->FileNameW);
+             char AnsiName[NM];
+             OemToChar(Arc.NewLhd.FileName,AnsiName);
+             CharToWide(AnsiName,N->FileNameW);
 #else
-                  CharToWide(Arc.NewLhd.FileName,N->FileNameW);
+             CharToWide(Arc.NewLhd.FileName,N->FileNameW);
 #endif
-               }
+           } 
 
-               N->Flags = Arc.NewLhd.Flags;
-               N->PackSize = Arc.NewLhd.PackSize;
-               N->PackSizeHigh = Arc.NewLhd.HighPackSize;
-               N->UnpSize = Arc.NewLhd.UnpSize;
-               N->UnpSizeHigh = Arc.NewLhd.HighUnpSize;
-               N->HostOS = Arc.NewLhd.HostOS;
-               N->FileCRC = Arc.NewLhd.FileCRC;
-               N->FileTime = Arc.NewLhd.FileTime;
-               N->UnpVer = Arc.NewLhd.UnpVer;
-               N->Method = Arc.NewLhd.Method;
-               N->FileAttr = Arc.NewLhd.FileAttr;
-               N->HeadSize = Arc.NewLhd.HeadSize;
-               N->NameSize = Arc.NewLhd.NameSize;
-               N->Offset = Arc.CurBlockPos;
+           N->Flags = Arc.NewLhd.Flags;
+           N->PackSize = Arc.NewLhd.PackSize;
+           N->PackSizeHigh = Arc.NewLhd.HighPackSize;
+           N->UnpSize = Arc.NewLhd.UnpSize;
+           N->UnpSizeHigh = Arc.NewLhd.HighUnpSize;
+           N->HostOS = Arc.NewLhd.HostOS;
+           N->FileCRC = Arc.NewLhd.FileCRC;
+           N->FileTime = Arc.NewLhd.FileTime;
+           N->UnpVer = Arc.NewLhd.UnpVer;
+           N->Method = Arc.NewLhd.Method;
+           N->FileAttr = Arc.NewLhd.FileAttr;
+           N->HeadSize = Arc.NewLhd.HeadSize;
+           N->NameSize = Arc.NewLhd.NameSize;
+           N->Offset = Arc.CurBlockPos;
 
-               if (FileDataEnd) 
-                  *FileDataEnd = Arc.NextBlockPos;
-               break;
+           if (FileDataEnd) 
+             *FileDataEnd = Arc.NextBlockPos;
+           break;
 
-            default:
-               break;
-         }
-         Arc.SeekToNext();
-      }
-      N->next = NULL;
-   }
-   catch (int ErrCode)
-   {
-      N->next = NULL;
-      cerr << "RarListArchiveEx() caught error "
-           << RarErrorToDll(ErrCode)
-           << endl;
-      return 0;
-   }
-   return FileCount;
+         default:
+           break;
+       }
+       Arc.SeekToNext();
+     }
+     N->next = NULL;
+     return FileCount;
+  }  
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
+  catch (RAR_EXIT ErrCode)
+#else
+  catch (int ErrCode)
+#endif
+  {
+    N->next = NULL;
+    cerr << "RarListArchiveEx() caught error "
+         << RarErrorToDll(ErrCode)
+         << endl;
+  }
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
+  catch (std::bad_alloc) // Catch 'new' exception.
+  {
+    if (N->next != NULL)
+      delete N->next;
+    N->next = NULL;
+  }
+#endif
+  return 0;
 }
 
 
