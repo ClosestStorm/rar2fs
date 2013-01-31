@@ -243,6 +243,21 @@ static void *extract_to(const char *file, off_t sz, const dir_elem_t *entry_p,
                 off += n;
         } while (n && off != sz);
 
+        /* Sync */
+        if (waitpid(pid, NULL, 0) == -1) {
+                /*
+                 * POSIX.1-2001 specifies that if the disposition of
+                 * SIGCHLD is set to SIG_IGN or the SA_NOCLDWAIT flag
+                 * is set for SIGCHLD (see sigaction(2)), then
+                 * children that terminate do not become zombies and
+                 * a call to wait() or waitpid() will block until all
+                 * children have terminated, and then fail with errno
+                 * set to ECHILD.
+                 */
+                if (errno != ECHILD)
+                        perror("waitpid");
+        } 
+
         /* Check for incomplete buffer error */
         if (off != sz) {
                 free(buffer);
@@ -411,12 +426,16 @@ error:
  ****************************************************************************/
 static int pclose_(FILE *fp, pid_t pid)
 {
-        int status;
+        pid_t wpid;
+        int status = 0;
+
         fclose(fp);
         killpg(pid, SIGKILL);
+
         /* Sync */
         do {
-                if (waitpid(pid, &status, WNOHANG | WUNTRACED) == -1) {
+                wpid = waitpid(pid, &status, WNOHANG | WUNTRACED);
+                if (wpid == -1) {
                         /*
                          * POSIX.1-2001 specifies that if the disposition of
                          * SIGCHLD is set to SIG_IGN or the SA_NOCLDWAIT flag
@@ -430,7 +449,7 @@ static int pclose_(FILE *fp, pid_t pid)
                                 perror("waitpid");
                         return 0;
                 }
-        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        } while (!wpid || (!WIFEXITED(status) && !WIFSIGNALED(status)));
         if (WIFEXITED(status))
                 return WEXITSTATUS(status);
         return 0;
