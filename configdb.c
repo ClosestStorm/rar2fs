@@ -99,6 +99,7 @@ struct cfg_obj *config_objects_ = &config_objects[0];
 int collect_obj(int obj, const char *s)
 {
         char *s1 = NULL;
+        char *endptr;
 
         if (obj < 0 || obj >= MAX_NOF_CFG_OBJ)
                 return 1;
@@ -134,6 +135,9 @@ int collect_obj(int obj, const char *s)
         case OBJ_SEEK_LENGTH:
         case OBJ_SEEK_DEPTH:
         case OBJ_HIST_SIZE:
+                (void)strtoul(s1, &endptr, 10);
+                if (*endptr)
+                        return 1;
                 CLR_OBJ_(obj);
                 ADD_OBJ_(obj, s1, OBJ_INT_);
                 break;
