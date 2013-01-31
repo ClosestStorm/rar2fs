@@ -148,6 +148,7 @@ void sighandler_init()
 {
         struct sigaction act;
 
+#if 0
         /* Avoid child zombies for SIGCHLD */
         sigaction(SIGCHLD, NULL, &act);
 #ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
@@ -158,6 +159,7 @@ void sighandler_init()
 #endif
         act.sa_flags |= (SA_NOCLDWAIT);
         sigaction(SIGCHLD, &act, NULL);
+#endif
 
         sigaction(SIGUSR1, NULL, &act);
         sigemptyset(&act.sa_mask);

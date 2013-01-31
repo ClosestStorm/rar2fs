@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2013-01-31  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Removed workaround for zombie processes since 
+          waitpid() should now be called properly
+
+        * Aligned DLL extension with later implementations
+          of libunrar.
+
 2013-01-30  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Removed the limititation that main archive must
