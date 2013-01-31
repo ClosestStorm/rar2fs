@@ -3820,6 +3820,8 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key,
                 if (opt >= OBJ_ADDR(0)) {
                         if (!collect_obj(OBJ_ID(opt), optarg))
                                 return 0;
+                        usage(outargs->argv[0]);
+                        return -1;
                 }
                 return 1;
 
