@@ -30,7 +30,7 @@
 #include <memory.h>
 #include "debug.h"
 #include "iobuffer.h"
-#include "configdb.h"
+#include "optdb.h"
 
 size_t iob_hist_sz = 0;
 size_t iob_sz = 0;
@@ -139,9 +139,9 @@ size_t copyFrom(char *dest, struct io_buf *src, size_t size, size_t pos)
  ****************************************************************************/
 void iobuffer_init()
 {
-        int bsz = OBJ_INT(OBJ_BUFF_SIZE,0);
+        int bsz = OPT_INT(OPT_KEY_BUF_SIZE,0);
         iob_sz = bsz ? (bsz * 1024 * 1024) : IOB_SZ_DEFAULT;
-        int hsz = OBJ_SET(OBJ_HIST_SIZE) ? OBJ_INT(OBJ_HIST_SIZE, 0) : 50;
+        int hsz = OPT_SET(OPT_KEY_HIST_SIZE) ? OPT_INT(OPT_KEY_HIST_SIZE, 0) : 50;
         iob_hist_sz = IOB_SZ * (hsz / 100.0);
 }
 

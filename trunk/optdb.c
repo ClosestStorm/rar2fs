@@ -33,10 +33,9 @@
 #include <string.h>
 #include <libgen.h>
 #include "debug.h"
-#include "configdb.h"
+#include "optdb.h"
 
-#define MAX_NOF_CFG_OBJ (OBJ_LAST_ENTRY)
-static struct cfg_obj config_objects[MAX_NOF_CFG_OBJ] = {
+static struct opt_entry opt_entry_[] = {
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 1, 0},
@@ -56,57 +55,57 @@ static struct cfg_obj config_objects[MAX_NOF_CFG_OBJ] = {
         {{NULL,}, 0, 0, 0, 0, 0}
 };
 
-struct cfg_obj *config_objects_ = &config_objects[0];
+struct opt_entry *opt_entry_p  = &opt_entry_[0];
 
-#define OBJ_(o)                 (config_objects_+(o))
-#define OBJ_STR_                u.v_arr_str,char*
-#define OBJ_INT_                u.v_arr_int,long
-#define ADD_OBJ_(o, s1, mt)     ADD_OBJ__(o, s1, mt)
+#define OPT_(o)                 (opt_entry_p+(o))
+#define OPT_STR_                u.v_arr_str,char*
+#define OPT_INT_                u.v_arr_int,long
+#define ADD_OPT_(o, s1, mt)     ADD_OPT__(o, s1, mt)
 
-#define ADD_OBJ__(o, s1, m, t) \
+#define ADD_OPT__(o, s1, m, t) \
         do { \
-                OBJ_(o)->is_set = 1; \
-                if ((OBJ_(o))->n_elem == (OBJ_(o))->n_max) { \
-                        OBJ_(o)->n_max += 16; \
-                        OBJ_(o)->m = (t*)realloc((t*)OBJ_(o)->m, \
-                                OBJ_(o)->n_max * sizeof(t*)); \
+                OPT_(o)->is_set = 1; \
+                if ((OPT_(o))->n_elem == (OPT_(o))->n_max) { \
+                        OPT_(o)->n_max += 16; \
+                        OPT_(o)->m = (t*)realloc((t*)OPT_(o)->m, \
+                                OPT_(o)->n_max * sizeof(t*)); \
                 } \
                 if (IS_STR_(o)) \
-                        OBJ_(o)->m[OBJ_(o)->n_elem++] = (t)strdup(s1); \
+                        OPT_(o)->m[OPT_(o)->n_elem++] = (t)strdup(s1); \
                 else \
-                        OBJ_(o)->m[OBJ_(o)->n_elem++] = (t)strtoul(s1, NULL, 10); \
+                        OPT_(o)->m[OPT_(o)->n_elem++] = (t)strtoul(s1, NULL, 10); \
         } while (0)
 
-#define CLR_OBJ_(o) \
+#define CLR_OPT_(o) \
         do { \
-                OBJ_(o)->is_set = 0; \
-                if ((OBJ_(o))->n_elem && IS_STR_(o)) { \
-                        int i = (OBJ_(o))->n_elem; \
+                OPT_(o)->is_set = 0; \
+                if ((OPT_(o))->n_elem && IS_STR_(o)) { \
+                        int i = (OPT_(o))->n_elem; \
                         while (i--) { \
-                                free((void*)OBJ_(o)->u.v_arr_str[i]);\
+                                free((void*)OPT_(o)->u.v_arr_str[i]);\
                         } \
-                        OBJ_(o)->n_elem = 0; \
+                        OPT_(o)->n_elem = 0; \
                 }\
         } while (0)
 
-#define IS_INT_(o) (OBJ_(o)->type)
-#define IS_STR_(o) (!OBJ_(o)->type)
+#define IS_INT_(o) (OPT_(o)->type)
+#define IS_STR_(o) (!OPT_(o)->type)
 
 /*!
  *****************************************************************************
  *
  ****************************************************************************/
-int collect_obj(int obj, const char *s)
+int optdb_save(int opt, const char *s)
 {
         char *s1 = NULL;
         char *endptr;
 
-        if (obj < 0 || obj >= MAX_NOF_CFG_OBJ)
+        if (opt < 0 || opt > OPT_KEY_LAST)
                 return 1;
 
-        OBJ_(obj)->is_set = 1;
+        OPT_(opt)->is_set = 1;
 
-        if (OBJ_(obj)->read_from_file && s && *s == '/') {
+        if (OPT_(opt)->read_from_file && s && *s == '/') {
                 FILE *fp = fopen(s, "r");
                 if (fp) {
                         struct stat st;
@@ -130,21 +129,21 @@ int collect_obj(int obj, const char *s)
         if (!s1)
                 return 0;
 
-        switch (obj)
+        switch (opt)
         {
-        case OBJ_SEEK_LENGTH:
-        case OBJ_SEEK_DEPTH:
-        case OBJ_HIST_SIZE:
+        case OPT_KEY_SEEK_LENGTH:
+        case OPT_KEY_SEEK_DEPTH:
+        case OPT_KEY_HIST_SIZE:
                 (void)strtoul(s1, &endptr, 10);
                 if (*endptr)
                         return 1;
-                CLR_OBJ_(obj);
-                ADD_OBJ_(obj, s1, OBJ_INT_);
+                CLR_OPT_(opt);
+                ADD_OPT_(opt, s1, OPT_INT_);
                 break;
-        case OBJ_SRC:
-        case OBJ_DST:
-                CLR_OBJ_(obj);
-                ADD_OBJ_(obj, s1, OBJ_STR_);
+        case OPT_KEY_SRC:
+        case OPT_KEY_DST:
+                CLR_OPT_(opt);
+                ADD_OPT_(opt, s1, OPT_STR_);
                 break;
         default:
                 {
@@ -160,11 +159,11 @@ int collect_obj(int obj, const char *s)
                                 while ((s2 = strchr(s2, ';'))) {
                                         *s2++ = 0;
                                         if (strlen(s1) > 1)
-                                                ADD_OBJ_(obj, s1, OBJ_STR_);
+                                                ADD_OPT_(opt, s1, OPT_STR_);
                                         s1 = s2;
                                 }
                                 if (*s1)
-                                        ADD_OBJ_(obj, s1, OBJ_STR_);
+                                        ADD_OPT_(opt, s1, OPT_STR_);
                         }
                 }
                 break;
@@ -175,12 +174,13 @@ int collect_obj(int obj, const char *s)
 #ifdef DEBUG_
         {
                 int i;
-                printd(5, "config object %d : ", obj);
-                for(i = 0; i < OBJ_(obj)->n_elem; i++)
-                        if (obj != OBJ_SEEK_DEPTH && obj != OBJ_SEEK_LENGTH)
-                                printd(5, "\"%s\" ", OBJ_(obj)->u.v_arr_str[i]);
+                printd(5, "option %d : ", opt);
+                for(i = 0; i < OPT_(opt)->n_elem; i++)
+                        if (opt != OPT_KEY_SEEK_DEPTH && 
+                            opt != OPT_KEY_SEEK_LENGTH)
+                                printd(5, "\"%s\" ", OPT_(opt)->u.v_arr_str[i]);
                         else
-                                printd(5, "\"%ld\" ", OBJ_(obj)->u.v_arr_int[i]);
+                                printd(5, "\"%ld\" ", OPT_(opt)->u.v_arr_int[i]);
                 printd(5, "\n");
         }
 #endif
@@ -192,21 +192,21 @@ int collect_obj(int obj, const char *s)
  *****************************************************************************
  *
  ****************************************************************************/
-static void reset_obj(int obj, int init)
+static void reset_opt(int opt, int init)
 {
-        if (obj < 0 || obj >= MAX_NOF_CFG_OBJ)
+        if (opt < 0 || opt > OPT_KEY_LAST)
                 return;
 
-        CLR_OBJ_(obj);
+        CLR_OPT_(opt);
         if (init) {
-                switch (obj) {
-                case OBJ_IMG_TYPE:
-                        ADD_OBJ_(OBJ_IMG_TYPE, ".iso", OBJ_STR_);
-                        ADD_OBJ_(OBJ_IMG_TYPE, ".img", OBJ_STR_);
-                        ADD_OBJ_(OBJ_IMG_TYPE, ".nrg", OBJ_STR_);
+                switch (opt) {
+                case OPT_KEY_IMG_TYPE:
+                        ADD_OPT_(OPT_KEY_IMG_TYPE, ".iso", OPT_STR_);
+                        ADD_OPT_(OPT_KEY_IMG_TYPE, ".img", OPT_STR_);
+                        ADD_OPT_(OPT_KEY_IMG_TYPE, ".nrg", OPT_STR_);
                         break;
-                case OBJ_SEEK_DEPTH:
-                        ADD_OBJ_(OBJ_SEEK_DEPTH, "1", OBJ_INT_);
+                case OPT_KEY_SEEK_DEPTH:
+                        ADD_OPT_(OPT_KEY_SEEK_DEPTH, "1", OPT_INT_);
                         break;
                 default:
                         break;
@@ -218,28 +218,28 @@ static void reset_obj(int obj, int init)
  *****************************************************************************
  *
  ****************************************************************************/
-void configdb_init()
+void optdb_init()
 {
-        int i = MAX_NOF_CFG_OBJ;
+        int i = OPT_KEY_END;
         while (i--)
-                reset_obj(i, 1);
+                reset_opt(i, 1);
 }
 
 /*!
  *****************************************************************************
  *
  ****************************************************************************/
-void configdb_destroy()
+void optdb_destroy()
 {
-        int i = MAX_NOF_CFG_OBJ;
+        int i = OPT_KEY_END;
         while (i--)
-                reset_obj(i, 0);
+                reset_opt(i, 0);
 }
 
-#undef ADD_OBJ_
-#undef OBJ_
-#undef OBJ_INT_
-#undef OBJ_STR_
+#undef ADD_OPT_
+#undef OPT_
+#undef OPT_INT_
+#undef OPT_STR_
 
 /*!
  *****************************************************************************
@@ -257,12 +257,12 @@ static inline int get_ext_len(char *s)
  *****************************************************************************
  *
  ****************************************************************************/
-int chk_obj(int obj, char *path)
+int optdb_find(int opt, char *path)
 {
         int i = 0;
-        if (obj == OBJ_EXCLUDE) {
-                while (i != OBJ_CNT(obj)) {
-                        char *tmp = OBJ_STR(OBJ_EXCLUDE, i);
+        if (opt == OPT_KEY_EXCLUDE) {
+                while (i != OPT_CNT(opt)) {
+                        char *tmp = OPT_STR(OPT_KEY_EXCLUDE, i);
                         char *safe_path = strdup(path);
                         if (!strcmp(basename(safe_path), tmp ? tmp : "")) {
                                 free(safe_path);
@@ -271,12 +271,12 @@ int chk_obj(int obj, char *path)
                         free(safe_path);
                         ++i;
                 }
-        } else if (obj == OBJ_FAKE_ISO || obj == OBJ_IMG_TYPE) {
+        } else if (opt == OPT_KEY_FAKE_ISO || opt == OPT_KEY_IMG_TYPE) {
                 int l = get_ext_len(path);
                 if (l <= 1)
                         return 0;
-                while (i != OBJ_CNT(obj)) {
-                        char *tmp =  OBJ_STR(obj, i);
+                while (i != OPT_CNT(opt)) {
+                        char *tmp =  OPT_STR(opt, i);
                         if (!strcmp((path) + (strlen(path) - l), tmp ? tmp : ""))
                                 return l - 1;
                         ++i;

@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2013-02-01  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Replaced 'configdb' with a more appropriate
+          implementation
+
+        * New file(s): optdb.h, optdb.c
+        * Removed file(s): configdb.h, configdb.c
+
 2013-01-31  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Removed workaround for zombie processes since 

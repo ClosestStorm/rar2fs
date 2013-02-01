@@ -65,7 +65,7 @@
 #include "dllwrapper.h"
 #include "filecache.h"
 #include "iobuffer.h"
-#include "configdb.h"
+#include "optdb.h"
 #include "sighandler.h"
 #include "dirlist.h"
 
@@ -295,7 +295,7 @@ static FILE *popen_(const dir_elem_t *entry_p, pid_t *cpid, void **mmap_addr,
         int fd = -1;
         int pfd[2] = {-1,};
 #ifdef ENABLE_OBSOLETE_ARGS
-        char *unrar_path = OBJ_STR(OBJ_UNRAR_PATH, 0);
+        char *unrar_path = OPT_STR(OPT_KEY_UNRAR_PATH, 0);
 #endif
         if (entry_p->flags.mmap) {
                 fd = open(entry_p->rar_p, O_RDONLY);
@@ -1353,7 +1353,7 @@ extract_error:
 #ifdef USE_RAR_PASSWORD
 static char *get_password(const char *file, char *buf)
 {
-        if (file && !OBJ_SET(OBJ_NO_PASSWD)) {
+        if (file && !OPT_SET(OPT_KEY_NO_PASSWD)) {
                 size_t l = strlen(file);
                 char *F = alloca(l + 1);
                 strcpy(F, file);
@@ -1580,7 +1580,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 printd(3, "File inside archive is %s\n", next2->FileName);
 
                 /* Skip compressed image files */
-                if (!OBJ_SET(OBJ_SHOW_COMP_IMG) &&
+                if (!OPT_SET(OPT_KEY_SHOW_COMP_IMG) &&
                                 next2->Method != FHD_STORING &&
                                 IS_IMG(next2->FileName)) {
                         next2 = next2->next;
@@ -1735,7 +1735,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
         char *rar_root = strdup(dirname(tmp1));
         free(tmp1);
         tmp1 = rar_root;
-        rar_root += strlen(OBJ_STR2(OBJ_SRC, 0));
+        rar_root += strlen(OPT_STR2(OPT_KEY_SRC, 0));
         size_t rar_root_len = strlen(rar_root);
         int is_root_path = (!strcmp(rar_root, path) || !CHRCMP(path, '/'));
 
@@ -1746,7 +1746,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                 BS_TO_UNIX(next->FileName);
 
                 /* Skip compressed image files */
-                if (!OBJ_SET(OBJ_SHOW_COMP_IMG) &&
+                if (!OPT_SET(OPT_KEY_SHOW_COMP_IMG) &&
                                 next->Method != FHD_STORING &&
                                 IS_IMG(next->FileName)) {
                         next = next->next;
@@ -1810,10 +1810,10 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                         free(rar_dir);
                 }
 
-                if (!IS_RAR_DIR(next) && OBJ_SET(OBJ_FAKE_ISO)) {
-                        int l = OBJ_CNT(OBJ_FAKE_ISO)
-                                        ? chk_obj(OBJ_FAKE_ISO, mp)
-                                        : chk_obj(OBJ_IMG_TYPE, mp);
+                if (!IS_RAR_DIR(next) && OPT_SET(OPT_KEY_FAKE_ISO)) {
+                        int l = OPT_CNT(OPT_KEY_FAKE_ISO)
+                                        ? optdb_find(OPT_KEY_FAKE_ISO, mp)
+                                        : optdb_find(OPT_KEY_IMG_TYPE, mp);
                         if (l)
                                 strcpy(mp + (strlen(mp) - l), "iso");
                 }
@@ -1843,7 +1843,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                         : entry_p->password_p);
 
                 /* Check for .rar file inside archive */
-                if (OBJ_INT(OBJ_SEEK_DEPTH, 0) && IS_RAR(entry_p->name_p)) {
+                if (OPT_INT(OPT_KEY_SEEK_DEPTH, 0) && IS_RAR(entry_p->name_p)) {
                         int vno = !(MainHeaderFlags & MHD_VOLUME)
                                 ? 1
                                 : get_vformat(arch, entry_p->vtype, NULL, NULL);
@@ -1878,7 +1878,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                 } else {
                                         entry_p->flags.raw = 0;
                                         entry_p->flags.save_eof =
-                                                OBJ_SET(OBJ_SAVE_EOF) ? 1 : 0;
+                                                OPT_SET(OPT_KEY_SAVE_EOF) ? 1 : 0;
                                 }
                         } else {
                                 entry_p->flags.multipart = 0;
@@ -1888,7 +1888,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                         entry_p->flags.raw = 0;
                         if (!NEED_PASSWORD())
                                 entry_p->flags.save_eof =
-                                        OBJ_SET(OBJ_SAVE_EOF) ? 1 : 0;
+                                        OPT_SET(OPT_KEY_SAVE_EOF) ? 1 : 0;
                          else
                                 entry_p->flags.save_eof = 0;
                         /* Check if part of a volume */
@@ -2008,8 +2008,8 @@ static void syncdir_scan(const char *dir, const char *root)
                 while (i < n) {
                         int vno = get_vformat(namelist[i]->d_name, !(f - 1),
                                                         NULL, NULL);
-                        if (!OBJ_INT(OBJ_SEEK_LENGTH, 0) ||
-                                        vno <= OBJ_INT(OBJ_SEEK_LENGTH, 0)) {
+                        if (!OPT_INT(OPT_KEY_SEEK_LENGTH, 0) ||
+                                        vno <= OPT_INT(OPT_KEY_SEEK_LENGTH, 0)) {
                                 char *arch;
                                 ABS_MP(arch, root, namelist[i]->d_name);
                                 if (vno == 1 || (vno == 2 && f == 2)) /* "first" file */
@@ -2029,10 +2029,10 @@ static void syncdir_scan(const char *dir, const char *root)
  ****************************************************************************/
 static inline int convert_fake_iso(char *name)
 {
-        if (OBJ_SET(OBJ_FAKE_ISO)) {
-                int l = OBJ_CNT(OBJ_FAKE_ISO)
-                        ? chk_obj(OBJ_FAKE_ISO, name)
-                        : chk_obj(OBJ_IMG_TYPE, name);
+        if (OPT_SET(OPT_KEY_FAKE_ISO)) {
+                int l = OPT_CNT(OPT_KEY_FAKE_ISO)
+                        ? optdb_find(OPT_KEY_FAKE_ISO, name)
+                        : optdb_find(OPT_KEY_IMG_TYPE, name);
                 if (!l)
                         return 0;
                 if (l < 3)
@@ -2076,7 +2076,7 @@ static void readdir_scan(const char *dir, const char *root,
                                 if (fs_loop) {
                                         char *path;
                                         ABS_MP(path, root, tmp);
-                                        if (!strcmp(path, OBJ_STR2(OBJ_DST, 0)))
+                                        if (!strcmp(path, OPT_STR2(OPT_KEY_DST, 0)))
                                                 goto next_entry;
                                 }
 #ifdef _DIRENT_HAVE_D_TYPE
@@ -2100,8 +2100,8 @@ static void readdir_scan(const char *dir, const char *root,
 
                         int vno = get_vformat(namelist[i]->d_name, !(f - 1),
                                                         NULL, NULL);
-                        if (!OBJ_INT(OBJ_SEEK_LENGTH, 0) ||
-                                        vno <= OBJ_INT(OBJ_SEEK_LENGTH, 0)) {
+                        if (!OPT_INT(OPT_KEY_SEEK_LENGTH, 0) ||
+                                        vno <= OPT_INT(OPT_KEY_SEEK_LENGTH, 0)) {
                                 char *arch;
                                 ABS_MP(arch, root, namelist[i]->d_name);
                                 if (vno == 1 || (vno == 2 && f == 2))   /* "first" file */
@@ -2152,7 +2152,7 @@ static void syncrar(const char *path)
         const char *password = NULL;
 
         int c = 0;
-        int c_end = OBJ_INT(OBJ_SEEK_LENGTH, 0);
+        int c_end = OPT_INT(OPT_KEY_SEEK_LENGTH, 0);
         struct dir_entry_list *arch_next = arch_list_root.next;
         while (arch_next) {
                 if (!c++)
@@ -2184,7 +2184,7 @@ static int rar2_getattr(const char *path, struct stat *stbuf)
          * This is bad! To make sure the files does not really exist all
          * rar archives need to be scanned for a matching file = slow!
          */
-        if (CHK_FILTER(path))
+        if (OPT_FILTER(path))
                 return -ENOENT;
         char *safe_path = strdup(path);
         syncdir(dirname(safe_path));
@@ -2373,7 +2373,7 @@ static int rar2_readdir2(const char *path, void *buffer,
         dir_list_open(next);
 
         int c = 0;
-        int c_end = OBJ_INT(OBJ_SEEK_LENGTH, 0);
+        int c_end = OPT_INT(OPT_KEY_SEEK_LENGTH, 0);
         struct dir_entry_list *arch_next = arch_list_root.next;
         while (arch_next) {
                 if (!c++)
@@ -2478,7 +2478,7 @@ static int preload_index(struct io_buf *buf, const char *path)
                 return -1;
         }
 #ifdef HAVE_MMAP
-        if (!OBJ_SET(OBJ_NO_IDX_MMAP)) {
+        if (!OPT_SET(OPT_KEY_NO_IDX_MMAP)) {
                 /* Map the file into address space (1st pass) */
                 struct idx_head *h =
                     (struct idx_head *)mmap(NULL, sizeof(struct idx_head), PROT_READ, MAP_SHARED, fd, 0);
@@ -2679,7 +2679,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                 op->pos = 0;
                                 op->vno = -1;   /* force a miss 1:st time */
                                 if (entry_p->flags.multipart &&
-                                                OBJ_SET(OBJ_PREOPEN_IMG) &&
+                                                OPT_SET(OPT_KEY_PREOPEN_IMG) &&
                                                 entry_p->flags.image) {
                                         entry_p->vno_max =
                                             pow_(10, op->entry_p->vlen) + 1;
@@ -2805,7 +2805,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                 fi->direct_io = 0;
                         } else {
                                 /* Was the file removed ? */
-                                if (OBJ_SET(OBJ_SAVE_EOF) && !entry_p->flags.save_eof) {
+                                if (OPT_SET(OPT_KEY_SAVE_EOF) && !entry_p->flags.save_eof) {
                                         if (!entry_p->password_p) {
                                                 entry_p->flags.save_eof = 1;
                                                 entry_p->flags.avi_tested = 0;
@@ -2971,7 +2971,7 @@ static int rar2_statfs(const char *path, struct statvfs *vfs)
 {
         ENTER_("%s", path);
         (void)path;             /* touch */
-        if (!statvfs(OBJ_STR2(OBJ_SRC, 0), vfs))
+        if (!statvfs(OPT_STR2(OPT_KEY_SRC, 0), vfs))
                 return 0;
         return -errno;
 }
@@ -3509,10 +3509,10 @@ static int check_paths(const char *prog, char *src_path_in, char *dst_path_in,
  ****************************************************************************/
 static int check_iob(char *bname, int verbose)
 {
-        unsigned int bsz = OBJ_INT(OBJ_BUFF_SIZE, 0);
-        unsigned int hsz = OBJ_INT(OBJ_HIST_SIZE, 0);
-        if ((OBJ_SET(OBJ_BUFF_SIZE) && !bsz) || (bsz & (bsz - 1)) ||
-                        (OBJ_SET(OBJ_HIST_SIZE) && (hsz > 75))) {
+        unsigned int bsz = OPT_INT(OPT_KEY_BUF_SIZE, 0);
+        unsigned int hsz = OPT_INT(OPT_KEY_HIST_SIZE, 0);
+        if ((OPT_SET(OPT_KEY_BUF_SIZE) && !bsz) || (bsz & (bsz - 1)) ||
+                        (OPT_SET(OPT_KEY_HIST_SIZE) && (hsz > 75))) {
                 if (verbose)
                         usage(bname);
                 return -1;
@@ -3613,7 +3613,7 @@ static int work(struct fuse_args *args)
 
 #if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
         cpu_set_t cpu_mask_saved;
-        if (OBJ_SET(OBJ_NO_SMP)) {
+        if (OPT_SET(OPT_KEY_NO_SMP)) {
                 cpu_set_t cpu_mask;
                 CPU_ZERO(&cpu_mask);
                 CPU_SET(0, &cpu_mask);
@@ -3686,7 +3686,7 @@ static int work(struct fuse_args *args)
         fuse_teardown(f, mp);
 
 #if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
-        if (OBJ_SET(OBJ_NO_SMP)) {
+        if (OPT_SET(OPT_KEY_NO_SMP)) {
                 if (sched_setaffinity(0, sizeof(cpu_set_t), &cpu_mask_saved))
                         perror("sched_setaffinity");
         }
@@ -3750,40 +3750,40 @@ static void print_help()
 }
 
 enum {
-        KEY_HELP,
-        KEY_VERSION,
+        OPT_KEY_HELP = OPT_KEY_END,
+        OPT_KEY_VERSION,
 };
 
 static struct fuse_opt rar2fs_opts[] = {
-        FUSE_OPT_KEY("-V",              KEY_VERSION),
-        FUSE_OPT_KEY("--version",       KEY_VERSION),
-        FUSE_OPT_KEY("-h",              KEY_HELP),
-        FUSE_OPT_KEY("--help",          KEY_HELP),
+        FUSE_OPT_KEY("-V",              OPT_KEY_VERSION),
+        FUSE_OPT_KEY("--version",       OPT_KEY_VERSION),
+        FUSE_OPT_KEY("-h",              OPT_KEY_HELP),
+        FUSE_OPT_KEY("--help",          OPT_KEY_HELP),
         FUSE_OPT_END
 };
 
 static struct option longopts[] = {
-        {"show-comp-img",     no_argument, NULL, OBJ_ADDR(OBJ_SHOW_COMP_IMG)},
-        {"preopen-img",       no_argument, NULL, OBJ_ADDR(OBJ_PREOPEN_IMG)},
-        {"no-idx-mmap",       no_argument, NULL, OBJ_ADDR(OBJ_NO_IDX_MMAP)},
-        {"fake-iso",    optional_argument, NULL, OBJ_ADDR(OBJ_FAKE_ISO)},
-        {"exclude",     required_argument, NULL, OBJ_ADDR(OBJ_EXCLUDE)},
-        {"seek-length", required_argument, NULL, OBJ_ADDR(OBJ_SEEK_LENGTH)},
+        {"show-comp-img",     no_argument, NULL, OPT_ADDR(OPT_KEY_SHOW_COMP_IMG)},
+        {"preopen-img",       no_argument, NULL, OPT_ADDR(OPT_KEY_PREOPEN_IMG)},
+        {"no-idx-mmap",       no_argument, NULL, OPT_ADDR(OPT_KEY_NO_IDX_MMAP)},
+        {"fake-iso",    optional_argument, NULL, OPT_ADDR(OPT_KEY_FAKE_ISO)},
+        {"exclude",     required_argument, NULL, OPT_ADDR(OPT_KEY_EXCLUDE)},
+        {"seek-length", required_argument, NULL, OPT_ADDR(OPT_KEY_SEEK_LENGTH)},
 #ifdef ENABLE_OBSOLETE_ARGS
-        {"unrar-path",  required_argument, NULL, OBJ_ADDR(OBJ_UNRAR_PATH)},
-        {"no-password",       no_argument, NULL, OBJ_ADDR(OBJ_NO_PASSWD)},
+        {"unrar-path",  required_argument, NULL, OPT_ADDR(OPT_KEY_UNRAR_PATH)},
+        {"no-password",       no_argument, NULL, OPT_ADDR(OPT_KEY_NO_PASSWD)},
 #endif
-        {"seek-depth",  required_argument, NULL, OBJ_ADDR(OBJ_SEEK_DEPTH)},
+        {"seek-depth",  required_argument, NULL, OPT_ADDR(OPT_KEY_SEEK_DEPTH)},
 #if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
-        {"no-smp",            no_argument, NULL, OBJ_ADDR(OBJ_NO_SMP)},
+        {"no-smp",            no_argument, NULL, OPT_ADDR(OPT_KEY_NO_SMP)},
 #endif
-        {"img-type",    required_argument, NULL, OBJ_ADDR(OBJ_IMG_TYPE)},
-        {"no-lib-check",      no_argument, NULL, OBJ_ADDR(OBJ_NO_LIB_CHECK)},
+        {"img-type",    required_argument, NULL, OPT_ADDR(OPT_KEY_IMG_TYPE)},
+        {"no-lib-check",      no_argument, NULL, OPT_ADDR(OPT_KEY_NO_LIB_CHECK)},
 #ifndef USE_STATIC_IOB_
-        {"hist-size",   required_argument, NULL, OBJ_ADDR(OBJ_HIST_SIZE)},
-        {"iob-size",    required_argument, NULL, OBJ_ADDR(OBJ_BUFF_SIZE)},
+        {"hist-size",   required_argument, NULL, OPT_ADDR(OPT_KEY_HIST_SIZE)},
+        {"iob-size",    required_argument, NULL, OPT_ADDR(OPT_KEY_BUF_SIZE)},
 #endif
-        {"save-eof",          no_argument, NULL, OBJ_ADDR(OBJ_SAVE_EOF)},
+        {"save-eof",          no_argument, NULL, OPT_ADDR(OPT_KEY_SAVE_EOF)},
         {NULL,                          0, NULL, 0}
 };
 
@@ -3800,12 +3800,12 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key,
 
         switch (key) {
         case FUSE_OPT_KEY_NONOPT:
-                if (!OBJ_SET(OBJ_SRC)) {
-                        collect_obj(OBJ_SRC, arg);
+                if (!OPT_SET(OPT_KEY_SRC)) {
+                        optdb_save(OPT_KEY_SRC, arg);
                         return 0;
                 }
-                if (!OBJ_SET(OBJ_DST)) {
-                        collect_obj(OBJ_DST, arg);
+                if (!OPT_SET(OPT_KEY_DST)) {
+                        optdb_save(OPT_KEY_DST, arg);
                         return 0;
                 }
                 usage(outargs->argv[0]);
@@ -3817,15 +3817,15 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key,
                 int opt = getopt_long(2, (char *const*)argv, "dfs", longopts, NULL);
                 if (opt == '?')
                         return -1;
-                if (opt >= OBJ_ADDR(0)) {
-                        if (!collect_obj(OBJ_ID(opt), optarg))
+                if (opt >= OPT_ADDR(0)) {
+                        if (!optdb_save(OPT_ID(opt), optarg))
                                 return 0;
                         usage(outargs->argv[0]);
                         return -1;
                 }
                 return 1;
 
-        case KEY_HELP:
+        case OPT_KEY_HELP:
                 fprintf(stderr,
                         "usage: %s source mountpoint [options]\n"
                         "\n"
@@ -3840,7 +3840,7 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key,
                 print_help();
                 exit(0);
 
-        case KEY_VERSION:
+        case OPT_KEY_VERSION:
                 print_version();
                 fuse_opt_add_arg(outargs, "--version");
                 fuse_main(outargs->argc, outargs->argv,
@@ -3872,7 +3872,7 @@ int main(int argc, char *argv[])
 #endif
 
         /*openlog("rarfs2", LOG_NOWAIT|LOG_PID, 0);*/
-        configdb_init();
+        optdb_init();
 
         long ps = -1;
 #if defined ( _SC_PAGE_SIZE )
@@ -3892,17 +3892,17 @@ int main(int argc, char *argv[])
                 return -1;
 
         /* Check src/dst path */
-        if (OBJ_SET(OBJ_SRC) && OBJ_SET(OBJ_DST)) {
+        if (OPT_SET(OPT_KEY_SRC) && OPT_SET(OPT_KEY_DST)) {
                 char *dst_path = NULL;
                 char *src_path = NULL;
                 if (check_paths(argv[0],
-                                OBJ_STR(OBJ_SRC, 0),
-                                OBJ_STR(OBJ_DST, 0),
+                                OPT_STR(OPT_KEY_SRC, 0),
+                                OPT_STR(OPT_KEY_DST, 0),
                                 &src_path, &dst_path, 1))
                         return -1;
 
-                collect_obj(OBJ_SRC, src_path);
-                collect_obj(OBJ_DST, dst_path);
+                optdb_save(OPT_KEY_SRC, src_path);
+                optdb_save(OPT_KEY_DST, dst_path);
                 free(src_path);
                 free(dst_path);
         } else {
@@ -3915,15 +3915,15 @@ int main(int argc, char *argv[])
                 return -1;
 
         /* Check library versions */
-        if (!OBJ_SET(OBJ_NO_LIB_CHECK)) {
+        if (!OPT_SET(OPT_KEY_NO_LIB_CHECK)) {
                 if (check_libunrar(1) || check_libfuse(1))
                         return -1;
         }
 
         fuse_opt_add_arg(&args, "-s");
         fuse_opt_add_arg(&args, "-osync_read,fsname=rar2fs,subtype=rar2fs,default_permissions");
-        if (OBJ_SET(OBJ_DST))
-                fuse_opt_add_arg(&args, OBJ_STR(OBJ_DST, 0));
+        if (OPT_SET(OPT_KEY_DST))
+                fuse_opt_add_arg(&args, OPT_STR(OPT_KEY_DST, 0));
 
         /*
          * All static setup is ready, the rest is taken from the configuration.
@@ -3934,7 +3934,7 @@ int main(int argc, char *argv[])
 
         /* Clean up what has not already been taken care of */
         fuse_opt_free_args(&args);
-        configdb_destroy();
+        optdb_destroy();
         if (mount_type == MOUNT_ARCHIVE)
                 dir_list_free(arch_list);
 

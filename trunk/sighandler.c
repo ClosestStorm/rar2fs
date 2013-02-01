@@ -33,7 +33,6 @@
 #include <sys/wait.h>
 #include "debug.h"
 #include "filecache.h"
-#include "configdb.h"
 
 #ifdef HAVE_STRUCT_SIGACTION_SA_SIGACTION
 #if !defined ( HAVE_EXECINFO_H ) || !defined ( HAVE_UCONTEXT_H )
