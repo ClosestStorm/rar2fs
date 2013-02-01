@@ -32,7 +32,7 @@
 #include <libgen.h>
 #include "debug.h"
 #include "filecache.h"
-#include "configdb.h"
+#include "optdb.h"
 #include "hash.h"
 
 extern char *src_path;
@@ -123,15 +123,15 @@ dir_elem_t *cache_path(const char *path, struct stat *stbuf)
                         return LOCAL_FS_ENTRY;
                 }
                 /* Check if the missing file might be a fake .iso file */
-                if (OBJ_SET(OBJ_FAKE_ISO) && IS_ISO(root)) {
+                if (OPT_SET(OPT_KEY_FAKE_ISO) && IS_ISO(root)) {
                         int i;
-                        int obj = OBJ_CNT(OBJ_FAKE_ISO)
-                                ? OBJ_FAKE_ISO
-                                : OBJ_IMG_TYPE;
+                        int obj = OPT_CNT(OPT_KEY_FAKE_ISO)
+                                ? OPT_KEY_FAKE_ISO
+                                : OPT_KEY_IMG_TYPE;
 
                         /* Try the image file extensions one by one */
-                        for (i = 0; i < OBJ_CNT(obj); i++) {
-                                char *tmp = (OBJ_STR(obj, i));
+                        for (i = 0; i < OPT_CNT(obj); i++) {
+                                char *tmp = (OPT_STR(obj, i));
                                 int l = strlen(tmp ? tmp : "");
                                 char *root1 = strdup(root);
                                 if (l > 4)

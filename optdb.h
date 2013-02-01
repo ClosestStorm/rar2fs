@@ -26,46 +26,47 @@
     to develop a RAR (WinRAR) compatible archiver.
 */
 
-#ifndef CONFIGDB_H_
-#define CONFIGDB_H_
+#ifndef OPTDB_H_
+#define OPTDB_H_
 
 #define IS_IMG(s) \
-        ((OBJ_CNT(OBJ_IMG_TYPE) && chk_obj(OBJ_IMG_TYPE, s)) || \
-        (OBJ_CNT(OBJ_FAKE_ISO) && chk_obj(OBJ_FAKE_ISO, s)))
+        ((OPT_CNT(OPT_KEY_IMG_TYPE) && optdb_find(OPT_KEY_IMG_TYPE, s)) || \
+        (OPT_CNT(OPT_KEY_FAKE_ISO) && optdb_find(OPT_KEY_FAKE_ISO, s)))
 
 #define IS_ISO(s) (!strcasecmp((s)+(strlen(s)-4), ".iso"))
 #define IS_AVI(s) (!strcasecmp((s)+(strlen(s)-4), ".avi"))
 #define IS_MKV(s) (!strcasecmp((s)+(strlen(s)-4), ".mkv"))
 
-#define CHK_FILTER(path) \
-        (OBJ_CNT(OBJ_EXCLUDE) && chk_obj(OBJ_EXCLUDE, (char*)(path)))
+#define OPT_FILTER(path) \
+        (OPT_CNT(OPT_KEY_EXCLUDE) && optdb_find(OPT_KEY_EXCLUDE, (char*)(path)))
 
-#define OBJ_BASE    (1000)
-#define OBJ_ADDR(o) ((o) + OBJ_BASE)
-#define OBJ_ID(a)   ((a) - OBJ_BASE)
+#define OPT_BASE    (1000)
+#define OPT_ADDR(o) ((o) + OPT_BASE)
+#define OPT_ID(a)   ((a) - OPT_BASE)
 
 enum {
-        OBJ_SRC = 0,
-        OBJ_DST,
-        OBJ_EXCLUDE,
-        OBJ_FAKE_ISO,
-        OBJ_IMG_TYPE,
-        OBJ_PREOPEN_IMG,
-        OBJ_SHOW_COMP_IMG,
-        OBJ_NO_IDX_MMAP,
-        OBJ_SEEK_LENGTH,
-        OBJ_SEEK_DEPTH,
-        OBJ_NO_PASSWD,
-        OBJ_NO_SMP,
-        OBJ_UNRAR_PATH,
-        OBJ_NO_LIB_CHECK,
-        OBJ_HIST_SIZE,
-        OBJ_BUFF_SIZE,
-        OBJ_SAVE_EOF,
-        OBJ_LAST_ENTRY /* Must *always* be last */
+        OPT_KEY_SRC = 0,
+        OPT_KEY_DST,
+        OPT_KEY_EXCLUDE,
+        OPT_KEY_FAKE_ISO,
+        OPT_KEY_IMG_TYPE,
+        OPT_KEY_PREOPEN_IMG,
+        OPT_KEY_SHOW_COMP_IMG,
+        OPT_KEY_NO_IDX_MMAP,
+        OPT_KEY_SEEK_LENGTH,
+        OPT_KEY_SEEK_DEPTH,
+        OPT_KEY_NO_PASSWD,
+        OPT_KEY_NO_SMP,
+        OPT_KEY_UNRAR_PATH,
+        OPT_KEY_NO_LIB_CHECK,
+        OPT_KEY_HIST_SIZE,
+        OPT_KEY_BUF_SIZE,
+        OPT_KEY_SAVE_EOF,
+        OPT_KEY_END, /* Must *always* be last key */
+        OPT_KEY_LAST = (OPT_KEY_END - 1) 
 };
 
-struct cfg_obj {
+struct opt_entry {
         union
         {
                 long *v_arr_int;
@@ -79,17 +80,17 @@ struct cfg_obj {
         int type;
 };
 
-#define OBJ_CNT(o)     (config_objects_[(o)].n_elem)
-#define OBJ_STR(o, n)  (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:NULL)
-#define OBJ_STR2(o, n) (OBJ_SET(o)?config_objects_[(o)].u.v_arr_str[(n)]:"")
-#define OBJ_INT(o, n)  (OBJ_SET(o)?config_objects_[(o)].u.v_arr_int[(n)]:0)
-#define OBJ_SET(o)     (config_objects_[(o)].is_set)
+#define OPT_CNT(o)     (opt_entry_p[(o)].n_elem)
+#define OPT_STR(o, n)  (OPT_SET(o)?opt_entry_p[(o)].u.v_arr_str[(n)]:NULL)
+#define OPT_STR2(o, n) (OPT_SET(o)?opt_entry_p[(o)].u.v_arr_str[(n)]:"")
+#define OPT_INT(o, n)  (OPT_SET(o)?opt_entry_p[(o)].u.v_arr_int[(n)]:0)
+#define OPT_SET(o)     (opt_entry_p[(o)].is_set)
 
-extern struct cfg_obj *config_objects_;
+extern struct opt_entry *opt_entry_p;
 
-int collect_obj(int obj, const char*);
-int chk_obj(int obj, char*);
-void configdb_init();
-void configdb_destroy();
+int optdb_save(int opt, const char*);
+int optdb_find(int opt, char*);
+void optdb_init();
+void optdb_destroy();
 
 #endif

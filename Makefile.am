@@ -6,14 +6,14 @@ bin_PROGRAMS = rar2fs mkr2i
 dist_man_MANS = rar2fs.1
 
 rar2fs_SOURCES = 		dllext.cpp \
-				configdb.c \
+				optdb.c \
 				filecache.c \
 				iobuffer.c \
 				sighandler.c \
 				dirlist.c \
 				rar2fs.c \
 				compat.h \
-				configdb.h \
+				optdb.h \
 				dirlist.h \
 				hash.h \
 				filecache.h \
