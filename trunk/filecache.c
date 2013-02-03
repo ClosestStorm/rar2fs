@@ -55,28 +55,29 @@ static dir_elem_t path_cache[PATH_CACHE_SZ];
                         free ((e)->password_p);\
         } while(0)
 
+#define IS_ISO(s) (!strcasecmp((s)+(strlen(s)-4), ".iso"))
+
 /*!
  *****************************************************************************
  *
  ****************************************************************************/
 dir_elem_t *cache_path_alloc(const char *path)
 {
-        dir_elem_t *p = &path_cache[get_hash(path, PATH_CACHE_SZ)];
-        if (p->rar_p) {
-                if (p->name_p && !strcmp(path, p->name_p))
+        uint32_t hash = get_hash(path, 0);
+        dir_elem_t *p = &path_cache[(hash & (PATH_CACHE_SZ - 1))];
+        if (p->name_p) {
+                if (!strcmp(path, p->name_p))
                         return p;
                 while (p->next_p) {
                         p = p->next_p;
-                        if (p->name_p && !strcmp(path, p->name_p))
+                        if (hash == p->dir_hash && !strcmp(path, p->name_p))
                                 return p;
                 }
                 p->next_p = malloc(sizeof(dir_elem_t));
                 p = p->next_p;
                 memset(p, 0, sizeof(dir_elem_t));
-                char *safe_path = strdup(path);
-                p->dir_hash = get_hash(basename(safe_path), 0);
-                free(safe_path);
         }
+        p->dir_hash = hash;
         return p;
 }
 
@@ -86,12 +87,20 @@ dir_elem_t *cache_path_alloc(const char *path)
  ****************************************************************************/
 dir_elem_t *cache_path_get(const char *path)
 {
-        int hash = get_hash(path, PATH_CACHE_SZ);
-        dir_elem_t *p = &path_cache[hash];
-        while (p) {
-                if (p->name_p && !strcmp(path, p->name_p))
-                        return p;
-                p = p->next_p;
+        uint32_t hash = get_hash(path, 0);
+        dir_elem_t *p = &path_cache[hash & (PATH_CACHE_SZ - 1)];
+        if (p->name_p) {
+                while (p) {
+                        /*
+                         * Checking the full hash here will inflict a small
+                         * cache hit penalty for the bucket but will   
+                         * instead improve speed when searching a collision
+                         * chain due to less calls needed to strcmp().
+                         */
+                        if (hash == p->dir_hash && !strcmp(path, p->name_p))
+                                return p;
+                        p = p->next_p;
+                }
         }
         return NULL;
 }
@@ -173,7 +182,7 @@ void inval_cache_path(const char *path)
 {
         int i;
         if (path) {
-                int hash = get_hash(path, PATH_CACHE_SZ);
+                uint32_t hash = get_hash(path, PATH_CACHE_SZ);
                 printd(3, "Invalidating cache path %s\n", path);
                 dir_elem_t *e_p = &path_cache[hash];
                 dir_elem_t *p = e_p;
@@ -196,8 +205,17 @@ void inval_cache_path(const char *path)
                  * Most likely it is in the bucket, but double check.
                  */
                 if (e_p->name_p && !strcmp(e_p->name_p, path)) {
-                        FREE_CACHE_MEM(e_p);
-                        memset(e_p, 0, sizeof(dir_elem_t));
+                        /* Need to relink collision chain */
+                        if (e_p->next_p) {
+                                dir_elem_t *tmp = e_p->next_p;
+                                FREE_CACHE_MEM(e_p);
+                                memcpy(e_p, e_p->next_p, 
+                                            sizeof(dir_elem_t));
+                                free(tmp);
+                        } else {
+                                FREE_CACHE_MEM(e_p);
+                                memset(e_p, 0, sizeof(dir_elem_t));
+                        }
                 }
         } else {
                 printd(3, "Invalidating all cache entries\n");
@@ -237,3 +255,4 @@ void filecache_destroy()
         inval_cache_path(NULL);
         pthread_mutex_destroy(&file_access_mutex);
 }
+

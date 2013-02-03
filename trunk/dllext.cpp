@@ -36,13 +36,13 @@ static int RarErrorToDll(int ErrCode);
 
 struct DataSet
 {
-   CommandData Cmd;
-   CmdExtract Extract;
-   Archive Arc;
-   int OpenMode;
-   int HeaderSize;
+  CommandData Cmd;
+  CmdExtract Extract;
+  Archive Arc;
+  int OpenMode;
+  int HeaderSize;
 
-   DataSet():Arc(&Cmd) {}
+  DataSet():Arc(&Cmd) {}
 };
 
 HANDLE PASCAL RARInitArchive(struct RAROpenArchiveData *r, FileHandle fh)
@@ -180,7 +180,7 @@ int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N, off_t* FileDa
 #else
              CharToWide(Arc.NewLhd.FileName,N->FileNameW);
 #endif
-           } 
+           }
 
            N->Flags = Arc.NewLhd.Flags;
            N->PackSize = Arc.NewLhd.PackSize;
@@ -197,7 +197,7 @@ int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N, off_t* FileDa
            N->NameSize = Arc.NewLhd.NameSize;
            N->Offset = Arc.CurBlockPos;
 
-           if (FileDataEnd) 
+           if (FileDataEnd)
              *FileDataEnd = Arc.NextBlockPos;
            break;
 
@@ -208,7 +208,7 @@ int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N, off_t* FileDa
      }
      N->next = NULL;
      return FileCount;
-  }  
+  }
 #if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
   catch (RAR_EXIT ErrCode)
 #else
@@ -234,86 +234,85 @@ int PASCAL RARListArchiveEx(HANDLE* hArcData, RARArchiveListEx* N, off_t* FileDa
 
 void PASCAL RARFreeListEx(RARArchiveListEx* L)
 {
-   RARArchiveListEx* N = L?L->next:NULL;
-   while (N)
-   {
-       RARArchiveListEx* tmp = N;
-       N = N->next;
-       delete tmp;
-   }
+  RARArchiveListEx* N = L?L->next:NULL;
+  while (N)
+  {
+    RARArchiveListEx* tmp = N;
+    N = N->next;
+    delete tmp;
+  }
 }
 
 
 unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData)
 {
-   DataSet *Data=(DataSet*)hArcData;
-   return Data->Arc.NewMhd.HeadSize;
+  DataSet *Data=(DataSet*)hArcData;
+  return Data->Arc.NewMhd.HeadSize;
 }
 
 
 unsigned int PASCAL RARGetMainHeaderFlags(HANDLE hArcData)
 {
-   DataSet *Data=(DataSet*)hArcData;
-   return Data->Arc.NewMhd.Flags;
+  DataSet *Data=(DataSet*)hArcData;
+  return Data->Arc.NewMhd.Flags;
 }
 
 
 FileHandle PASCAL RARGetFileHandle(HANDLE hArcData)
 {
-   DataSet *Data=(DataSet*)hArcData;
-   return Data->Arc.GetHandle()!=BAD_HANDLE?Data->Arc.GetHandle():NULL;
+  DataSet *Data=(DataSet*)hArcData;
+  return Data->Arc.GetHandle()!=BAD_HANDLE?Data->Arc.GetHandle():NULL;
 }
 
 
 void PASCAL RARNextVolumeName(char* arch, bool oldstylevolume)
 {
-   NextVolumeName(arch, NULL, 0, oldstylevolume);
+  NextVolumeName(arch, NULL, 0, oldstylevolume);
 }
 
 
 static int RarErrorToDll(int ErrCode)
 {
 #if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
-   switch(ErrCode)
-   {
-      case RARX_FATAL:
-         return(ERAR_EREAD);
-      case RARX_CRC:
-         return(ERAR_BAD_DATA);
-      case RARX_WRITE:
-         return(ERAR_EWRITE);
-      case RARX_OPEN:
-         return(ERAR_EOPEN);
-      case RARX_CREATE:
-         return(ERAR_ECREATE);
-      case RARX_MEMORY:
-         return(ERAR_NO_MEMORY);
-      case RARX_SUCCESS:
-         return(0);
-      default:
-         ;
-   }
+  switch(ErrCode)
+  {
+    case RARX_FATAL:
+      return(ERAR_EREAD);
+    case RARX_CRC:
+      return(ERAR_BAD_DATA);
+    case RARX_WRITE:
+      return(ERAR_EWRITE);
+    case RARX_OPEN:
+      return(ERAR_EOPEN);
+    case RARX_CREATE:
+      return(ERAR_ECREATE);
+    case RARX_MEMORY:
+      return(ERAR_NO_MEMORY);
+    case RARX_SUCCESS:
+      return(0);
+    default:
+      ;
+  }
 #else
-    switch(ErrCode)
-    {
-       case FATAL_ERROR:
-          return(ERAR_EREAD);
-       case CRC_ERROR:
-          return(ERAR_BAD_DATA);
-       case WRITE_ERROR:
-          return(ERAR_EWRITE);
-       case OPEN_ERROR:
-          return(ERAR_EOPEN);
-       case CREATE_ERROR:
-          return(ERAR_ECREATE);
-       case MEMORY_ERROR:
-          return(ERAR_NO_MEMORY);
-       case SUCCESS:
-          return(0);
-       default:
-          ;
-    }
+  switch(ErrCode)
+  {
+    case FATAL_ERROR:
+      return(ERAR_EREAD);
+    case CRC_ERROR:
+      return(ERAR_BAD_DATA);
+    case WRITE_ERROR:
+      return(ERAR_EWRITE);
+    case OPEN_ERROR:
+      return(ERAR_EOPEN);
+    case CREATE_ERROR:
+      return(ERAR_ECREATE);
+    case MEMORY_ERROR:
+      return(ERAR_NO_MEMORY);
+    case SUCCESS:
+      return(0);
+    default:
+      ;
+  }
 #endif
-    return(ERAR_UNKNOWN);
+  return(ERAR_UNKNOWN);
 }
-

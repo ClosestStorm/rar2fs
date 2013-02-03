@@ -1,12 +1,25 @@
 rar2fs ChangeLog file.
 
+2013-02-03  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Hard link count now properly updated for 
+          directories inside RAR files.
+
+        * Fixed a bug in the cache invalidation logic
+          that could result in memory leaks.
+
+        * Improved cache lookup to make better use of
+          the full 32-bit hash in order to avoid
+          unnecessary calls to strcmp() when searching
+          a hash collision chain.
+
 2013-02-01  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Replaced 'configdb' with a more appropriate
           implementation
 
         * New file(s): optdb.h, optdb.c
-        * Removed file(s): configdb.h, configdb.c
+          Deleted file(s): configdb.h, configdb.c
 
 2013-01-31  Hans Beckerus <hans.beckerus@gmail.com>
 

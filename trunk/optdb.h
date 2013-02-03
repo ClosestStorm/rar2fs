@@ -33,10 +33,6 @@
         ((OPT_CNT(OPT_KEY_IMG_TYPE) && optdb_find(OPT_KEY_IMG_TYPE, s)) || \
         (OPT_CNT(OPT_KEY_FAKE_ISO) && optdb_find(OPT_KEY_FAKE_ISO, s)))
 
-#define IS_ISO(s) (!strcasecmp((s)+(strlen(s)-4), ".iso"))
-#define IS_AVI(s) (!strcasecmp((s)+(strlen(s)-4), ".avi"))
-#define IS_MKV(s) (!strcasecmp((s)+(strlen(s)-4), ".mkv"))
-
 #define OPT_FILTER(path) \
         (OPT_CNT(OPT_KEY_EXCLUDE) && optdb_find(OPT_KEY_EXCLUDE, (char*)(path)))
 
