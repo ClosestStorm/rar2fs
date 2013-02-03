@@ -1142,8 +1142,10 @@ static int get_vformat(const char *s, int t, int *l, int *p)
         return vol ? vol : 1;
 }
 
-#define IS_RAR(s)  (!strcmp(&(s)[strlen((s))-4], ".rar"))
-#define IS_RXX(s)  (is_rxx_vol(s))
+#define IS_AVI(s) (!strcasecmp((s)+(strlen(s)-4), ".avi"))
+#define IS_MKV(s) (!strcasecmp((s)+(strlen(s)-4), ".mkv"))
+#define IS_RAR(s) (!strcmp((s)+(strlen(s)-4), ".rar"))
+#define IS_RXX(s) (is_rxx_vol(s))
 #if 0
 #define IS_RAR_DIR(l) \
         ((l)->HostOS != HOST_UNIX && (l)->HostOS != HOST_BEOS \
@@ -1633,7 +1635,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                                         display = 1;
                 }
 
-                printd(3, "Looking up %s in cache\n", mp);
+                printd(3, "Looking up %s in cache\n", rar_file);
                 entry2_p = cache_path_get(rar_file);
                 if (entry2_p)  {
                         /*
@@ -1645,6 +1647,15 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                                 entry2_p->flags.force_dir = 0;
                         }
                         goto cache_hit;
+                }
+
+                /* Update hard link count when needed */
+                if (IS_RAR_DIR(next2)) {
+                        char *safe_path = strdup(rar_file);
+                        dir_elem_t *e_tmp = cache_path_get(dirname(safe_path));
+                        if (e_tmp)
+                            e_tmp->stat.st_nlink++;
+                        free(safe_path);
                 }
 
                 /* Allocate a cache entry for this file */
@@ -1830,6 +1841,15 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                 entry_p->flags.force_dir = 0;
                         }
                         goto cache_hit;
+                }
+
+                /* Update hard link count when needed */
+                if (IS_RAR_DIR(next)) {
+                        char *safe_path = strdup(mp);
+                        dir_elem_t *e_tmp = cache_path_get(dirname(safe_path));
+                        if (e_tmp)
+                            e_tmp->stat.st_nlink++;
+                        free(safe_path);
                 }
 
                 /* Allocate a cache entry for this file */
@@ -2029,15 +2049,18 @@ static void syncdir_scan(const char *dir, const char *root)
  ****************************************************************************/
 static inline int convert_fake_iso(char *name)
 {
+        size_t len;
+
         if (OPT_SET(OPT_KEY_FAKE_ISO)) {
                 int l = OPT_CNT(OPT_KEY_FAKE_ISO)
                         ? optdb_find(OPT_KEY_FAKE_ISO, name)
                         : optdb_find(OPT_KEY_IMG_TYPE, name);
                 if (!l)
                         return 0;
+                len = strlen(name);
                 if (l < 3)
-                        name = realloc(name, strlen(name) + 1 + (3 - l));
-                strcpy(name + (strlen(name) - l), "iso");
+                        name = realloc(name, len + 1 + (3 - l));
+                strcpy(name + (len - l), "iso");
                 return 1;
         }
         return 0;
@@ -2876,11 +2899,11 @@ static inline int access_chk(const char *path, int new_file)
          * made to create/remove a file in a RAR folder, a cache lookup
          * will tell if operation should be permitted or not.
          * Simply, if the file/folder is in the cache, forget it!
-         *   This works fine in most cases but due to a FUSE bug(!?)
-         * it does not work for 'touch'. A touch seems to result in
-         * a getattr() callback even if -EPERM is returned which
-         * will eventually render a "No such file or directory"
-         * type of error/message.
+         *   This works fine in most cases but it does not work for some
+         * specific programs like 'touch'. A 'touch' may result in a
+         * getattr() callback even if -EPERM is returned by open() which
+         * will eventually render a "No such file or directory" type of
+         * error/message.
          */
         if (new_file) {
                 char *p = strdup(path); /* In case p is destroyed by dirname() */
@@ -3749,6 +3772,7 @@ static void print_help()
 #endif
 }
 
+/* FUSE API specific keys continue where 'optdb' left off */
 enum {
         OPT_KEY_HELP = OPT_KEY_END,
         OPT_KEY_VERSION,

@@ -80,12 +80,13 @@ void dir_list_close(struct dir_entry_list *root)
                 /* Make sure entries are unique. Duplicates will be removed. */
                 next = root->next;
                 while (next->next) {
-                        if (next->entry.hash == next->next->entry.hash &&
-                                        !strcmp(next->entry.name, next->next->entry.name)) {
+                        if ((next->entry.type == DIR_E_NRM || /* no hash */
+                                    next->entry.hash == next->next->entry.hash) &&
+                                    !strcmp(next->entry.name, next->next->entry.name)) {
                                 /* 
                                  * A duplicate. Rare but possible.
                                  * Make sure the current entry is kept marked
-                                 * as valid since back-end fs entries should
+                                 * as valid since regular fs entries should
                                  * always have priority.
                                  */
                                 next->next->entry.valid = 0;
@@ -118,6 +119,7 @@ struct dir_entry_list *dir_entry_add_hash(struct dir_entry_list *l,
                 const char *key, struct stat *st, uint32_t hash, int type)
 {
         int dir_entry_add_skip_ = 0;
+
         if (l->entry.head_flag != DIR_LIST_HEAD_) {
                 if (hash == l->entry.hash)
                         if (!strcmp(key, l->entry.name))
