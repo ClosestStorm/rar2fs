@@ -1649,15 +1649,6 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                         goto cache_hit;
                 }
 
-                /* Update hard link count when needed */
-                if (IS_RAR_DIR(next2)) {
-                        char *safe_path = strdup(rar_file);
-                        dir_elem_t *e_tmp = cache_path_get(dirname(safe_path));
-                        if (e_tmp)
-                            e_tmp->stat.st_nlink++;
-                        free(safe_path);
-                }
-
                 /* Allocate a cache entry for this file */
                 printd(3, "Adding %s to cache\n", rar_file);
                 entry2_p = cache_path_alloc(rar_file);
@@ -1841,15 +1832,6 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                 entry_p->flags.force_dir = 0;
                         }
                         goto cache_hit;
-                }
-
-                /* Update hard link count when needed */
-                if (IS_RAR_DIR(next)) {
-                        char *safe_path = strdup(mp);
-                        dir_elem_t *e_tmp = cache_path_get(dirname(safe_path));
-                        if (e_tmp)
-                            e_tmp->stat.st_nlink++;
-                        free(safe_path);
                 }
 
                 /* Allocate a cache entry for this file */

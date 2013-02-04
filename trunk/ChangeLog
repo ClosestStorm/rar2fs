@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2013-02-04  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Removed hard link count update. It did not
+          work as expected in some cases.
+
 2013-02-03  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Hard link count now properly updated for 
