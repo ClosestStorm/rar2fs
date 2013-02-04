@@ -2,6 +2,12 @@ rar2fs ChangeLog file.
 
 2013-02-04  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Fixed an issue for "rar inside rar" with 
+          folders when located in the root of the
+          mount point.
+
+2013-02-04  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Removed hard link count update. It did not
           work as expected in some cases.
 
