@@ -1569,7 +1569,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
         char *rar_root = dirname(tmp1);
         size_t rar_root_len = strlen(rar_root);
         size_t path_len = strlen(path);
-        int is_root_path = (!strcmp(rar_root, path) || !CHRCMP(path, '/'));
+        int is_root_path = !strcmp(rar_root, path);
 
         while (next2) {
                 dir_elem_t *entry2_p;
