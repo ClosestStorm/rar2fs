@@ -106,6 +106,12 @@ cache_path(const char *path, struct stat *stbuf);
 void
 inval_cache_path(const char *path);
 
+dir_elem_t *
+filecache_clone(const dir_elem_t *src);
+
+void
+filecache_freeclone(const dir_elem_t *dest);
+
 void
 filecache_init();
 

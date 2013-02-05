@@ -1,5 +1,15 @@
 rar2fs ChangeLog file.
 
+2013-02-05  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added a few missing error checks after calls
+          made to malloc()
+
+        * Fixed a coherency problem that theoretically
+          could result in a crash if a file cache entry
+          is invalidated while being accessed by e.g. 
+          read operations.
+
 2013-02-04  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed an issue for "rar inside rar" with 

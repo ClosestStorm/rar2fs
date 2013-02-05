@@ -30,6 +30,7 @@
 #include <memory.h>
 #include <string.h>
 #include <libgen.h>
+#include <errno.h>
 #include "debug.h"
 #include "filecache.h"
 #include "optdb.h"
@@ -234,6 +235,46 @@ void inval_cache_path(const char *path)
                         memset(e_p, 0, sizeof(dir_elem_t));
                 }
         }
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+dir_elem_t *filecache_clone(const dir_elem_t *src)
+{
+        dir_elem_t* dest = malloc(sizeof(dir_elem_t));
+        if (dest != NULL) {
+                memcpy(dest, src, sizeof(dir_elem_t));
+                errno = 0;
+                if (src->name_p)
+                        dest->name_p = strdup(src->name_p);
+                if (src->rar_p)
+                        dest->rar_p = strdup(src->rar_p);
+                if (src->file_p)
+                        dest->file_p = strdup(src->file_p);
+                if (src->file2_p)
+                        dest->file2_p = strdup(src->file2_p);
+                if (src->password_p)
+                        dest->password_p = strdup(src->password_p);
+                if (errno != 0) {
+                        filecache_freeclone(dest);
+                        free(dest);
+                        dest = NULL;
+                }
+                return dest;
+        } 
+        return NULL;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+void filecache_freeclone(const dir_elem_t *dest)
+{
+        FREE_CACHE_MEM(dest);
+        free(dest);
 }
 
 /*!
