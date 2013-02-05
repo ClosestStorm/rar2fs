@@ -820,8 +820,14 @@ check_idx:
                          * otherwise the fake data might propagate incorrectly
                          * to sub-sequent reads.
                          */
+                        dir_elem_t *e_p; /* "real" cache entry */
                         if (op->entry_p->flags.save_eof) {
-                                op->entry_p->flags.save_eof = 0;
+                                pthread_mutex_lock(&file_access_mutex);
+                                e_p = cache_path_get(op->entry_p->name_p);
+                                if (e_p)
+                                        e_p->flags.save_eof = 0;
+                                pthread_mutex_unlock(&file_access_mutex);
+                                op->entry_p->flags.save_eof = 0; 
                                 if (!extract_index(op->entry_p, offset)) {
                                         if (!preload_index(op->buf, op->entry_p->name_p)) {
                                                 op->seq++;
@@ -830,6 +836,11 @@ check_idx:
                                 }
                         }
                         fi->direct_io = 1;
+                        pthread_mutex_lock(&file_access_mutex);
+                        e_p = cache_path_get(op->entry_p->name_p);
+                        if (e_p)
+                                e_p->flags.direct_io = 1;
+                        pthread_mutex_unlock(&file_access_mutex);
                         op->entry_p->flags.direct_io = 1;
                         memset(buf, 0, size);
                         n += size;
@@ -859,12 +870,18 @@ check_idx:
                          */
                         if (op->seq < 15 && ((offset + size) - op->buf->offset)
                                         > (IOB_SZ - IOB_HIST_SZ)) {
+                                dir_elem_t *e_p; /* "real" cache entry */ 
                                 printd(3, "seq=%d    long jump hack2    offset=%llu,"
                                                 " size=%zu, buf->offset=%llu\n",
                                                 op->seq, offset, size,
                                                 op->buf->offset);
                                 op->seq--;      /* pretend it never happened */
                                 fi->direct_io = 1;
+                                pthread_mutex_lock(&file_access_mutex);
+                                e_p = cache_path_get(op->entry_p->name_p);
+                                if (e_p)
+                                        e_p->flags.direct_io = 1;
+                                pthread_mutex_unlock(&file_access_mutex);
                                 op->entry_p->flags.direct_io = 1;
                                 memset(buf, 0, size);
                                 n += size;
@@ -943,8 +960,9 @@ static int lrelease(const char *path, struct fuse_file_info *fi)
         ENTER_("%s", path);
 
         (void)path;             /* touch */
-
         close(FH_TOFD(fi->fh));
+        if (FH_TOENTRY(fi->fh))
+                filecache_freeclone(FH_TOENTRY(fi->fh));
         free(FH_TOIO(fi->fh));
         FH_ZERO(fi->fh);
         return 0;
@@ -980,8 +998,13 @@ static int lopen(const char *path, struct fuse_file_info *fi)
         if (fd == -1)
                 return -errno;
         struct io_handle *io = malloc(sizeof(struct io_handle));
+        if (!io) {
+                close(fd);
+                return -EIO;
+        }
         FH_SETIO(fi->fh, io);
         FH_SETTYPE(fi->fh, IO_TYPE_NRM);
+        FH_SETENTRY(fi->fh, NULL);
         FH_SETFD(fi->fh, fd);
         return 0;
 }
@@ -2196,12 +2219,13 @@ static int rar2_getattr(const char *path, struct stat *stbuf)
         free(safe_path);
         pthread_mutex_lock(&file_access_mutex);
         dir_elem_t *e_p = cache_path_get(path);
-        pthread_mutex_unlock(&file_access_mutex);
         if (e_p) {
                 memcpy(stbuf, &e_p->stat, sizeof(struct stat));
+                pthread_mutex_unlock(&file_access_mutex);
                 dump_stat(stbuf);
                 return 0;
         }
+        pthread_mutex_unlock(&file_access_mutex);
         return -ENOENT;
 }
 
@@ -2231,12 +2255,13 @@ static int rar2_getattr2(const char *path, struct stat *stbuf)
 
         pthread_mutex_lock(&file_access_mutex);
         dir_elem_t *e_p = cache_path_get(path);
-        pthread_mutex_unlock(&file_access_mutex);
         if (e_p) {
                 memcpy(stbuf, &e_p->stat, sizeof(struct stat));
+                pthread_mutex_unlock(&file_access_mutex);
                 dump_stat(stbuf);
                 return 0;
         }
+        pthread_mutex_unlock(&file_access_mutex);
         return -ENOENT;
 }
 
@@ -2305,49 +2330,59 @@ static int rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
         if (dp != NULL) {
                 readdir_scan(path, root, &next);
                 (void)closedir(dp);
-        } else {
-                int vol = 1;
+                goto dump_buff;
+        }
 
-                pthread_mutex_lock(&file_access_mutex);
-                dir_elem_t *entry_p = cache_path_get(path);
+        int vol = 1;
+
+        pthread_mutex_lock(&file_access_mutex);
+        dir_elem_t *entry_p = cache_path_get(path);
+        if (entry_p) {
+                char *tmp = strdup(entry_p->rar_p);
+                int multipart = entry_p->flags.multipart;
+                short vtype = entry_p->vtype;
                 pthread_mutex_unlock(&file_access_mutex);
-                if (entry_p && entry_p->flags.multipart) {
-                        char *tmp = strdup(entry_p->rar_p);
+
+                if (multipart) {
                         do {
-                                printd(3, "Search for local directory in %s\n",
-                                                        tmp);
-                                if (vol == 1) { /* first file */
+                                printd(3, "Search for local directory in %s\n", tmp);
+                                if (vol++ == 1) { /* first file */
                                         password = get_password(tmp, tmpbuf);
                                 } else {
-                                        RARNextVolumeName(tmp, !entry_p->vtype);
+                                        RARNextVolumeName(tmp, !vtype);
                                 }
-                                ++vol;
                         } while (!listrar(path, &next, tmp, password));
-                        free(tmp);
-                } else if (entry_p && entry_p->rar_p) {
-                        printd(3, "Search for local directory in %s\n",
-                                                entry_p->rar_p);
-                        password = get_password(entry_p->rar_p, tmpbuf);
-                        if (!listrar(path, &next, entry_p->rar_p, password)) {
-                                goto fill_buff;
+                } else { 
+                        if (tmp) {
+                                printd(3, "Search for local directory in %s\n", tmp);
+                                password = get_password(tmp, tmpbuf);
+                                if (!listrar(path, &next, tmp, password)) {
+                                        free(tmp);
+                                        goto fill_buff;
+                                }
                         }
                 }
+                free(tmp);
+        } else {
+                pthread_mutex_unlock(&file_access_mutex);
+        }
 
-                if (vol < 3) {  /* First attempt failed! */
-                        dir_list_free(&dir_list);
-                        /*
-                         * Fuse bug!? Returning -ENOENT here seems to be
-                         * silently ignored. Typically errno is here set to
-                         * ESPIPE (aka "Illegal seek").
-                         */
-                        return -errno;
-                }
+        if (vol < 3) {  /* First attempt failed! */
+                dir_list_free(&dir_list);
+                /*
+                 * Fuse bug!? Returning -ENOENT here seems to be
+                 * silently ignored. Typically errno is here set to
+                 * ESPIPE (aka "Illegal seek").
+                 */
+                return -errno;
+        }
 
 fill_buff:
 
-                filler(buffer, ".", NULL, 0);
-                filler(buffer, "..", NULL, 0);
-        }
+        filler(buffer, ".", NULL, 0);
+        filler(buffer, "..", NULL, 0);
+
+dump_buff:
 
         dir_list_close(&dir_list);
         dump_dir_list(path, buffer, filler, &dir_list);
@@ -2628,25 +2663,35 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
         errno = 0;
         pthread_mutex_lock(&file_access_mutex);
         entry_p = cache_path(path, NULL);
-        pthread_mutex_unlock(&file_access_mutex);
 
-        if (entry_p == NULL)
+        if (entry_p == NULL) {
+                pthread_mutex_unlock(&file_access_mutex);
                 return -ENOENT;
+        }
         if (entry_p == LOCAL_FS_ENTRY) {
                 /* In case of O_TRUNC it will simply be passed to open() */
+                pthread_mutex_unlock(&file_access_mutex);
                 ABS_ROOT(root, path);
                 return lopen(root, fi);
         }
         if (entry_p->flags.fake_iso) {
                 int res;
-                ABS_ROOT(root, entry_p->file_p);
-                res = lopen(root, fi);
-                if (res == 0) {
-                        /* Override defaults */
-                        FH_SETTYPE(fi->fh, IO_TYPE_ISO);
-                        FH_SETENTRY(fi->fh, entry_p);
+                dir_elem_t *e_p = filecache_clone(entry_p);
+                pthread_mutex_unlock(&file_access_mutex);
+                if (e_p) {
+                        ABS_ROOT(root, e_p->file_p);
+                        res = lopen(root, fi);
+                        if (res == 0) {
+                                /* Override defaults */
+                                FH_SETTYPE(fi->fh, IO_TYPE_ISO);
+                                FH_SETENTRY(fi->fh, e_p);
+                        } else {
+                                filecache_freeclone(e_p);
+                        }
+                } else {
+                        res = -EIO;
                 }
-                return res;
+                return res; 
         }
         /*
          * For files inside RAR archives open for exclusive write access
@@ -2654,8 +2699,10 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
          * O_CREAT/O_EXCL is never passed to open() by FUSE so no need to
          * check those.
          */
-        if (fi->flags & (O_WRONLY | O_TRUNC))
+        if (fi->flags & (O_WRONLY | O_TRUNC)) {
+                pthread_mutex_unlock(&file_access_mutex);
                 return -EPERM;
+        }
 
         FILE *fp = NULL;
         struct io_buf *buf = NULL;
@@ -2674,11 +2721,11 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                 printd(3, "Opened %s\n", entry_p->rar_p);
                                 FH_SETIO(fi->fh, io);
                                 FH_SETTYPE(fi->fh, IO_TYPE_RAW);
+                                FH_SETENTRY(fi->fh, NULL);
                                 FH_SETCONTEXT(fi->fh, op);
                                 printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC", path, FH_TOCONTEXT(fi->fh));
                                 op->fp = fp;
                                 op->pid = 0;
-                                op->entry_p = entry_p;
                                 op->seq = 0;
                                 op->buf = NULL;
                                 op->pos = 0;
@@ -2687,7 +2734,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                                 OPT_SET(OPT_KEY_PREOPEN_IMG) &&
                                                 entry_p->flags.image) {
                                         entry_p->vno_max =
-                                            pow_(10, op->entry_p->vlen) + 1;
+                                            pow_(10, entry_p->vlen) + 1;
                                         op->volHdl =
                                             malloc(entry_p->vno_max * sizeof(struct vol_handle));
                                         if (op->volHdl) {
@@ -2714,6 +2761,13 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                         op->volHdl = NULL;
                                 }
 
+                                /*
+                                 * Make sure cache entry is filled in completely
+                                 * before cloning it
+                                 */
+                                op->entry_p = filecache_clone(entry_p);
+                                if (!op->entry_p) 
+                                        goto open_error;
                                 goto open_end;
                         }
 
@@ -2740,10 +2794,10 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                 if (fp != NULL) {
                         FH_SETIO(fi->fh, io);
                         FH_SETTYPE(fi->fh, IO_TYPE_RAR);
+                        FH_SETENTRY(fi->fh, NULL);
                         FH_SETCONTEXT(fi->fh, op);
                         printd(3, "(%05d) %-8s%s [%-16p]\n", getpid(), "ALLOC",
                                                 path, FH_TOCONTEXT(fi->fh));
-                        op->entry_p = entry_p;
                         op->seq = 0;
                         op->pos = 0;
                         op->fp = fp;
@@ -2832,7 +2886,13 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                         sprintf(out_file, "%s.%d", "output", pid);
                         op->dbg_fp = fopen(out_file, "w");
 #endif
-
+                        /*
+                         * Make sure cache entry is filled in completely
+                         * before cloning it
+                         */
+                        op->entry_p = filecache_clone(entry_p);
+                        if (!op->entry_p) 
+                                goto open_error;
                         goto open_end;
                 }
 
@@ -2840,6 +2900,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
         }
 
 open_error:
+        pthread_mutex_unlock(&file_access_mutex);
         if (fp)
                 pclose_(fp, pid);
         if (op) {
@@ -2851,6 +2912,8 @@ open_error:
                         close(op->pfd2[0]);
                 if (op->pfd2[1] >= 0)
                         close(op->pfd2[1]);
+                if (op->entry_p)
+                        filecache_freeclone(op->entry_p);
                 free(op);
         }
         if (buf)
@@ -2865,6 +2928,7 @@ open_error:
         return -EIO;
 
 open_end:
+        pthread_mutex_unlock(&file_access_mutex);
         return 0;
 }
 
@@ -3062,6 +3126,7 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                                 close(op->buf->idx.fd);
                         free(op->buf);
                 }
+                filecache_freeclone(op->entry_p);
                 free(op);
                 free(FH_TOIO(fi->fh));
                 FH_ZERO(fi->fh);
@@ -3204,8 +3269,20 @@ static int rar2_create(const char *path, mode_t mode, struct fuse_file_info *fi)
                         if (!FH_ISSET(fi->fh)) {
                                 struct io_handle *io =
                                         malloc(sizeof(struct io_handle));
+                                /* 
+                                 * Does not really matter what is returned in
+                                 * case of failure as long as it is not 0.
+                                 * Returning anything but 0 will avoid the
+                                 * _release() call but will still create the
+                                 * file when called from e.g. 'touch'.
+                                 */
+                                if (!io) {
+                                        close(fd);
+                                        return -EIO;
+                                }
                                 FH_SETIO(fi->fh, io);
                                 FH_SETTYPE(fi->fh, IO_TYPE_NRM);
+                                FH_SETENTRY(fi->fh, NULL);
                                 FH_SETFD(fi->fh, fd);
                         }
                         return 0;
