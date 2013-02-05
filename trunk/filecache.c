@@ -271,7 +271,7 @@ dir_elem_t *filecache_clone(const dir_elem_t *src)
  *****************************************************************************
  *
  ****************************************************************************/
-void filecache_freeclone(const dir_elem_t *dest)
+void filecache_freeclone(dir_elem_t *dest)
 {
         FREE_CACHE_MEM(dest);
         free(dest);
