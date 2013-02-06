@@ -2728,6 +2728,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                 op->pid = 0;
                                 op->seq = 0;
                                 op->buf = NULL;
+                                op->entry_p = NULL;
                                 op->pos = 0;
                                 op->vno = -1;   /* force a miss 1:st time */
                                 if (entry_p->flags.multipart &&
@@ -2788,6 +2789,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                 if (!op || !io)
                         goto open_error;
                 op->buf = buf;
+                op->entry_p = NULL;
 
                 /* Open PIPE(s) and create child process */
                 fp = popen_(entry_p, &pid, &mmap_addr, &mmap_fp, &mmap_fd);

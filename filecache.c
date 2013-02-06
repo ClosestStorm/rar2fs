@@ -31,6 +31,7 @@
 #include <string.h>
 #include <libgen.h>
 #include <errno.h>
+#include <assert.h>
 #include "debug.h"
 #include "filecache.h"
 #include "optdb.h"
@@ -54,6 +55,11 @@ static dir_elem_t path_cache[PATH_CACHE_SZ];
                         free ((e)->file2_p);\
                 if ((e)->password_p)\
                         free ((e)->password_p);\
+                (e)->name_p = NULL;\
+                (e)->rar_p = NULL;\
+                (e)->file_p = NULL;\
+                (e)->file2_p = NULL;\
+                (e)->password_p = NULL;\
         } while(0)
 
 #define IS_ISO(s) (!strcasecmp((s)+(strlen(s)-4), ".iso"))
@@ -102,6 +108,7 @@ dir_elem_t *cache_path_get(const char *path)
                                 return p;
                         p = p->next_p;
                 }
+                assert(0);
         }
         return NULL;
 }
@@ -259,12 +266,10 @@ dir_elem_t *filecache_clone(const dir_elem_t *src)
                         dest->password_p = strdup(src->password_p);
                 if (errno != 0) {
                         filecache_freeclone(dest);
-                        free(dest);
                         dest = NULL;
                 }
-                return dest;
         } 
-        return NULL;
+        return dest;
 }
 
 /*!
