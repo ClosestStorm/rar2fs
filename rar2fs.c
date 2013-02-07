@@ -1623,9 +1623,9 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                                 display = 1;
 
                         /*
-                         * Handle the rare case when the root folder does not have
+                         * Handle the rare case when the parent folder does not have
                          * its own entry in the file header. The entry needs to be
-                         * faked by adding it to the cache. If the root folder is
+                         * faked by adding it to the cache. If the parent folder is
                          * discovered later in the header the faked entry will be
                          * invalidated and replaced with the real stats.
                          */
@@ -1789,9 +1789,9 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                 display = 1;
 
                         /*
-                         * Handle the rare case when the root folder does not have
+                         * Handle the rare case when the parent folder does not have
                          * its own entry in the file header. The entry needs to be
-                         * faked by adding it to the cache. If the root folder is
+                         * faked by adding it to the cache. If the parent folder is
                          * discovered later in the header the faked entry will be
                          * invalidated and replaced with the real stats.
                          */
@@ -1805,9 +1805,27 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                                 printd(3, "Adding %s to cache\n", mp);
                                                 entry_p = cache_path_alloc(mp);
                                                 entry_p->name_p = strdup(mp);
-                                                entry_p->file_p = strdup(rar_name);
                                                 entry_p->rar_p = strdup(arch);
+                                                entry_p->file_p = strdup(rar_name);
+                                                assert(!entry_p->password_p && "Unexpected handle");
+                                                entry_p->password_p = (NEED_PASSWORD()
+                                                        ? strdup(Password)
+                                                        : entry_p->password_p);
                                                 entry_p->flags.force_dir = 1;
+
+                                                /* Check if part of a volume */
+                                                if (MainHeaderFlags & MHD_VOLUME) {
+                                                        entry_p->flags.multipart = 1;
+                                                        entry_p->vtype = MainHeaderFlags & MHD_NEWNUMBERING ? 1 : 0;
+                                                        /* 
+                                                         * Make sure parent folders are always searched
+                                                         * from the first volume file since sub-folders
+                                                         * might actually be placed elsewhere.
+                                                         */
+                                                        RARVolNameToFirstName(entry_p->rar_p, !entry_p->vtype);
+                                                } else {
+                                                        entry_p->flags.multipart = 0;
+                                                }
                                                 set_rarstats(entry_p, next, 1);
                                         }
 
@@ -1862,13 +1880,15 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                 entry_p = cache_path_alloc(mp);
                 entry_p->name_p = strdup(mp);
                 entry_p->rar_p = strdup(arch);
+                entry_p->file_p = strdup(next->FileName);
                 assert(!entry_p->password_p && "Unexpected handle");
                 entry_p->password_p = (NEED_PASSWORD()
                         ? strdup(Password)
                         : entry_p->password_p);
 
                 /* Check for .rar file inside archive */
-                if (OPT_INT(OPT_KEY_SEEK_DEPTH, 0) && IS_RAR(entry_p->name_p)) {
+                if (OPT_INT(OPT_KEY_SEEK_DEPTH, 0) && IS_RAR(entry_p->name_p)
+                                        && !IS_RAR_DIR(next)) {
                         int vno = !(MainHeaderFlags & MHD_VOLUME)
                                 ? 1
                                 : get_vformat(arch, entry_p->vtype, NULL, NULL);
@@ -1880,11 +1900,11 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                         }
                 }
 
-                if (next->Method == FHD_STORING && !NEED_PASSWORD()) {
+                if (next->Method == FHD_STORING && !NEED_PASSWORD() &&
+                                 !IS_RAR_DIR(next)) {
                         entry_p->flags.raw = 1;
                         if ((MainHeaderFlags & MHD_VOLUME) &&   /* volume ? */
-                                        ((next->Flags & (LHD_SPLIT_BEFORE | LHD_SPLIT_AFTER)) ||
-                                        (IS_RAR_DIR(next)))) {
+                                        ((next->Flags & (LHD_SPLIT_BEFORE | LHD_SPLIT_AFTER)))) {
                                 int len, pos;
 
                                 entry_p->flags.multipart = 1;
@@ -1909,22 +1929,29 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                 entry_p->flags.multipart = 0;
                                 entry_p->offset = (next->Offset + next->HeadSize);
                         }
-                } else {        /* Compressed and/or Encrypted */
+                } else {        /* Folder or Compressed and/or Encrypted */
                         entry_p->flags.raw = 0;
-                        if (!NEED_PASSWORD())
-                                entry_p->flags.save_eof =
-                                        OPT_SET(OPT_KEY_SAVE_EOF) ? 1 : 0;
-                         else
-                                entry_p->flags.save_eof = 0;
+                        if (!IS_RAR_DIR(next)) {
+                                if (!NEED_PASSWORD())
+                                        entry_p->flags.save_eof =
+                                                OPT_SET(OPT_KEY_SAVE_EOF) ? 1 : 0;
+                                 else
+                                        entry_p->flags.save_eof = 0;
+                        }
                         /* Check if part of a volume */
                         if (MainHeaderFlags & MHD_VOLUME) {
                                 entry_p->flags.multipart = 1;
                                 entry_p->vtype = MainHeaderFlags & MHD_NEWNUMBERING ? 1 : 0;
+                                /* 
+                                 * Make sure parent folders are always searched
+                                 * from the first volume file since sub-folders
+                                 * might actually be placed elsewhere.
+                                 */
+                                RARVolNameToFirstName(entry_p->rar_p, !entry_p->vtype);
                         } else {
                                 entry_p->flags.multipart = 0;
                         }
                 }
-                entry_p->file_p = strdup(next->FileName);
                 set_rarstats(entry_p, next, 0);
 
 cache_hit:

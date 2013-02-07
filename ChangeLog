@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2013-02-07  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a problem with folders inside RAR volumes
+          not always showing up properly.
+
 2013-02-05  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added a few missing error checks after calls
