@@ -271,6 +271,12 @@ void PASCAL RARNextVolumeName(char* arch, bool oldstylevolume)
 }
 
 
+void PASCAL RARVolNameToFirstName(char* arch, bool oldstylevolume)
+{
+  VolNameToFirstName(arch, arch, !oldstylevolume);
+}
+
+
 static int RarErrorToDll(int ErrCode)
 {
 #if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
@@ -316,3 +322,4 @@ static int RarErrorToDll(int ErrCode)
 #endif
   return(ERAR_UNKNOWN);
 }
+

@@ -117,8 +117,8 @@
 #define  EARC_VOLNUMBER     0x0008U /* store a number of current volume */
 
 enum HOST_SYSTEM {
-   HOST_MSDOS=0,HOST_OS2=1,HOST_WIN32=2,HOST_UNIX=3,HOST_MACOS=4,
-   HOST_BEOS=5,HOST_MAX
+  HOST_MSDOS=0,HOST_OS2=1,HOST_WIN32=2,HOST_UNIX=3,HOST_MACOS=4,
+  HOST_BEOS=5,HOST_MAX
 };
 
 #define MAXPASSWORD 128
@@ -148,41 +148,41 @@ typedef struct RARArchiveListEx RARArchiveListEx;
 
 struct RARArchiveList
 {
-   char         FileName[260];
-   unsigned int Flags;
-   unsigned int PackSize;
-   unsigned int UnpSize;
-   unsigned int HostOS;
-   unsigned int FileCRC;
-   unsigned int FileTime;
-   unsigned int UnpVer;
-   unsigned int Method;
-   unsigned int FileAttr;
-   unsigned int HeadSize;
-   unsigned int NameSize;
-   off_t        Offset;
-   RARArchiveList* next;
+  char         FileName[260];
+  unsigned int Flags;
+  unsigned int PackSize;
+  unsigned int UnpSize;
+  unsigned int HostOS;
+  unsigned int FileCRC;
+  unsigned int FileTime;
+  unsigned int UnpVer;
+  unsigned int Method;
+  unsigned int FileAttr;
+  unsigned int HeadSize;
+  unsigned int NameSize;
+  off_t        Offset;
+  RARArchiveList* next;
 };
 
 struct RARArchiveListEx
 {
-   char         FileName[1024];
-   wchar_t      FileNameW[1024];
-   unsigned int Flags;
-   unsigned int PackSize;
-   unsigned int PackSizeHigh;
-   unsigned int UnpSize;
-   unsigned int UnpSizeHigh;
-   unsigned int HostOS;
-   unsigned int FileCRC;
-   unsigned int FileTime;
-   unsigned int UnpVer;
-   unsigned int Method;
-   unsigned int FileAttr;
-   unsigned int HeadSize;
-   unsigned int NameSize;
-   off_t        Offset;
-   RARArchiveListEx* next;
+  char         FileName[1024];
+  wchar_t      FileNameW[1024];
+  unsigned int Flags;
+  unsigned int PackSize;
+  unsigned int PackSizeHigh;
+  unsigned int UnpSize;
+  unsigned int UnpSizeHigh;
+  unsigned int HostOS;
+  unsigned int FileCRC;
+  unsigned int FileTime;
+  unsigned int UnpVer;
+  unsigned int Method;
+  unsigned int FileAttr;
+  unsigned int HeadSize;
+  unsigned int NameSize;
+  off_t        Offset;
+  RARArchiveListEx* next;
 };
 
 #ifdef __cplusplus
@@ -200,6 +200,7 @@ unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData);
 unsigned int PASCAL RARGetMainHeaderFlags(HANDLE hArcData);
 FileHandle   PASCAL RARGetFileHandle(HANDLE hArcData);
 void         PASCAL RARNextVolumeName(char*, bool);
+void         PASCAL RARVolNameToFirstName(char*, bool);
 
 #ifdef __cplusplus
 }
