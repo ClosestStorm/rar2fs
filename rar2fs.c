@@ -1168,6 +1168,7 @@ static int get_vformat(const char *s, int t, int *l, int *p)
 #define IS_AVI(s) (!strcasecmp((s)+(strlen(s)-4), ".avi"))
 #define IS_MKV(s) (!strcasecmp((s)+(strlen(s)-4), ".mkv"))
 #define IS_RAR(s) (!strcmp((s)+(strlen(s)-4), ".rar"))
+#define IS_CBR(s) (!strcmp((s)+(strlen(s)-4), ".cbr"))
 #define IS_RXX(s) (is_rxx_vol(s))
 #if 0
 #define IS_RAR_DIR(l) \
@@ -1996,9 +1997,11 @@ static int f0(SCANDIR_ARG3 e)
 #ifdef _DIRENT_HAVE_D_TYPE
         if (e->d_type != DT_UNKNOWN)
                 return (!(IS_RAR(e->d_name) && e->d_type == DT_REG) &&
+                        !(IS_CBR(e->d_name) && e->d_type == DT_REG) &&
                         !(IS_RXX(e->d_name) && e->d_type == DT_REG));
 #endif
-        return !IS_RAR(e->d_name) && !IS_RXX(e->d_name);
+        return !IS_RAR(e->d_name) && !IS_CBR(e->d_name) && 
+                        !IS_RXX(e->d_name);
 }
 
 static int f1(SCANDIR_ARG3 e)
@@ -2012,9 +2015,10 @@ static int f1(SCANDIR_ARG3 e)
          */
 #ifdef _DIRENT_HAVE_D_TYPE
         if (e->d_type != DT_UNKNOWN)
-                return IS_RAR(e->d_name) && e->d_type == DT_REG;
+                return (IS_RAR(e->d_name) || IS_CBR(e->d_name)) && 
+                                e->d_type == DT_REG;
 #endif
-        return IS_RAR(e->d_name);
+        return IS_RAR(e->d_name) || IS_CBR(e->d_name);
 }
 
 static int f2(SCANDIR_ARG3 e)

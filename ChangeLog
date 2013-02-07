@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2013-02-08  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added support for comic book archives (.cbr)
+
 2013-02-07  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a problem with folders inside RAR volumes
