@@ -87,9 +87,6 @@ set number of levels down RAR files are parsed inside main archive [1]
 Currently only a depth of one (1) is supported. Setting seek depth to anything greater than this has no effect. 
 Set to 0 to turn this feature off.
 .TP
-.B --no-idx-mmap
-use direct file I/O instead of mmap() for .r2i files
-.TP
 .B --exclude="<file>[;<file>;...]"
 .TP
 .B --exclude=<path>
@@ -133,7 +130,13 @@ The I/O buffer is used to prefetch data at extraction of compressed or encrypted
 tune the size of I/O buffer history
 
 The I/O buffer history is a sliding window within the I/O buffer that is guaranteed to never be overwritten until future data has been consumed passed this limit. This means that, even though an extraction process can never be reversed, this part of the buffer can still deliver "historic" data within this window (eg. skipping backwards during movie playback). The size of the history buffer is expressed as a percentage of the total I/O buffer size between 0% and 75%. Specifying 0 here will completely disable this function. The default size is 50% of the total I/O buffer size.
+.TP
+.B --no-expand-cbr
+disable support for comic book RAR archives 
 
+Default is to always expand comic book RAR archives. In the case that comic book readers are used that expect to find the orignal 
+.I .cbr
+archive this option can be used to keep such files intact.
 .br
 .SH BUGS
 .br

@@ -1168,7 +1168,8 @@ static int get_vformat(const char *s, int t, int *l, int *p)
 #define IS_AVI(s) (!strcasecmp((s)+(strlen(s)-4), ".avi"))
 #define IS_MKV(s) (!strcasecmp((s)+(strlen(s)-4), ".mkv"))
 #define IS_RAR(s) (!strcmp((s)+(strlen(s)-4), ".rar"))
-#define IS_CBR(s) (!strcmp((s)+(strlen(s)-4), ".cbr"))
+#define IS_CBR(s) (!OPT_SET(OPT_KEY_NO_EXPAND_CBR) && \
+                        !strcmp((s)+(strlen(s)-4), ".cbr"))
 #define IS_RXX(s) (is_rxx_vol(s))
 #if 0
 #define IS_RAR_DIR(l) \
@@ -2548,36 +2549,34 @@ static int preload_index(struct io_buf *buf, const char *path)
         if (fd == -1) {
                 return -1;
         }
-#ifdef HAVE_MMAP
-        if (!OPT_SET(OPT_KEY_NO_IDX_MMAP)) {
-                /* Map the file into address space (1st pass) */
-                struct idx_head *h =
-                    (struct idx_head *)mmap(NULL, sizeof(struct idx_head), PROT_READ, MAP_SHARED, fd, 0);
-                if (h == MAP_FAILED || h->magic != R2I_MAGIC) {
-                        close(fd);
-                        return -1;
-                }
 
-                /* Map the file into address space (2nd pass) */
-                buf->idx.data_p =
-                    (void *)mmap(NULL, P_ALIGN_(h->size), PROT_READ, MAP_SHARED, fd, 0);
-                munmap((void *)h, sizeof(struct idx_head));
-                if (buf->idx.data_p == MAP_FAILED) {
-                        close(fd);
-                        return -1;
-                }
-                buf->idx.mmap = 1;
-        } else
-#endif
-        {
-                buf->idx.data_p = malloc(sizeof(struct idx_data));
-                if (!buf->idx.data_p) {
-                        buf->idx.data_p = MAP_FAILED;
-                        return -1;
-                }
-                NO_UNUSED_RESULT read(fd, buf->idx.data_p, sizeof(struct idx_head));
-                buf->idx.mmap = 0;
+#ifdef HAVE_MMAP
+        /* Map the file into address space (1st pass) */
+        struct idx_head *h = (struct idx_head *)mmap(NULL, 
+                        sizeof(struct idx_head), PROT_READ, MAP_SHARED, fd, 0);
+        if (h == MAP_FAILED || h->magic != R2I_MAGIC) {
+                close(fd);
+                return -1;
         }
+
+        /* Map the file into address space (2nd pass) */
+        buf->idx.data_p = (void *)mmap(NULL, P_ALIGN_(h->size), PROT_READ,
+                                                 MAP_SHARED, fd, 0);
+        munmap((void *)h, sizeof(struct idx_head));
+        if (buf->idx.data_p == MAP_FAILED) {
+                close(fd);
+                return -1;
+        }
+        buf->idx.mmap = 1;
+#else
+        buf->idx.data_p = malloc(sizeof(struct idx_data));
+        if (!buf->idx.data_p) {
+                buf->idx.data_p = MAP_FAILED;
+                return -1;
+        }
+        NO_UNUSED_RESULT read(fd, buf->idx.data_p, sizeof(struct idx_head));
+        buf->idx.mmap = 0;
+#endif
         buf->idx.fd = fd;
         return 0;
 }
@@ -3848,16 +3847,16 @@ static void print_help()
         printf("    --exclude=F1[;F2...]    exclude file filter\n");
         printf("    --seek-length=n\t    set number of volume files that are traversed in search for headers [0=All]\n");
         printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [1]\n");
-        printf("    --no-idx-mmap\t    use direct file I/O instead of mmap() for .r2i files\n");
+        printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MiB (1,2,4,8, etc.) [4]\n");
+        printf("    --hist-size=n\t    I/O buffer history size as a percentage (0-75) of total buffer size [50]\n");
+        printf("    --save-eof\t\t    force creation of .r2i files (end-of-file chunk)\n");
 #ifdef ENABLE_OBSOLETE_ARGS
         printf("    --unrar-path=PATH\t    path to external unrar binary (overide libunrar)\n");
         printf("    --no-password\t    disable password file support\n");
 #endif
         printf("    --no-lib-check\t    disable validation of library version(s)\n");
 #ifndef USE_STATIC_IOB_
-        printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MiB (1,2,4,8, etc.) [4]\n");
-        printf("    --hist-size=n\t    I/O buffer history size as a percentage (0-75) of total buffer size [50]\n");
-        printf("    --save-eof\t\t    force creation of .r2i files (end-of-file chunk)\n");
+        printf("    --no-expand-cbr\t    do not expand comic book RAR archives\n");
 #endif
 #if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
         printf("    --no-smp\t\t    disable SMP support (bind to CPU #0)\n");
@@ -3881,7 +3880,6 @@ static struct fuse_opt rar2fs_opts[] = {
 static struct option longopts[] = {
         {"show-comp-img",     no_argument, NULL, OPT_ADDR(OPT_KEY_SHOW_COMP_IMG)},
         {"preopen-img",       no_argument, NULL, OPT_ADDR(OPT_KEY_PREOPEN_IMG)},
-        {"no-idx-mmap",       no_argument, NULL, OPT_ADDR(OPT_KEY_NO_IDX_MMAP)},
         {"fake-iso",    optional_argument, NULL, OPT_ADDR(OPT_KEY_FAKE_ISO)},
         {"exclude",     required_argument, NULL, OPT_ADDR(OPT_KEY_EXCLUDE)},
         {"seek-length", required_argument, NULL, OPT_ADDR(OPT_KEY_SEEK_LENGTH)},
@@ -3900,6 +3898,7 @@ static struct option longopts[] = {
         {"iob-size",    required_argument, NULL, OPT_ADDR(OPT_KEY_BUF_SIZE)},
 #endif
         {"save-eof",          no_argument, NULL, OPT_ADDR(OPT_KEY_SAVE_EOF)},
+        {"no-expand-cbr",     no_argument, NULL, OPT_ADDR(OPT_KEY_NO_EXPAND_CBR)},
         {NULL,                          0, NULL, 0}
 };
 

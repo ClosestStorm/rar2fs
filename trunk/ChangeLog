@@ -2,6 +2,15 @@ rar2fs ChangeLog file.
 
 2013-02-08  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Added option '--no-expand-cbr' that can be used
+          to diable support for comic book archives.
+          rar2fs(1) man page updated accordingly.
+
+        * Removed option '--no-idx-mmap'. 
+          rar2fs(1) man page updated accordingly.
+
+2013-02-08  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Added support for comic book archives (.cbr)
 
 2013-02-07  Hans Beckerus <hans.beckerus@gmail.com>
