@@ -48,7 +48,6 @@ enum {
         OPT_KEY_IMG_TYPE,
         OPT_KEY_PREOPEN_IMG,
         OPT_KEY_SHOW_COMP_IMG,
-        OPT_KEY_NO_IDX_MMAP,
         OPT_KEY_SEEK_LENGTH,
         OPT_KEY_SEEK_DEPTH,
         OPT_KEY_NO_PASSWD,
@@ -58,6 +57,7 @@ enum {
         OPT_KEY_HIST_SIZE,
         OPT_KEY_BUF_SIZE,
         OPT_KEY_SAVE_EOF,
+        OPT_KEY_NO_EXPAND_CBR,
         OPT_KEY_END, /* Must *always* be last key */
         OPT_KEY_LAST = (OPT_KEY_END - 1) 
 };
