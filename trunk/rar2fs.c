@@ -1728,6 +1728,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                 const char *arch, const char *Password)
 {
         ENTER_("%s   arch=%s", path, arch);
+
         pthread_mutex_lock(&file_access_mutex);
         RAROpenArchiveData d;
         d.ArcName = (char *)arch;       /* Horrible cast! But hey... it is the API! */

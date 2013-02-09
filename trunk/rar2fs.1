@@ -111,6 +111,28 @@ Note that this option is only available on Linux based platforms with support fo
 .I cpu_set_t
 type (GNU extension).
 .TP
+.B --save-eof
+force creation of .r2i files (end-of-file chunk) [EXPERIMENTAL]
+
+Index information is usually populated by the media player at the beginning of a playback session. Since the index table in most cases is stored at the end of the file, retrieving this information without the use of some post-processing is more or less impossible to perform in real-time for compressed/encrypted video streams. The
+.I mkr2i
+tool is intended to be used in such cases to make the index table available in a separate
+.I .r2i
+file.
+
+Enabling this option will instead tell rar2fs to guess where the index information is located by analyzing the access pattern of the media player and then write the end-of-file chunk to an
+.I .r2i
+file automatically. This method is however less precise than when using the 
+.I mkr2i
+tool. Expect an increase in size of the generated
+.I .r2i 
+file compared to using the 
+.I mkr2i
+tool directly. Start of playback will also be delayed since almost the entire archive needs to be extracted in order to access the data towards the end of the file and make it available for playback.
+
+This option is only supported for AVI 1.0 and multi-part OpenDML (AVI 2.0) files created by a properly configured muxer. Badly configured muxers will expose themselves by generating invalid frame counts. The latter is automatically detected by rar2fs.
+
+.TP
 .B --no-lib-check
 disable dynamic library consistency check
 
