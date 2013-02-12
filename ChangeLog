@@ -23,7 +23,7 @@ rar2fs ChangeLog file.
         * Added a few missing error checks after calls
           made to malloc()
 
-        * Fixed a coherency problem that theoretically
+        * Fixed a concurrency problem that theoretically
           could result in a crash if a file cache entry
           is invalidated while being accessed by e.g. 
           read operations.
