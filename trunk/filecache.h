@@ -44,10 +44,10 @@ struct dir_elem {
         char *password_p;
         struct stat stat;
         uint32_t dir_hash;
-        off_t offset;           /* >0: offset in rar file (raw read) */
+        off_t offset;                /* >0: offset in rar file (raw read) */
         union {
-                off_t vsize;    /* >0: volume file size (raw read) */
-                off_t msize;    /* >0: mmap size */
+                off_t vsize_first;   /* >0: volume file size (raw read) */
+                off_t msize;         /* >0: mmap size */
         };
         off_t vsize_real;
         off_t vsize_next;

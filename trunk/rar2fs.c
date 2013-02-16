@@ -455,16 +455,28 @@ static int pclose_(FILE *fp, pid_t pid)
         return 0;
 }
 
-/* Size of file in first volume in which it exists */
-#define VOL_FIRST_SZ op->entry_p->vsize
+/* Size of file in first volume number in which it exists */
+#define VOL_FIRST_SZ op->entry_p->vsize_first
 
-/* Size of file in the following volume(s) (if situated in more than one) */
+/* 
+ * Size of file in the following volume numbers (if situated in more than one).
+ * Compared to VOL_FIRST_SZ this is a qualified guess value only and it is
+ * not uncommon that it actually becomes equal to VOL_FIRST_SZ.
+ *   For reference VOL_NEXT_SZ is basically the end of file data offset in
+ * first volume file reduced by the size of applicable headers and meta
+ * data. For the last volume file this value is more than likely bogus.
+ * This does not matter since the total file size is still reported 
+ * correctly and anything trying to read it should stop once reaching EOF. 
+ * The read function will infact verify that this is always the case and 
+ * throw an error if trying to read beyond EOF. The important thing here
+ * is that the volumes files other than the first and last match this value.
+ */
 #define VOL_NEXT_SZ op->entry_p->vsize_next
 
-/* Size of file data in first volume file */
+/* Size of file data in first volume number */
 #define VOL_REAL_SZ op->entry_p->vsize_real
 
-/* Calculate volume number base offset using archived file offset */
+/* Calculate volume number base offset using cached file offsets */
 #define VOL_NO(off)\
         (off < VOL_FIRST_SZ ? 0 : ((offset - VOL_FIRST_SZ) / VOL_NEXT_SZ) + 1)
 
@@ -1920,8 +1932,9 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                         entry_p->vpos = pos;
                                         if (!IS_RAR_DIR(next)) {
                                                 entry_p->vsize_real = FileDataEnd;
-                                                entry_p->vsize_next = FileDataEnd - (SIZEOF_MARKHEAD + MainHeaderSize + next->HeadSize);
-                                                entry_p->vsize = GET_RAR_PACK_SZ(next);
+                                                entry_p->vsize_next = FileDataEnd - 
+                                                        (SIZEOF_MARKHEAD + MainHeaderSize + next->HeadSize);
+                                                entry_p->vsize_first = GET_RAR_PACK_SZ(next);
                                         }
                                 } else {
                                         entry_p->flags.raw = 0;
@@ -2765,8 +2778,19 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                 if (entry_p->flags.multipart &&
                                                 OPT_SET(OPT_KEY_PREOPEN_IMG) &&
                                                 entry_p->flags.image) {
-                                        entry_p->vno_max =
-                                            pow_(10, entry_p->vlen) + 1;
+                                        if (entry_p->vtype == 1) {  /* New numbering */
+                                                entry_p->vno_max =
+                                                    pow_(10, entry_p->vlen) - 1;
+                                        } else {
+                                                 /* 
+                                                  * Old numbering is more than obscure when
+                                                  * it comes to maximum value. Lets assume 
+                                                  * something high (almost realistic) here.
+                                                  * Will probably hit the open file limit 
+                                                  * anyway.
+                                                  */
+                                                 entry_p->vno_max = 901;  /* .rar -> .z99 */
+                                        }
                                         op->volHdl =
                                             malloc(entry_p->vno_max * sizeof(struct vol_handle));
                                         if (op->volHdl) {

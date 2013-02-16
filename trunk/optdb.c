@@ -84,8 +84,8 @@ struct opt_entry *opt_entry_p  = &opt_entry_[0];
                         while (i--) { \
                                 free((void*)OPT_(o)->u.v_arr_str[i]);\
                         } \
-                        OPT_(o)->n_elem = 0; \
                 }\
+                OPT_(o)->n_elem = 0; \
         } while (0)
 
 #define IS_INT_(o) (OPT_(o)->type)
