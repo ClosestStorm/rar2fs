@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2013-02-16  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a problem with some options not being possible
+          to change if initially assigned a default value
+
+        * Changed to use a fixed file count for '--preopen-img'
+          in combination with old style volume naming convention.
+
 2013-02-08  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added option '--no-expand-cbr' that can be used
