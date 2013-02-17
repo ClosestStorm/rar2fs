@@ -1902,7 +1902,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                         : entry_p->password_p);
 
                 /* Check for .rar file inside archive */
-                if (OPT_INT(OPT_KEY_SEEK_DEPTH, 0) && IS_RAR(entry_p->name_p)
+                if (!OPT_SET(OPT_KEY_FLAT_ONLY) && IS_RAR(entry_p->name_p)
                                         && !IS_RAR_DIR(next)) {
                         int vno = !(MainHeaderFlags & MHD_VOLUME)
                                 ? 1
@@ -3871,7 +3871,7 @@ static void print_help()
         printf("    --fake-iso[=E1[;E2...]] fake .iso extension for specified image file types\n");
         printf("    --exclude=F1[;F2...]    exclude file filter\n");
         printf("    --seek-length=n\t    set number of volume files that are traversed in search for headers [0=All]\n");
-        printf("    --seek-depth=n\t    set number of levels down RAR files are parsed inside main archive [1]\n");
+        printf("    --flat-only\t\t    only expand first level of nested RAR archives\n");
         printf("    --iob-size=n\t    I/O buffer size in 'power of 2' MiB (1,2,4,8, etc.) [4]\n");
         printf("    --hist-size=n\t    I/O buffer history size as a percentage (0-75) of total buffer size [50]\n");
         printf("    --save-eof\t\t    force creation of .r2i files (end-of-file chunk)\n");
@@ -3912,6 +3912,10 @@ static struct option longopts[] = {
         {"unrar-path",  required_argument, NULL, OPT_ADDR(OPT_KEY_UNRAR_PATH)},
         {"no-password",       no_argument, NULL, OPT_ADDR(OPT_KEY_NO_PASSWD)},
 #endif
+        /* 
+         * --seek-depth=n is obsolete and replaced by --flat-only
+         * Provided here only for backwards compatibility. 
+         */
         {"seek-depth",  required_argument, NULL, OPT_ADDR(OPT_KEY_SEEK_DEPTH)},
 #if defined ( HAVE_SCHED_SETAFFINITY ) && defined ( HAVE_CPU_SET_T )
         {"no-smp",            no_argument, NULL, OPT_ADDR(OPT_KEY_NO_SMP)},
@@ -3924,6 +3928,7 @@ static struct option longopts[] = {
 #endif
         {"save-eof",          no_argument, NULL, OPT_ADDR(OPT_KEY_SAVE_EOF)},
         {"no-expand-cbr",     no_argument, NULL, OPT_ADDR(OPT_KEY_NO_EXPAND_CBR)},
+        {"flat-only",         no_argument, NULL, OPT_ADDR(OPT_KEY_FLAT_ONLY)},
         {NULL,                          0, NULL, 0}
 };
 

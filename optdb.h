@@ -58,6 +58,7 @@ enum {
         OPT_KEY_BUF_SIZE,
         OPT_KEY_SAVE_EOF,
         OPT_KEY_NO_EXPAND_CBR,
+        OPT_KEY_FLAT_ONLY,
         OPT_KEY_END, /* Must *always* be last key */
         OPT_KEY_LAST = (OPT_KEY_END - 1) 
 };
