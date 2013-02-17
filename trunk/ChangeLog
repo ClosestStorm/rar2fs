@@ -1,9 +1,15 @@
 rar2fs ChangeLog file.
 
+2013-02-17  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added option '--flat-only' that replaces the now 
+          obsoleted option '--seek-depth=n'
+          rar2fs(1) man page updated accordingly.
+
 2013-02-16  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed a problem with some options not being possible
-          to change if initially assigned a default value
+          to change if initially assigned a default value.
 
         * Changed to use a fixed file count for '--preopen-img'
           in combination with old style volume naming convention.

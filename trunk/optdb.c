@@ -44,12 +44,13 @@ static struct opt_entry opt_entry_[] = {
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 0, 1},
+        {{NULL,}, 0, 0, 0, 0, 0},
+        {{NULL,}, 0, 0, 0, 0, 0},
+        {{NULL,}, 0, 0, 0, 0, 0},
+        {{NULL,}, 0, 0, 0, 0, 0},
+        {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 0, 1},
         {{NULL,}, 0, 0, 0, 0, 0},
-        {{NULL,}, 0, 0, 0, 0, 0},
-        {{NULL,}, 0, 0, 0, 0, 0},
-        {{NULL,}, 0, 0, 0, 0, 0},
-        {{NULL,}, 0, 0, 0, 0, 1},
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 0, 0},
         {{NULL,}, 0, 0, 0, 0, 0}
@@ -131,8 +132,9 @@ int optdb_save(int opt, const char *s)
 
         switch (opt)
         {
-        case OPT_KEY_SEEK_LENGTH:
         case OPT_KEY_SEEK_DEPTH:
+                break;
+        case OPT_KEY_SEEK_LENGTH:
         case OPT_KEY_HIST_SIZE:
                 (void)strtoul(s1, &endptr, 10);
                 if (*endptr)
@@ -176,8 +178,7 @@ int optdb_save(int opt, const char *s)
                 int i;
                 printd(5, "option %d : ", opt);
                 for(i = 0; i < OPT_(opt)->n_elem; i++)
-                        if (opt != OPT_KEY_SEEK_DEPTH && 
-                            opt != OPT_KEY_SEEK_LENGTH)
+                        if (opt != OPT_KEY_SEEK_LENGTH)
                                 printd(5, "\"%s\" ", OPT_(opt)->u.v_arr_str[i]);
                         else
                                 printd(5, "\"%ld\" ", OPT_(opt)->u.v_arr_int[i]);
@@ -204,9 +205,6 @@ static void reset_opt(int opt, int init)
                         ADD_OPT_(OPT_KEY_IMG_TYPE, ".iso", OPT_STR_);
                         ADD_OPT_(OPT_KEY_IMG_TYPE, ".img", OPT_STR_);
                         ADD_OPT_(OPT_KEY_IMG_TYPE, ".nrg", OPT_STR_);
-                        break;
-                case OPT_KEY_SEEK_DEPTH:
-                        ADD_OPT_(OPT_KEY_SEEK_DEPTH, "1", OPT_INT_);
                         break;
                 default:
                         break;
