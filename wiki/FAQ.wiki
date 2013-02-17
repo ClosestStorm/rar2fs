@@ -77,4 +77,4 @@ A: Yes, of course there is. The most common reason for slow folder display is th
 
 ===Q 2.9. rar2fs is supposed to support RARs inside RARs, but my !VobSub packages does not work properly. Why is that?===
 Check out the _--seek-depth_ option. It will most likely be the answer to your question. The rar2fs man page will tell you more. Note that from version 1.14.0, seek depth will be set to the maximum supported value by default. From version 1.15.22 the option _--seek-depth_ is 
-obsolete and replaced by _--flat-only_.
+obsolete and _--seek-depth=0_ is replaced by _--flat-only_.
