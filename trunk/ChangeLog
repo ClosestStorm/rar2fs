@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2013-02-23  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Released 1.16.0
+
 2013-02-17  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added option '--flat-only' that replaces the now 
