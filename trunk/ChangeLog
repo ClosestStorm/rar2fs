@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2013-03-02  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed an issue with some archives that contained
+          digits in the name were incorrectly identified as
+          being part of a volume.
+
 2013-02-23  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Released 1.16.0
