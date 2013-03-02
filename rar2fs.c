@@ -1139,7 +1139,7 @@ static int get_vformat(const char *s, int t, int *l, int *p)
                 if (len >= 0) {
                         pos = len + 1;
                         len = SLEN - pos;
-                        if (len >= 10) {
+                        if (len >= 10 && !strncmp(&s[pos], ".part", 5)) {
                                 pos += 5;       /* - ".part" */
                                 len -= 9;       /* - ".ext" */
                                 vol = strtoul(&s[pos], NULL, 10);
@@ -2388,7 +2388,6 @@ static int rar2_readdir(const char *path, void *buffer, fuse_fill_dir_t filler,
                 int multipart = entry_p->flags.multipart;
                 short vtype = entry_p->vtype;
                 pthread_mutex_unlock(&file_access_mutex);
-
                 if (multipart) {
                         do {
                                 printd(3, "Search for local directory in %s\n", tmp);
