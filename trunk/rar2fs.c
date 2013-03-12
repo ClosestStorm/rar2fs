@@ -498,15 +498,17 @@ static char *get_vname(int t, const char *str, int vol, int len, int pos)
                 strncpy(&s[pos], f, len);
         } else {
                 char f[16];
+                int lower = s[pos - 1] >= 'r';
                 if (vol == 1) {
-                        sprintf(f, "%s", "ar");
+                        sprintf(f, "%s", (lower ? "ar" : "AR"));
                 } else if (vol <= 101) {
                         sprintf(f, "%02d", (vol - 2));
                 }
                 /* Possible, but unlikely */
                 else {
-                        sprintf(f, "%c%02d", 'r' + (vol - 2) / 100,
+                        sprintf(f, "%c%02d", lower ? 'r' : 'R' + (vol - 2) / 100,
                                                 (vol - 2) % 100);
+
                         --pos;
                         ++len;
                 }
@@ -1110,7 +1112,8 @@ static int collect_files(const char *arch, struct dir_entry_list *list)
 static int is_rxx_vol(const char *name)
 {
         size_t len = strlen(name);
-        if (name[len - 4] == '.' && name[len - 3] >= 'r' &&
+        if (name[len - 4] == '.' && 
+                        (name[len - 3] >= 'r' || name[len - 3] >= 'R') &&
                         isdigit(name[len - 2]) && isdigit(name[len - 1])) {
                 /* This seems to be a classic .rNN rar volume file.
                  * Let the rar header be the final judge. */
@@ -1139,10 +1142,15 @@ static int get_vformat(const char *s, int t, int *l, int *p)
                 if (len >= 0) {
                         pos = len + 1;
                         len = SLEN - pos;
-                        if (len >= 10 && !strncmp(&s[pos], ".part", 5)) {
-                                pos += 5;       /* - ".part" */
-                                len -= 9;       /* - ".ext" */
-                                vol = strtoul(&s[pos], NULL, 10);
+                        if (len >= 10) {
+                                if ((s[pos + 1] == 'p' || s[pos + 1] == 'P') &&
+                                    (s[pos + 2] == 'a' || s[pos + 2] == 'A') &&
+                                    (s[pos + 3] == 'r' || s[pos + 3] == 'R') &&
+                                    (s[pos + 4] == 't' || s[pos + 4] == 'T')) {
+                                        pos += 5;       /* - ".part" */
+                                        len -= 9;       /* - ".ext" */
+                                        vol = strtoul(&s[pos], NULL, 10);
+                                } 
                         }
                 }
         } else {
@@ -1158,15 +1166,16 @@ static int get_vformat(const char *s, int t, int *l, int *p)
                         if (len == 4) {
                                 pos += 2;
                                 len -= 2;
-                                if (s[pos - 1] == 'r' &&
-                                    s[pos    ] == 'a' &&
-                                    s[pos + 1] == 'r') {
+                                if ((s[pos - 1] == 'r' || s[pos - 1] == 'R') &&
+                                    (s[pos    ] == 'a' || s[pos    ] == 'A') &&
+                                    (s[pos + 1] == 'r' || s[pos + 1] == 'R')) {
                                         vol = 1;
                                 } else {
+                                        int lower = s[pos - 1] >= 'r';
                                         errno = 0;
                                         vol = strtoul(&s[pos], NULL, 10) + 2 +
                                                 /* Possible, but unlikely */
-                                                (100 * (s[pos - 1] - 'r'));
+                                                (100 * (s[pos - 1] - (lower ? 'r' : 'R')));
                                         vol = errno ? 0 : vol;
                                 }
                         }
@@ -1179,9 +1188,9 @@ static int get_vformat(const char *s, int t, int *l, int *p)
 
 #define IS_AVI(s) (!strcasecmp((s)+(strlen(s)-4), ".avi"))
 #define IS_MKV(s) (!strcasecmp((s)+(strlen(s)-4), ".mkv"))
-#define IS_RAR(s) (!strcmp((s)+(strlen(s)-4), ".rar"))
+#define IS_RAR(s) (!strcasecmp((s)+(strlen(s)-4), ".rar"))
 #define IS_CBR(s) (!OPT_SET(OPT_KEY_NO_EXPAND_CBR) && \
-                        !strcmp((s)+(strlen(s)-4), ".cbr"))
+                        !strcasecmp((s)+(strlen(s)-4), ".cbr"))
 #define IS_RXX(s) (is_rxx_vol(s))
 #if 0
 #define IS_RAR_DIR(l) \
