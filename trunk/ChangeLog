@@ -2,6 +2,12 @@ rar2fs ChangeLog file.
 
 2013-03-13  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Added an uninstall hook in Makefile.am to make sure
+          also the mount helper/script is removed when doing
+          "make uninstall".
+
+2013-03-13  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Corrected an error in the install hook in Makefile.am.
           This should resolve issue #12.
 
