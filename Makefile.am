@@ -37,5 +37,8 @@ if LINUX
 install-exec-hook:
 	rm -f $(DESTDIR)$(sbindir)/mount.rar2fs && \
 	$(LN_S) $(DESTDIR)$(bindir)/rar2fs $(DESTDIR)$(sbindir)/mount.rar2fs
+
+uninstall-hook:
+	rm -f $(DESTDIR)$(sbindir)/mount.rar2fs
 endif
 
