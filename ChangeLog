@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2013-03-13  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Corrected an error in the install hook in Makefile.am.
+          This should resolve issue #12.
+
 2013-03-12  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Improved the file extension matching that is now
