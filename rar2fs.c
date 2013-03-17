@@ -3851,7 +3851,7 @@ static int work(struct fuse_args *args)
 static void print_version()
 {
 #ifdef SVNREV
-        printf("rar2fs v%u.%u.%u-%d (DLL version %d)    Copyright (C) 2009-2013 Hans Beckerus\n",
+        printf("rar2fs v%u.%u.%u-svnr%d (DLL version %d)    Copyright (C) 2009-2013 Hans Beckerus\n",
 #else
         printf("rar2fs v%u.%u.%u (DLL version %d)    Copyright (C) 2009-2013 Hans Beckerus\n",
 #endif

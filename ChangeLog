@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2013-03-17  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Second try to correct the Makefile.am error as reported
+          in issue #12.
+
 2013-03-13  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added an uninstall hook in Makefile.am to make sure
