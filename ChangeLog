@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2013-05-07  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a bug in the volume file number and offset 
+          calculation for RAR5 archives in store mode.
+
 2013-05-06  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Built and tested against unrar source v5.0.2.

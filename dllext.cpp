@@ -365,6 +365,13 @@ void PASCAL RARFreeListEx(RARArchiveListEx* L)
 }
 
 
+unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData)
+{
+  DataSet *Data=(DataSet*)hArcData;
+  return Data->Arc.MainHead.HeadSize;
+}
+ 
+ 	
 FileHandle PASCAL RARGetFileHandle(HANDLE hArcData)
 {
   DataSet *Data=(DataSet*)hArcData;

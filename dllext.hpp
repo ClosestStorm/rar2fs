@@ -38,7 +38,7 @@
 #endif
 #include "dll.hpp"
 #include "version.hpp"
-#if RARVER_MAJOR > 5
+#if RARVER_MAJOR > 4
 #include "headers5.hpp"
 #endif
 
@@ -190,6 +190,7 @@ int          PASCAL RARListArchive(HANDLE hArcData, RARArchiveList* fList, off_t
 int          PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* fList, off_t* FileDataEnd);
 void         PASCAL RARFreeList(RARArchiveList* fList);
 void         PASCAL RARFreeListEx(RARArchiveListEx* fList);
+unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData);
 FileHandle   PASCAL RARGetFileHandle(HANDLE hArcData);
 void         PASCAL RARNextVolumeName(char*, bool);
 void         PASCAL RARVolNameToFirstName(char*, bool);
