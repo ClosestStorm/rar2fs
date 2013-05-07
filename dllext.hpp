@@ -37,6 +37,10 @@
 #endif
 #endif
 #include "dll.hpp"
+#include "version.hpp"
+#if RARVER_MAJOR > 5
+#include "headers5.hpp"
+#endif
 
 #ifdef _UNIX
 #define FileHandle FILE*
@@ -65,24 +69,17 @@
 #define  SIZEOF_BEEAHEAD        24
 #define  SIZEOF_STREAMHEAD      26
 
-//#define  PACK_VER               29
-//#define  PACK_CRYPT_VER         29
-//#define  UNP_VER                36
-//#define  CRYPT_VER              29
-//#define  AV_VER                 20
-//#define  PROTECT_VER            20
-
 #define  MHD_VOLUME         0x0001U
-//#define  MHD_COMMENT        0x0002U
-//#define  MHD_LOCK           0x0004U
-//#define  MHD_SOLID          0x0008U
-//#define  MHD_PACK_COMMENT   0x0010U
+#define  MHD_COMMENT        0x0002U
+#define  MHD_LOCK           0x0004U
+#define  MHD_SOLID          0x0008U
+#define  MHD_PACK_COMMENT   0x0010U
 #define  MHD_NEWNUMBERING   0x0010U
-//#define  MHD_AV             0x0020U
-//#define  MHD_PROTECT        0x0040U
+#define  MHD_AV             0x0020U
+#define  MHD_PROTECT        0x0040U
 #define  MHD_PASSWORD       0x0080U
 #define  MHD_FIRSTVOLUME    0x0100U
-//#define  MHD_ENCRYPTVER     0x0200U
+#define  MHD_ENCRYPTVER     0x0200U
 
 #define  LHD_SPLIT_BEFORE   0x0001U
 #define  LHD_SPLIT_AFTER    0x0002U
