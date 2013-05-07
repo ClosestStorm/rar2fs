@@ -1950,8 +1950,12 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                         if (!IS_RAR_DIR(next)) {
                                                 entry_p->vsize_real = FileDataEnd;
                                                 entry_p->vsize_first = GET_RAR_PACK_SZ(next);
-                                                entry_p->vsize_next = FileDataEnd -
- 	                                                        ((next->UnpVer >= 50 ? SIZEOF_MARKHEAD5 : SIZEOF_MARKHEAD) + 
+                                                entry_p->vsize_next = FileDataEnd - (
+#if RARVER_MAJOR > 4
+ 	                                                        (next->UnpVer >= 50 ? SIZEOF_MARKHEAD5 : SIZEOF_MARKHEAD) + 
+#else
+ 	                                                        SIZEOF_MARKHEAD + 
+#endif
                                                                 RARGetMainHeaderSize(hdl) + next->HeadSize);
                                                 /* 
                                                  * Check if we might need to compensate for the 
