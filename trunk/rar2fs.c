@@ -476,7 +476,7 @@ static int pclose_(FILE *fp, pid_t pid)
 /* Size of file data in first volume number */
 #define VOL_REAL_SZ op->entry_p->vsize_real
 
-/* Calculate volume number base offset using inputd file offset */
+/* Calculate volume number base offset using input file offset */
 #define VOL_NO(off, d)\
         (off < VOL_FIRST_SZ ? 0 : ((off - VOL_FIRST_SZ) /\
                 (VOL_NEXT_SZ - (d))) + 1)
@@ -557,12 +557,14 @@ static int lread_raw(char *buf, size_t size, off_t offset,
                         /* 
                          * RAR5.x (and later?) have a 1 byte volume number in 
                          * the Main Archive Header for volume 1-127 and 2 byte
-                         * for the rest. The first byte has already been 
-                         * compensated for in VOL_NEXT_SZ.
+                         * for the rest. Check if we need to compensate. 
                          */
                         int vol = VOL_NO(offset, 0);
-                        if (op->entry_p->flags.vno_in_header && vol > 127) {
-                                vol = 127 + VOL_NO(offset - (127 * VOL_NEXT_SZ), 1);
+                        if (op->entry_p->flags.vno_in_header && 
+                                        op->entry_p->vno_base < 128 &&
+                                        (vol + op->entry_p->vno_base) > 128) {
+                                int vol_contrib = 128 - op->entry_p->vno_base;
+                                vol = vol_contrib + VOL_NO(offset - (vol_contrib * VOL_NEXT_SZ), 1);
                                 chunk = (VOL_NEXT_SZ - 1) -
                                           ((offset - (VOL_FIRST_SZ + (127 * VOL_NEXT_SZ))) %
                                           (VOL_NEXT_SZ - 1));
@@ -1948,9 +1950,19 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                         if (!IS_RAR_DIR(next)) {
                                                 entry_p->vsize_real = FileDataEnd;
                                                 entry_p->vsize_first = GET_RAR_PACK_SZ(next);
-                                                entry_p->vsize_next = entry_p->vsize_first; 
-                                                entry_p->vsize_next -= next->UnpVer >= 50 ? 1 : 0;
-                                                entry_p->flags.vno_in_header = next->UnpVer >= 50 ? 1 : 0;
+                                                entry_p->vsize_next = FileDataEnd -
+ 	                                                        ((next->UnpVer >= 50 ? SIZEOF_MARKHEAD5 : SIZEOF_MARKHEAD) + 
+                                                                RARGetMainHeaderSize(hdl) + next->HeadSize);
+                                                /* 
+                                                 * Check if we might need to compensate for the 
+                                                 * 1-byte RAR5.x (and later?) volume number in 
+                                                 * next main archive header.
+                                                 */
+                                                if (next->UnpVer >= 50) {
+                                                        if (entry_p->vno_base == 1 || entry_p->vno_base == 128)
+                                                                entry_p->vsize_next -= 1;
+                                                        entry_p->flags.vno_in_header = 1;
+                                                }
                                         }
                                 } else {
                                         entry_p->flags.raw = 0;
