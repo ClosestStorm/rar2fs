@@ -108,7 +108,6 @@ dir_elem_t *cache_path_get(const char *path)
                                 return p;
                         p = p->next_p;
                 }
-                assert(0);
         }
         return NULL;
 }
