@@ -1616,6 +1616,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 goto file_error;
 
         if (d2.Flags & MHD_VOLUME) {
+                RARFreeArchive(hdl2);
                 hdl2 = NULL;
                 goto file_error;
         }

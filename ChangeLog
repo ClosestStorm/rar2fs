@@ -6,6 +6,8 @@ rar2fs ChangeLog file.
           RARProcessFile(). The wrong behavior when using
           RAR_TEST has been fixed in UnRAR source v5.0.2.
 
+        * Added a missing call to RARFreeArchive()
+
 2013-05-08  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Removed an incorret assert()
