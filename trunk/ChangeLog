@@ -2,6 +2,12 @@ rar2fs ChangeLog file.
 
 2013-05-08  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Replaced RAR_EXTRACT with RAR_TEST in calls to
+          RARProcessFile(). The wrong behavior when using
+          RAR_TEST has been fixed in UnRAR source v5.0.2.
+
+2013-05-08  Hans Beckerus <hans.beckerus@gmail.com>
+
         * Removed an incorret assert()
 
         * Fixed a compilation problem introduced in last version

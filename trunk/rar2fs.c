@@ -1318,7 +1318,7 @@ static int extract_index(const dir_elem_t *entry_p, off_t offset)
                                 if (RARProcessFile(hdl, RAR_SKIP, NULL, NULL))
                                         break;
                 } else {
-                        e = RARProcessFile(hdl, RAR_EXTRACT, NULL, NULL);
+                        e = RARProcessFile(hdl, RAR_TEST, NULL, NULL);
                         if (!e) {
                                 head.offset = offset;
                                 head.size = eofd.size;
@@ -1400,7 +1400,7 @@ static int extract_rar(char *arch, const char *file, char *passwd, FILE *fp,
                         if (RARProcessFile(hdl, RAR_SKIP, NULL, NULL))
                                 break;
                 } else {
-                        ret = RARProcessFile(hdl, RAR_EXTRACT, NULL, NULL);
+                        ret = RARProcessFile(hdl, RAR_TEST, NULL, NULL);
                         break;
                 }
         }
