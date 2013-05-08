@@ -1345,6 +1345,9 @@ index_error:
 static int CALLBACK extract_callback(UINT msg, LPARAM UserData,
                 LPARAM P1, LPARAM P2)
 {
+        if (msg == UCM_PROCESSDATA) fprintf(stderr, "UCM_PROCESSDATA\n");
+        else if (msg == UCM_CHANGEVOLUME) fprintf(stderr, "UCM_CHANGEVOLUME\n");
+        else  fprintf(stderr, "UCM_???\n");
         if (msg == UCM_PROCESSDATA) {
                 /*
                  * We do not need to handle the case that not all data is
