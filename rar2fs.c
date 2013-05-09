@@ -4068,7 +4068,7 @@ int main(int argc, char *argv[])
         int res = 0;
 
 #ifdef HAVE_SETLOCALE
-        setlocale(LC_CTYPE, "");
+        setlocale(LC_ALL, "");
 #endif
 
 #ifdef HAVE_UMASK
