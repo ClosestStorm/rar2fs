@@ -2,6 +2,11 @@ rar2fs ChangeLog file.
 
 2013-05-09  Hans Beckerus <hans.beckerus@gmail.com>
 
+        * Added creation of $(DESTDIR)/$(sbindir) in 
+          Makefile.am before attempting to install the
+          mount helper utility softlink. 
+          Thanks to ssuominen for the patch. 
+        
         * Fixed a memory corruption bug when using libunrar5
           in combination with volume name lookup causing 
           intermittent crashes.
