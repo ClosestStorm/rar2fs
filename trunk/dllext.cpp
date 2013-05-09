@@ -385,7 +385,7 @@ void PASCAL RARNextVolumeName(char* arch, bool oldstylevolume)
   wchar NextName[NM];
   CharToWide(arch, NextName, ASIZE(NextName));
   NextVolumeName(NextName, ASIZE(NextName), oldstylevolume);
-  WideToChar(NextName,arch,NM);
+  WideToChar(NextName,arch,strlen(arch)+1);
 #endif
 }
 
@@ -398,7 +398,7 @@ void PASCAL RARVolNameToFirstName(char* arch, bool oldstylevolume)
   wchar ArcName[NM];
   CharToWide(arch, ArcName, ASIZE(ArcName));
   VolNameToFirstName(ArcName, ArcName, !oldstylevolume);
-  WideToChar(ArcName,arch,NM);
+  WideToChar(ArcName,arch,strlen(arch)+1);
 #endif
 }
 

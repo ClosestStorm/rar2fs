@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2013-05-09  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Fixed a memory corruption bug when using libunrar5
+          in combination with volume name lookup causing 
+          intermittent crashes.
+          
 2013-05-08  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Replaced RAR_EXTRACT with RAR_TEST in calls to
