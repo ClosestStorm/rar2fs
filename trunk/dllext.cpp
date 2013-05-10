@@ -301,10 +301,10 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
 #if RARVER_MAJOR < 5
            N->UnpVer = Arc.FileHead.UnpVer;
 #else
-           if (Data->Arc.Format>=RARFMT50)
-             N->UnpVer=Data->Arc.FileHead.UnpVer==0 ? 50 : 200; // If it is not 0, just set it to something big.
+           if (Arc.Format>=RARFMT50)
+             N->UnpVer=Arc.FileHead.UnpVer==0 ? 50 : 200; // If it is not 0, just set it to something big.
            else
-             N->UnpVer=Data->Arc.FileHead.UnpVer;
+             N->UnpVer=Arc.FileHead.UnpVer;
 #endif
 
 #if RARVER_MAJOR < 5
