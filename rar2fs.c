@@ -1208,15 +1208,12 @@ static int get_vformat(const char *s, int t, int *l, int *p)
 #define IS_CBR(s) (!OPT_SET(OPT_KEY_NO_EXPAND_CBR) && \
                         !strcasecmp((s)+(strlen(s)-4), ".cbr"))
 #define IS_RXX(s) (is_rxx_vol(s))
-#if 0
 #define IS_RAR_DIR(l) \
-        ((l)->HostOS != HOST_UNIX && (l)->HostOS != HOST_BEOS \
-                ? (l)->FileAttr & 0x10 : (l)->FileAttr & S_IFDIR)
-#else
-/* Unless we need to support RAR version < 2.0 this is good enough */
-#define IS_RAR_DIR(l) \
-        (((l)->Flags&LHD_DIRECTORY)==LHD_DIRECTORY)
-#endif
+        ((l)->UnpVer >= 20 \
+                ? (((l)->Flags&LHD_DIRECTORY)==LHD_DIRECTORY) \
+                : ((l)->HostOS != HOST_UNIX && (l)->HostOS != HOST_BEOS \
+                        ? (l)->FileAttr & 0x10 \
+                        : (l)->FileAttr & S_IFDIR))
 #define GET_RAR_MODE(l) \
         ((l)->HostOS != HOST_UNIX && (l)->HostOS != HOST_BEOS \
                 ? IS_RAR_DIR(l) ? (S_IFDIR|(0777&~umask_)) \
@@ -1384,7 +1381,7 @@ static int extract_rar(char *arch, const char *file, char *passwd, FILE *fp,
 
         struct RARHeaderData header;
         HANDLE hdl = fp ? RARInitArchiveEx(&d, fp) : RAROpenArchiveEx(&d);
-        if (!hdl || d.OpenResult)
+        if (d.OpenResult)
                 goto extract_error;
 
         if (passwd && strlen(passwd))
@@ -1407,10 +1404,12 @@ static int extract_rar(char *arch, const char *file, char *passwd, FILE *fp,
 
 extract_error:
 
-        if (!fp)
-                RARCloseArchive(hdl);
-        else
-                RARFreeArchive(hdl);
+        if (hdl) {
+                if (!fp)
+                        RARCloseArchive(hdl);
+                else
+                        RARFreeArchive(hdl);
+        }
         return ret;
 }
 
@@ -1565,6 +1564,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
         printd(3, "%llu byte RAR file %s found in archive %s\n",
                GET_RAR_PACK_SZ(next), entry_p->name_p, arch);
 
+        int result = 1;
         RAROpenArchiveDataEx d2;
         memset(&d2, 0, sizeof(RAROpenArchiveDataEx));
         d2.ArcName = entry_p->name_p;
@@ -1612,21 +1612,13 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
 
         if (fp)
                 hdl2 = RARInitArchiveEx(&d2, fp);
-        if (!hdl2)
+        if (!fp || d2.OpenResult || (d2.Flags & MHD_VOLUME))
                 goto file_error;
-
-        if (d2.Flags & MHD_VOLUME) {
-                RARFreeArchive(hdl2);
-                hdl2 = NULL;
-                goto file_error;
-        }
 
         RARArchiveListEx LL;
         RARArchiveListEx *next2 = &LL;
-        if (!RARListArchiveEx(hdl2, next2, NULL)) {
-                hdl2 = NULL;
+        if (!RARListArchiveEx(hdl2, next2, NULL))
                 goto file_error;
-        }
 
         char *tmp1 = strdup(entry_p->name_p);
         char *rar_root = dirname(tmp1);
@@ -1742,10 +1734,12 @@ cache_hit:
                 next2 = next2->next;
         }
         RARFreeListEx(&LL);
-        RARFreeArchive(hdl2);
         free(tmp1);
+        result = 0;
 
 file_error:
+        if (hdl2)
+                RARFreeArchive(hdl2);
         if (fp)
                 fclose(fp);
         if (maddr != MAP_FAILED) {
@@ -1754,7 +1748,7 @@ file_error:
                 else
                         free(maddr);
         }
-        return hdl2 ? 0 : 1;
+        return result;
 }
 
 /*!

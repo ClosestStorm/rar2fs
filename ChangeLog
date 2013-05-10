@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2013-05-10  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Added full support for RAR1.5 format.
+        
+        * Minor code clean-up 
+
 2013-05-09  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Added creation of $(DESTDIR)/$(sbindir) in 
