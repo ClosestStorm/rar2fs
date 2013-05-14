@@ -370,6 +370,17 @@ unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData)
 }
  
  	
+unsigned int PASCAL RARGetMarkHeaderSize(HANDLE hArcData)
+{
+#if RARVER_MAJOR > 4
+  DataSet *Data=(DataSet*)hArcData;
+  return (Data->Arc.FileHead.UnpVer >= 50 ? SIZEOF_MARKHEAD5 : SIZEOF_MARKHEAD3);
+#else
+  (void)hArcData;
+  return SIZEOF_MARKHEAD;
+#endif
+}
+
 FileHandle PASCAL RARGetFileHandle(HANDLE hArcData)
 {
   DataSet *Data=(DataSet*)hArcData;
