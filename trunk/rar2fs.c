@@ -553,7 +553,7 @@ static int lread_raw(char *buf, size_t size, off_t offset,
                 FILE *fp;
                 off_t src_off = 0;
                 struct vol_handle *vol_p = NULL;
-                if (VOL_FIRST_SZ) {
+                if (op->entry_p->flags.multipart) {
                         /* 
                          * RAR5.x (and later?) have a 1 byte volume number in 
                          * the Main Archive Header for volume 1-127 and 2 byte
@@ -1946,11 +1946,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                                 entry_p->vsize_real = FileDataEnd;
                                                 entry_p->vsize_first = GET_RAR_PACK_SZ(next);
                                                 entry_p->vsize_next = FileDataEnd - (
-#if RARVER_MAJOR > 4
- 	                                                        (next->UnpVer >= 50 ? SIZEOF_MARKHEAD5 : SIZEOF_MARKHEAD) + 
-#else
- 	                                                        SIZEOF_MARKHEAD + 
-#endif
+                                                                RARGetMarkHeaderSize(hdl) +
                                                                 RARGetMainHeaderSize(hdl) + next->HeadSize);
                                                 /* 
                                                  * Check if we might need to compensate for the 

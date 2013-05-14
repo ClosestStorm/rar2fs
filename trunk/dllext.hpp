@@ -51,24 +51,6 @@
 #ifndef __cplusplus
 /* These are defined here since headers.hpp can not be included from non C++ code */
 
-#define  SIZEOF_MARKHEAD         7
-#define  SIZEOF_OLDMHD           7
-#define  SIZEOF_NEWMHD          13
-#define  SIZEOF_OLDLHD          21
-#define  SIZEOF_NEWLHD          32
-#define  SIZEOF_SHORTBLOCKHEAD   7
-#define  SIZEOF_LONGBLOCKHEAD   11
-#define  SIZEOF_SUBBLOCKHEAD    14
-#define  SIZEOF_COMMHEAD        13
-#define  SIZEOF_PROTECTHEAD     26
-#define  SIZEOF_AVHEAD          14
-#define  SIZEOF_SIGNHEAD        15
-#define  SIZEOF_UOHEAD          18
-#define  SIZEOF_MACHEAD         22
-#define  SIZEOF_EAHEAD          24
-#define  SIZEOF_BEEAHEAD        24
-#define  SIZEOF_STREAMHEAD      26
-
 #define  MHD_VOLUME         0x0001U
 #define  MHD_COMMENT        0x0002U
 #define  MHD_LOCK           0x0004U
@@ -191,6 +173,7 @@ int          PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* fList, o
 void         PASCAL RARFreeList(RARArchiveList* fList);
 void         PASCAL RARFreeListEx(RARArchiveListEx* fList);
 unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData);
+unsigned int PASCAL RARGetMarkHeaderSize(HANDLE hArcData);
 FileHandle   PASCAL RARGetFileHandle(HANDLE hArcData);
 void         PASCAL RARNextVolumeName(char*, bool);
 void         PASCAL RARVolNameToFirstName(char*, bool);
