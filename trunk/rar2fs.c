@@ -2907,8 +2907,8 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                         if (op->volHdl) {
                                                 memset(op->volHdl, 0, entry_p->vno_max * sizeof(struct vol_handle));
                                                 char *tmp = strdup(entry_p->rar_p);
-                                                int j = entry_p->vno_max;
-                                                while (j--) {
+                                                int j = 0;
+                                                while (j < entry_p->vno_max) {
                                                         FILE *fp_ = fopen(tmp, "r");
                                                         if (fp_ == NULL)
                                                                 break;
@@ -2924,6 +2924,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                                         printd(3, "SEEK src_off = %llu\n", op->volHdl[j].pos);
                                                         fseeko(fp_, op->volHdl[j].pos, SEEK_SET);
                                                         RARNextVolumeName(tmp, !entry_p->vtype);
+                                                        ++j;
                                                 }
                                                 free(tmp);
                                         } else {
