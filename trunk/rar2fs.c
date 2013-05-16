@@ -2903,20 +2903,24 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                                   */
                                                  entry_p->vno_max = 901;  /* .rar -> .z99 */
                                         }
-                                        op->volHdl =
-                                            malloc(entry_p->vno_max * sizeof(struct vol_handle));
+                                        op->volHdl = malloc(entry_p->vno_max * sizeof(struct vol_handle));
                                         if (op->volHdl) {
                                                 memset(op->volHdl, 0, entry_p->vno_max * sizeof(struct vol_handle));
                                                 char *tmp = strdup(entry_p->rar_p);
                                                 int j = entry_p->vno_max;
                                                 while (j--) {
                                                         FILE *fp_ = fopen(tmp, "r");
-                                                        if (fp_ == NULL) {
+                                                        if (fp_ == NULL)
                                                                 break;
-                                                        }
                                                         printd(3, "pre-open %s\n", tmp);
                                                         op->volHdl[j].fp = fp_;
-                                                        op->volHdl[j].pos = VOL_REAL_SZ - VOL_FIRST_SZ;
+                                                        /* 
+                                                         * The file position is only a qualified
+                                                         * guess. If it is wrong it will be adjusted
+                                                         * later.
+                                                         */
+                                                        op->volHdl[j].pos = VOL_REAL_SZ - 
+                                                                        (j ? VOL_NEXT_SZ : VOL_FIRST_SZ);
                                                         printd(3, "SEEK src_off = %llu\n", op->volHdl[j].pos);
                                                         fseeko(fp_, op->volHdl[j].pos, SEEK_SET);
                                                         RARNextVolumeName(tmp, !entry_p->vtype);
