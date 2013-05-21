@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2013-05-21  Hans Beckerus <hans.beckerus@gmail.com>
+
+        * Built and tested against UnRAR source v5.0.4
+
 2013-05-16  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Fixed broken pre-open logic
@@ -47,7 +51,7 @@ rar2fs ChangeLog file.
 
 2013-05-06  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Built and tested against unrar source v5.0.2.
+        * Built and tested against UnRAR source v5.0.2.
           This update requires a new invokation of autoreconf 
           to properly update the configure script and Makefile(s).
           This should resolve issue #14.
@@ -303,13 +307,13 @@ rar2fs ChangeLog file.
    
         * Added hook to install mount.rar2fs
 
-        * Built against unrar source v4.2.4
+        * Built against UnRAR source v4.2.4
         
 2012-05-06  Hans Beckerus <hans.beckerus@gmail.com>
 
         * Released 1.15.1
 
-        * Built against unrar source v4.2.1
+        * Built against UnRAR source v4.2.1
 
 2012-04-29  Hans Beckerus <hans.beckerus@gmail.com>
 
@@ -433,7 +437,7 @@ rar2fs ChangeLog file.
   
         * Released 1.14.0
 
-        * Built against unrar source v4.1.4
+        * Built against UnRAR source v4.1.4
 
 2012-01-29  Hans Beckerus <hans.beckerus@gmail.com>
 
@@ -585,7 +589,7 @@ rar2fs ChangeLog file.
         * Replaced call to pthread_cancel() with pthread_kill()
           for a more graceful termination of the fuse loop thread.
 
-        * Built against unrar source v4.1.3
+        * Built against UnRAR source v4.1.3
 
 2011-11-09  Hans Beckerus <hans.beckerus@gmail.com>
 
@@ -707,7 +711,7 @@ rar2fs ChangeLog file.
           for extraction of compressed/encryped archives.
           This will remove the need for some of the previously added API
           extensions and will reduce the dependency to what version of
-          the unrar source is used. However, this will instead inflict
+          the UnRAR source is used. However, this will instead inflict
           some extra memory overhead added by the original API callback
           interface.
 
@@ -875,7 +879,7 @@ rar2fs ChangeLog file.
 
 2011-03-20  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Built against unrar source v4.0.7
+        * Built against UnRAR source v4.0.7
 
         * Minor modification of backward jump (history) logic for
           compressed/encrypted archives.
@@ -925,7 +929,7 @@ rar2fs ChangeLog file.
 
 2011-01-14  Hans Beckerus <hans.beckerus@gmail.com>
 
-        * Built against unrar source v4.0 beta 4
+        * Built against UnRAR source v4.0 beta 4
 
         * Added a sliding window to the IO buffer to allow for at least
           some sort of backward read support.
