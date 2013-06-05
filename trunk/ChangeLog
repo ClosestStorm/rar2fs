@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2013-06-05  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Fixed a potential bug when determining file types
+          affecting only files inside RAR5 archives.
+
 2013-05-26  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Released 1.17.0
