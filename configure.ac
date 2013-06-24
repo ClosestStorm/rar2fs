@@ -289,17 +289,20 @@ if test x"$UNRAR_LIBS" != x; then
     save_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $UNRAR_CPPFLAGS"
     save_LDFLAGS=$LDFLAGS
-    LDFLAGS="$LDFLAGS $UNRAR_LDFLAGS $UNRAR_LIBS"
+    LDFLAGS="$LDFLAGS $UNRAR_LDFLAGS"
+    save_LIBS=$LIBS
+    LIBS="$LIBS $UNRAR_LIBS"
     AC_LANG_PUSH([C++])
     AC_MSG_CHECKING([if unrar library needs -DRAR_SMP])
-    AC_TRY_LINK(
-        [
-            #define RAR_SMP
-            #include "rar.hpp"
-        ],
-        [
-            GetNumberOfThreads();
-        ],
+    AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM(
+            [
+                #define RAR_SMP
+                #include "rar.hpp"
+            ],
+            [
+                GetNumberOfThreads();
+            ])],
         [AC_MSG_RESULT([yes])
             UNRAR_CXXFLAGS="$UNRAR_CXXFLAGS -DRAR_SMP"
         ],
@@ -309,6 +312,7 @@ if test x"$UNRAR_LIBS" != x; then
     AC_LANG_POP
     CPPFLAGS="$save_CPPFLAGS"
     LDFLAGS="$save_LDFLAGS"
+    LIBS="$save_LIBS"
 fi
 
 # This assumes svn version >= 1.4
