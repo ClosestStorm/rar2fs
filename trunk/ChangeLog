@@ -1,5 +1,14 @@
 rar2fs ChangeLog file.
 
+2013-06-24  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Fixed a problem in configure.ac that would result
+          in newer version of g++ to fail some link tests.
+          This would in turn cause incorrect switches to be
+          passed to the compiler resulting in failure to 
+          display RAR archive/folder contents in combination
+          with UnRAR source v5.x.x.
+
 2013-06-05  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Fixed a potential bug when determining file types
