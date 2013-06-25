@@ -315,9 +315,8 @@ if test x"$UNRAR_LIBS" != x; then
     LIBS="$save_LIBS"
 fi
 
-# This assumes svn version >= 1.4
 AC_MSG_CHECKING(for source revision in SVN)
-SVNREV=`$AWK '{if(NR==4){print $0;exit}}' .svn/entries 2>/dev/null`
+SVNREV=$(svn info 2>/dev/null | $GREP Revision: | cut -d' ' -f2 2>/dev/null)
 if test x"$SVNREV" != x; then
     AC_SUBST([CONFIG_STATUS_DEPENDENCIES], ['$(top_srcdir)/.svn/entries'])
     CFLAGS="$CFLAGS -DSVNREV_=$SVNREV"

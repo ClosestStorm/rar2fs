@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2013-06-26  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Updated SVN revision check in configure.ac to work
+          also for later versions of svn for which 
+          .svn/entries does not provide sufficient information.
+
 2013-06-24  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Fixed a problem in configure.ac that would result
