@@ -9,7 +9,7 @@ rar2fs ChangeLog file.
 2013-06-24  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Fixed a problem in configure.ac that would result
-          in newer version of g++ to fail some link tests.
+          in newer versions of g++ to fail some link tests.
           This would in turn cause incorrect switches to be
           passed to the compiler resulting in failure to 
           display RAR archive/folder contents in combination
@@ -17,8 +17,9 @@ rar2fs ChangeLog file.
 
 2013-06-05  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
-        * Fixed a potential bug when determining file types
-          affecting only files inside RAR5 archives.
+        * Fixed a potential bug when determining file types.
+          Only affects RAR5 archives created on UNIX type
+          systems.
 
 2013-05-26  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
