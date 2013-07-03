@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2013-07-03  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Released 1.17.0
+
 2013-06-26  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Updated SVN revision check in configure.ac to work
