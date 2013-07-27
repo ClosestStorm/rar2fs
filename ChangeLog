@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2013-07-28  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Added support for creating symbolic links.
+
+        * Fixed an old bug that allowed files on the underlying
+          file system to be moved/renamed and potentially 
+          "hiding" files inside RAR archives.
+
 2013-07-03  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Released 1.17.2
