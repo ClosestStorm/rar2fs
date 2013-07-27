@@ -3218,6 +3218,23 @@ static int rar2_readlink(const char *path, char *buf, size_t buflen)
  *****************************************************************************
  *
  ****************************************************************************/
+static int rar2_symlink(const char *from, const char *to)
+{
+        ENTER_("%s", from);
+        if (!access_chk(to, 1)) {
+                char *root;
+                ABS_ROOT(root, to);
+                if (!symlink(from, root))
+                        return 0;
+                return -errno;
+        }
+        return -EPERM;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int rar2_statfs(const char *path, struct statvfs *vfs)
 {
         ENTER_("%s", path);
@@ -3490,7 +3507,7 @@ static int rar2_rename(const char *oldpath, const char *newpath)
 {
         ENTER_("%s", oldpath);
         /* We can not move things out of- or from RAR archives */
-        if (!access_chk(newpath, 1) && !access_chk(oldpath, 0)) {
+        if (!access_chk(newpath, 0) && !access_chk(oldpath, 0)) {
                 char *oldroot;
                 char *newroot;
                 ABS_ROOT(oldroot, oldpath);
@@ -3902,6 +3919,7 @@ static int work(struct fuse_args *args)
                 rar2_operations.truncate        = rar2_truncate;
                 rar2_operations.chmod           = rar2_chmod;
                 rar2_operations.chown           = rar2_chown;
+                rar2_operations.symlink         = rar2_symlink;
         } else {
                 rar2_operations.getattr         = rar2_getattr2;
                 rar2_operations.readdir         = rar2_readdir2;
@@ -3915,6 +3933,7 @@ static int work(struct fuse_args *args)
                 rar2_operations.truncate        = (void *)rar2_eperm_stub;
                 rar2_operations.chmod           = (void *)rar2_eperm_stub;
                 rar2_operations.chown           = (void *)rar2_eperm_stub;
+                rar2_operations.symlink         = (void *)rar2_eperm_stub;
         }
 
         struct fuse *f = NULL;
