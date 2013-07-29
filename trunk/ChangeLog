@@ -1,5 +1,14 @@
 rar2fs ChangeLog file.
 
+2013-07-29  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Added compression method as an extended attribute
+          (plus a few more for debug purposes).
+          For systems that does not provide the extended
+          attribute (xattr) system calls, compression method
+          is still provided as the hard link count of regular
+          files.
+
 2013-07-28  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Added support for creating symbolic links.

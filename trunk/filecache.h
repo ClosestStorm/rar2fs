@@ -56,19 +56,37 @@ struct dir_elem {
         short vlen;
         short vpos;
         short vtype;
-        struct {
-                unsigned int raw:1;
-                unsigned int multipart:1;
-                unsigned int image:1;
-                unsigned int fake_iso:1;
-                unsigned int mmap:2;
-                unsigned int force_dir:1;
-                unsigned int vno_in_header:1;
-                unsigned int :21;
-                unsigned int direct_io:1;
-                unsigned int avi_tested:1;
-                unsigned int save_eof:1;
-        } flags;
+        short method;                /* for getxattr() */
+        union {
+                struct {
+#ifndef WORDS_BIGENDIAN
+                        unsigned int raw:1;
+                        unsigned int multipart:1;
+                        unsigned int image:1;
+                        unsigned int fake_iso:1;
+                        unsigned int mmap:2;
+                        unsigned int force_dir:1;
+                        unsigned int vno_in_header:1;
+                        unsigned int :21;
+                        unsigned int direct_io:1;
+                        unsigned int avi_tested:1;
+                        unsigned int save_eof:1;
+#else
+                        unsigned int save_eof:1;
+                        unsigned int avi_tested:1;
+                        unsigned int direct_io:1;
+                        unsigned int :21;
+                        unsigned int vno_in_header:1;
+                        unsigned int force_dir:1;
+                        unsigned int mmap:2;
+                        unsigned int fake_iso:1;
+                        unsigned int image:1;
+                        unsigned int multipart:1;
+                        unsigned int raw:1;
+#endif
+                } flags;
+                uint32_t flags_uint32;
+        };
         struct dir_elem *next_p;
 };
 typedef struct dir_elem dir_elem_t;
