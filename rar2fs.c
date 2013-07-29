@@ -1550,8 +1550,13 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
                         mode = (mode & ~S_IFMT) | S_IFREG;
                 }
                 entry_p->stat.st_mode = mode;
+#ifndef HAVE_SETXATTR
                 entry_p->stat.st_nlink =
                         S_ISDIR(mode) ? 2 : alist_p->Method - (FHD_STORING - 1);
+#else
+                entry_p->stat.st_nlink =
+                        S_ISDIR(mode) ? 2 : 1;
+#endif
                 entry_p->stat.st_size = GET_RAR_SZ(alist_p);
         } else {
                 entry_p->stat.st_mode = (S_IFDIR | (0777 & ~umask_));
@@ -1775,7 +1780,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                                                 *buffer = dir_entry_add_hash(
                                                         *buffer, rar_name,
                                                         &entry2_p->stat, entry2_p->dir_hash,
-                                                       DIR_E_RAR);
+                                                        DIR_E_RAR);
                                         }
                                 }
                                 free(safe_path);
@@ -1810,6 +1815,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 entry2_p->offset = (next->Offset + next->HeadSize);
                 entry2_p->flags.mmap = mflags;
                 entry2_p->msize = msize;
+                entry2_p->method = next->Method;
                 entry2_p->flags.multipart = 0;
                 entry2_p->flags.raw = 0;        /* no raw support yet */
                 entry2_p->flags.save_eof = 0;
@@ -2087,6 +2093,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                 entry_p->flags.multipart = 0;
                         }
                 }
+                entry_p->method = next->Method;
                 set_rarstats(entry_p, next, 0);
 
 cache_hit:
@@ -3616,6 +3623,16 @@ static int rar2_utimens(const char *path, const struct timespec ts[2])
 
 #ifdef HAVE_SETXATTR
 
+static const char *xattr[4] = {
+        "user.rar2fs.cache_method", 
+        "user.rar2fs.cache_flags", 
+        "user.rar2fs.cache_dir_hash", 
+        NULL
+};
+#define XATTR_CACHE_METHOD 0
+#define XATTR_CACHE_FLAGS 1
+#define XATTR_CACHE_DIR_HASH 2
+
 /*!
 *****************************************************************************
 *
@@ -3628,6 +3645,10 @@ static int rar2_getxattr(const char *path, const char *name, char *value,
                 size_t size)
 #endif
 {
+        dir_elem_t *e_p;
+        int xattr_no;
+        size_t len;
+
         ENTER_("%s", path);
 
         if (!access_chk(path, 0)) {
@@ -3643,7 +3664,47 @@ static int rar2_getxattr(const char *path, const char *name, char *value,
                         return -errno;
                 return size;
         }
-        return -ENOTSUP;
+
+        e_p = filecache_get(path);
+        if (e_p == NULL)
+                return -ENOTSUP;
+
+        if (!strcmp(name, xattr[XATTR_CACHE_METHOD]) && 
+                        !S_ISDIR(e_p->stat.st_mode)) {
+                len = sizeof(uint16_t);
+                xattr_no = XATTR_CACHE_METHOD;
+        } else if (!strcmp(name, xattr[XATTR_CACHE_FLAGS])) { 
+                len = sizeof(uint32_t);
+                xattr_no = XATTR_CACHE_FLAGS;
+        } else if (!strcmp(name, xattr[XATTR_CACHE_DIR_HASH])) { 
+                len = sizeof(uint32_t);
+                xattr_no = XATTR_CACHE_DIR_HASH;
+        } else {
+                /* 
+                 * According to Linux man page, ENOATTR is defined to be a 
+                 * synonym for ENODATA in <attr/xattr.h>. But <attr/xattr.h>
+                 * does not seem to exist on that many systems, so return 
+                 * -ENODATA here instead.
+                 */
+                return -ENODATA;
+        }
+
+        if (size) {
+                if (size < len)
+                        return -ERANGE;
+                switch (xattr_no) {
+                case XATTR_CACHE_METHOD:
+                        *(uint16_t*)value = htons(e_p->method - FHD_STORING);
+                        break;
+                case XATTR_CACHE_FLAGS:
+                        *(uint32_t*)value = htonl(e_p->flags_uint32);
+                        break;
+                case XATTR_CACHE_DIR_HASH:
+                        *(uint32_t*)value = htonl(e_p->dir_hash);
+                        break;
+                }
+        }
+        return len;
 }
 
 /*!
@@ -3652,6 +3713,10 @@ static int rar2_getxattr(const char *path, const char *name, char *value,
 ****************************************************************************/
 static int rar2_listxattr(const char *path, char *list, size_t size)
 {
+        int i; 
+        size_t len;
+        dir_elem_t *e_p;
+
         ENTER_("%s", path);
 
         if (!access_chk(path, 0)) {
@@ -3666,7 +3731,33 @@ static int rar2_listxattr(const char *path, char *list, size_t size)
                         return -errno;
                 return size;
         }
-        return -ENOTSUP;
+
+        e_p = filecache_get(path);
+        if (e_p == NULL)
+                return -ENOTSUP;
+
+        i = 0;
+        len = 0;
+        while (xattr[i]) {
+                if (!S_ISDIR(e_p->stat.st_mode) || 
+                                i != XATTR_CACHE_METHOD)
+                        len += (strlen(xattr[i]) + 1);
+                ++i;
+        }
+        if (size) {
+                i = 0;
+                if (size < len)
+                        return -ERANGE;
+                while (xattr[i]) {
+                        if (!S_ISDIR(e_p->stat.st_mode) || 
+                                        i != XATTR_CACHE_METHOD) {
+                                strcpy(list, xattr[i]);
+                                list += (strlen(list) + 1);
+                        }
+                        ++i;
+                }
+        }
+        return len;
 }
 
 /*!
