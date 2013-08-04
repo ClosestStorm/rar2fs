@@ -1,5 +1,26 @@
 rar2fs ChangeLog file.
 
+2013-08-04  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Added a new feature that allows presentation of file
+          information inside RAR archives in technical format 
+          (similar to 'unrar lt'). Eg. if there is a file named
+          'foobar' inside an archive it can be listed using 
+          'cat foobar#info'. This is a replacement for both the
+          hard link count hack (compression method) *and* extended 
+          attributes. Both which are still available when ever
+          applicable. 
+
+          Note that this new feature is included only when 
+          compiled/linked towards UnRAR source v5.x.x or later.
+
+        * Fixed a minor bug in the extended attributes that caused
+          wrong compression method to be presented for 
+          "rar inside rar" files.
+
+        * Fixed a problem with MAP_FAILED not being defined if
+          mmap(2) is not supported (very rare).
+
 2013-07-29  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Added compression method as an extended attribute

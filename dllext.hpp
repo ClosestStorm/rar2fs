@@ -166,6 +166,12 @@ struct RARArchiveListEx
   RARArchiveListEx* next;
 };
 
+struct RARWcb
+{
+    unsigned int bytes;
+    wchar_t data[8192]; // 8k should be enough?
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -182,6 +188,7 @@ unsigned int PASCAL RARGetMarkHeaderSize(HANDLE hArcData);
 FileHandle   PASCAL RARGetFileHandle(HANDLE hArcData);
 void         PASCAL RARNextVolumeName(char*, bool);
 void         PASCAL RARVolNameToFirstName(char*, bool);
+void         PASCAL RARGetFileInfo(HANDLE hArcData, const char *FileName, struct RARWcb *wcb);
 
 #ifdef __cplusplus
 }

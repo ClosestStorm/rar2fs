@@ -110,9 +110,11 @@ struct io_handle {
 #define IO_TYPE_RAR 1
 #define IO_TYPE_RAW 2
 #define IO_TYPE_ISO 3
+#define IO_TYPE_INFO 4
         union {
                 struct io_context *context;     /* type = IO_TYPE_RAR/IO_TYPE_RAW */
                 int fd;                         /* type = IO_TYPE_NRM/IO_TYPE_ISO */
+                void *buf_p;                    /* type = IO_TYPE_INFO */
                 uintptr_t bits;
         } u;
         dir_elem_t *entry_p;                    /* type = IO_TYPE_ISO */
@@ -122,11 +124,13 @@ struct io_handle {
 #define FH_ISSET(fh)           (fh)
 #define FH_SETCONTEXT(fh, v)   (FH_TOIO(fh)->u.context = (v))
 #define FH_SETFD(fh, v)        (FH_TOIO(fh)->u.fd = (v))
+#define FH_SETBUF(fh, v)       (FH_TOIO(fh)->u.buf_p = (v))
 #define FH_SETIO(fh, v)        ((fh) = (uintptr_t)(v))
 #define FH_SETENTRY(fh, v)     (FH_TOIO(fh)->entry_p = (v))
 #define FH_SETTYPE(fh, v)      (FH_TOIO(fh)->type = (v))
 #define FH_TOCONTEXT(fh)       (FH_TOIO(fh)->u.context)
 #define FH_TOFD(fh)            (FH_TOIO(fh)->u.fd)
+#define FH_TOBUF(fh)           (FH_TOIO(fh)->u.buf_p)
 #define FH_TOENTRY(fh)         (FH_TOIO(fh)->entry_p)
 #define FH_TOIO(fh)            ((struct io_handle*)(uintptr_t)(fh))
 
@@ -196,6 +200,34 @@ struct eof_data {
 
 static int extract_index(const dir_elem_t *entry_p, off_t offset);
 static int preload_index(struct io_buf *buf, const char *path);
+
+#if RARVER_MAJOR > 4
+static const char *file_cmd[] = {
+        "#info",
+        NULL
+};
+#endif
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static inline size_t
+wide_to_char(char *dst, const wchar_t *src, size_t size)
+{
+#ifdef HAVE_WCSTOMBS
+        if (*src) {
+                size_t n = wcstombs(NULL, src, 0);
+                if (n != (size_t)-1) {
+                        if (size >= (n + 1))
+                                return wcstombs(dst, src, size);
+                }
+                /* Translation failed! Possibly a call to snprintf()
+                 * using "%ls" could be added here as fall-back. */
+        }
+#endif
+        return -1;
+}
 
 /*!
  *****************************************************************************
@@ -489,9 +521,11 @@ static FILE *popen_(const dir_elem_t *entry_p, pid_t *cpid, void **mmap_addr,
 
 error:
         if (maddr != MAP_FAILED) {
+#ifdef HAVE_MMAP
                 if (entry_p->flags.mmap == 1)
                         munmap(maddr, P_ALIGN_(entry_p->msize));
                 else
+#endif
                         free(maddr);
         }
         if (fp)
@@ -607,7 +641,7 @@ static char *get_vname(int t, const char *str, int vol, int len, int pos)
 }
 
 /*!
- *****************************************************************************
+ ****************************************************************************
  *
  ****************************************************************************/
 static int lread_raw(char *buf, size_t size, off_t offset,
@@ -745,6 +779,24 @@ seek_check:
                         vol_p->pos += n;
         }
         return tot;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+static int lread_info(char *buf, size_t size, off_t offset,
+                struct fuse_file_info *fi)
+{
+        /* Only allow reading from start of file in 'cat'-like fashion */
+        if(!offset) {
+            struct RARWcb *wcb = FH_TOBUF(fi->fh);
+            int c = wide_to_char(buf, wcb->data, size);
+            if (c > 0)
+                    return c;
+        }
+        /* Nothing to output */
+        return 0;
 }
 
 /*!
@@ -1080,9 +1132,16 @@ static int lrelease(const char *path, struct fuse_file_info *fi)
         ENTER_("%s", path);
 
         (void)path;             /* touch */
-        close(FH_TOFD(fi->fh));
-        if (FH_TOENTRY(fi->fh))
-                filecache_freeclone(FH_TOENTRY(fi->fh));
+        if (FH_TOIO(fi->fh)->type == IO_TYPE_INFO) {
+                if (FH_TOBUF(fi->fh))
+                        free(FH_TOBUF(fi->fh));
+        } else if (FH_TOFD(fi->fh)) {
+                close(FH_TOFD(fi->fh));
+        }
+        if (FH_TOIO(fi->fh)->type == IO_TYPE_ISO) {
+                if (FH_TOENTRY(fi->fh))
+                        filecache_freeclone(FH_TOENTRY(fi->fh));
+        }
         free(FH_TOIO(fi->fh));
         FH_ZERO(fi->fh);
         return 0;
@@ -1637,27 +1696,6 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
  *****************************************************************************
  *
  ****************************************************************************/
-static inline size_t
-wide_to_char(char *dst, const wchar_t *src, size_t size)
-{
-#ifdef HAVE_WCSTOMBS
-        if (*src) {
-                size_t n = wcstombs(NULL, src, 0);
-                if (n != (size_t)-1) {
-                        if (size >= (n + 1))
-                                return wcstombs(dst, src, size);
-                }
-                /* Translation failed! Possibly a call to snprintf()
-                 * using "%ls" could be added here as fall-back. */
-        }
-#endif
-        return -1;
-}
-
-/*!
- *****************************************************************************
- *
- ****************************************************************************/
 static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 const char *arch,  HANDLE hdl, const RARArchiveListEx *next,
                 const dir_elem_t *entry_p, unsigned int mh_flags)
@@ -1773,7 +1811,11 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                                                 entry2_p = filecache_alloc(mp);
                                                 entry2_p->name_p = strdup(mp);
                                                 entry2_p->rar_p = strdup(arch);
+                                                entry2_p->file_p = strdup(next->FileName);
+                                                entry2_p->file2_p = strdup(rar_name);
                                                 entry2_p->flags.force_dir = 1;
+                                                entry2_p->flags.mmap = mflags;
+                                                entry2_p->msize = msize;
                                                 set_rarstats(entry2_p, next2, 1);
                                         }
                                         if (buffer) {
@@ -1815,7 +1857,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 entry2_p->offset = (next->Offset + next->HeadSize);
                 entry2_p->flags.mmap = mflags;
                 entry2_p->msize = msize;
-                entry2_p->method = next->Method;
+                entry2_p->method = next2->Method;
                 entry2_p->flags.multipart = 0;
                 entry2_p->flags.raw = 0;        /* no raw support yet */
                 entry2_p->flags.save_eof = 0;
@@ -1845,9 +1887,11 @@ file_error:
         if (fp)
                 fclose(fp);
         if (maddr != MAP_FAILED) {
+#ifdef HAVE_MMAP
                 if (mflags == 1)
                         munmap(maddr, P_ALIGN_(msize));
                 else
+#endif
                         free(maddr);
         }
         return result;
@@ -2397,7 +2441,21 @@ static int rar2_getattr(const char *path, struct stat *stbuf)
                 dump_stat(stbuf);
                 return 0;
         }
+
         pthread_mutex_unlock(&file_access_mutex);
+
+#if RARVER_MAJOR > 4
+        int cmd = 0;
+        while (file_cmd[cmd]) {
+                if (!strcmp(&path[strlen(path) - 5], file_cmd[cmd])) {
+                        memset(stbuf, 0, sizeof(struct stat));
+                        stbuf->st_mode = S_IFREG | 0644;
+                        return 0;
+                }
+                ++cmd;
+        }
+#endif
+
         return -ENOENT;
 }
 
@@ -2434,6 +2492,19 @@ static int rar2_getattr2(const char *path, struct stat *stbuf)
                 return 0;
         }
         pthread_mutex_unlock(&file_access_mutex);
+
+#if RARVER_MAJOR > 4
+        int cmd = 0;
+        while (file_cmd[cmd]) {
+                if (!strcmp(&path[strlen(path) - 5], file_cmd[cmd])) {
+                        memset(stbuf, 0, sizeof(struct stat));
+                        stbuf->st_mode = S_IFREG | 0644;
+                        return 0;
+                }
+                ++cmd;
+        }
+#endif
+
         return -ENOENT;
 }
 
@@ -2822,6 +2893,99 @@ static int check_avi_type(struct io_context *op)
  *****************************************************************************
  *
  ****************************************************************************/
+static int extract_rar_file_info(dir_elem_t *entry_p, struct RARWcb *wcb)
+{
+        /* Sanity check */
+        if (!entry_p->rar_p)
+                return 0;
+
+        RAROpenArchiveDataEx d;
+        memset(&d, 0, sizeof(RAROpenArchiveDataEx));
+        d.ArcName = entry_p->rar_p;
+        d.OpenMode = RAR_OM_LIST;
+        HANDLE hdl = RAROpenArchiveEx(&d);
+
+        /* Check for fault */
+        if (d.OpenResult)
+                return 0;
+
+        FILE *fp = NULL;
+        char *maddr = MAP_FAILED;
+        HANDLE hdl2 = NULL;
+
+        if (entry_p->flags.mmap) {
+                if (entry_p->flags.mmap == 1) {
+                        int fd = fileno(RARGetFileHandle(hdl));
+                        if (fd == -1)
+                                goto file_error;
+#if defined ( HAVE_FMEMOPEN ) && defined ( HAVE_MMAP )
+                        maddr = mmap(0, P_ALIGN_(entry_p->msize), PROT_READ, 
+                                                MAP_SHARED, fd, 0);
+                        if (maddr != MAP_FAILED)
+                                fp = fmemopen(maddr + entry_p->offset, 
+                                        (entry_p->msize - entry_p->offset), "r");
+#else
+                        fp = fopen(entry_p->rar_p, "r");
+                        if (fp)
+                                fseeko(fp, entry_p->offset, SEEK_SET);
+#endif
+                } else {
+#ifdef HAVE_FMEMOPEN
+                        maddr = extract_to(entry_p->file_p, entry_p->msize, 
+                                                entry_p, E_TO_MEM);
+                        if (maddr != MAP_FAILED)
+                                fp = fmemopen(maddr, entry_p->msize, "r");
+#else
+                        fp = extract_to(entry_p->file_p, entry_p->msize, 
+                                                entry_p, E_TO_TMP);
+                        if (fp == MAP_FAILED) {
+                                fp = NULL;
+                                printd(1, "Extract to tmpfile failed\n");
+                        }
+#endif
+                }
+                if (fp) {
+                        RAROpenArchiveDataEx d2;
+                        memset(&d2, 0, sizeof(RAROpenArchiveDataEx));
+                        d2.ArcName = NULL;
+                        d2.OpenMode = RAR_OM_LIST;
+
+                        hdl2 = RARInitArchiveEx(&d2, fp);
+                        if (d2.OpenResult || (d2.Flags & MHD_VOLUME))
+                                goto file_error;
+
+                        if (entry_p->password_p)
+                                RARSetPassword(hdl2, entry_p->password_p);
+                        RARGetFileInfo(hdl2, entry_p->file2_p, wcb);
+                }
+        } else {
+                if (entry_p->password_p)
+                        RARSetPassword(hdl, entry_p->password_p);
+                RARGetFileInfo(hdl, entry_p->file_p, wcb);
+        }
+
+file_error:
+
+        if (fp)
+                fclose(fp);
+        if (maddr != MAP_FAILED) {
+#ifdef HAVE_MMAP
+                if (entry_p->flags.mmap == 1)
+                        munmap(maddr, P_ALIGN_(entry_p->msize));
+                else
+#endif
+                        free(maddr);
+        } 
+        RARCloseArchive(hdl);
+        if (hdl2)
+                RARFreeArchive(hdl2);
+        return 0;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int rar2_open(const char *path, struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
@@ -2836,8 +3000,40 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
         entry_p = path_lookup(path, NULL);
 
         if (entry_p == NULL) {
+#if RARVER_MAJOR > 4
+                int cmd = 0;
+                while (file_cmd[cmd]) {
+                        if (!strcmp(&path[strlen(path) - 5], "#info")) {
+                                        char *tmp = strdup(path);
+                                        tmp[strlen(path)-5] = 0;
+                                        entry_p = path_lookup(tmp, NULL);
+                                        free(tmp);
+                                        break;
+                        }
+                        ++cmd;
+                }
+#endif
+                if (entry_p == NULL || entry_p == LOCAL_FS_ENTRY) {
+                        pthread_mutex_unlock(&file_access_mutex);
+                        return -ENOENT;
+                }
+                struct io_handle *io = malloc(sizeof(struct io_handle));
+                if (!io) {
+                        pthread_mutex_unlock(&file_access_mutex);
+                        return -EIO;
+                }
+
+                dir_elem_t *e_p = filecache_clone(entry_p);
                 pthread_mutex_unlock(&file_access_mutex);
-                return -ENOENT;
+                struct RARWcb *wcb = malloc(sizeof(struct RARWcb)); 
+                memset(wcb, 0, sizeof(struct RARWcb));
+                FH_SETIO(fi->fh, io);
+                FH_SETTYPE(fi->fh, IO_TYPE_INFO);
+                FH_SETBUF(fi->fh, wcb);
+                fi->direct_io = 1;
+                extract_rar_file_info(e_p, wcb);
+                filecache_freeclone(e_p);
+                return 0;
         }
         if (entry_p == LOCAL_FS_ENTRY) {
                 /* In case of O_TRUNC it will simply be passed to open() */
@@ -3306,9 +3502,11 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                                 if (op->entry_p->flags.mmap) {
                                         fclose(op->mmap_fp);
                                         if (op->mmap_addr != MAP_FAILED) {
+#ifdef HAVE_MMAP
                                                 if (op->entry_p->flags.mmap == 1)
                                                         munmap(op->mmap_addr, P_ALIGN_(op->entry_p->msize));
                                                 else
+#endif
                                                         free(op->mmap_addr);
                                         }
                                         close(op->mmap_fd);
@@ -3376,6 +3574,8 @@ static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
                 res = lread(root, buffer, size, offset, fi);
         } else if (io->type == IO_TYPE_RAW) {
                 res = lread_raw(buffer, size, offset, fi);
+        } else if (io->type == IO_TYPE_INFO) {
+                res = lread_info(buffer, size, offset, fi);
         } else {
                 res = lread_rar(buffer, size, offset, fi);
         }
