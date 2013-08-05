@@ -318,6 +318,22 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
            N->HeadSize = Arc.FileHead.HeadSize;
            N->Offset = Arc.CurBlockPos;
 
+           if (Arc.FileHead.HostOS==HOST_UNIX && (Arc.FileHead.FileAttr & 0xF000)==0xA000)
+           {
+	     if (N->UnpVer < 50)
+             {
+               int DataSize=Min(Arc.FileHead.PackSize,sizeof(N->LinkTarget)-1);
+               Arc.Read(N->LinkTarget,DataSize);
+               N->LinkTarget[DataSize]=0;
+             }
+#if RARVER_MAJOR > 4
+             else
+             {
+               // XXX TBD
+             } 
+#endif
+           }
+
            if (FileDataEnd)
              *FileDataEnd = Arc.NextBlockPos;
            break;

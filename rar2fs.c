@@ -1608,6 +1608,8 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
                         /* Force file to be treated as a 'regular file' */
                         mode = (mode & ~S_IFMT) | S_IFREG;
                 }
+                if (S_ISLNK(mode))
+                        entry_p->link_target_p = strdup(alist_p->LinkTarget);
                 entry_p->stat.st_mode = mode;
 #ifndef HAVE_SETXATTR
                 entry_p->stat.st_nlink =
@@ -3407,9 +3409,19 @@ static int rar2_flush(const char *path, struct fuse_file_info *fi)
 static int rar2_readlink(const char *path, char *buf, size_t buflen)
 {
         ENTER_("%s", path);
-        char *tmp;
-        ABS_ROOT(tmp, path);
-        buflen = readlink(tmp, buf, buflen);
+
+        dir_elem_t *entry_p;
+        entry_p = path_lookup(path, NULL);
+        if (entry_p && entry_p != LOCAL_FS_ENTRY) {
+                if (entry_p->link_target_p)
+                        strncpy(buf, entry_p->link_target_p, buflen - 1);
+                else
+                        return -EIO;
+        } else {
+                char *tmp;
+                ABS_ROOT(tmp, path);
+                buflen = readlink(tmp, buf, buflen - 1);
+        }
         if ((ssize_t)buflen >= 0) {
                 buf[buflen] = 0;
                 return 0;
