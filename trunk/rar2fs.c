@@ -1604,7 +1604,7 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
 {
         if (!force_dir) {
                 mode_t mode = GET_RAR_MODE(alist_p);
-                if (!S_ISDIR(mode)) {
+                if (!S_ISDIR(mode) && !S_ISLNK(mode)) {
                         /* Force file to be treated as a 'regular file' */
                         mode = (mode & ~S_IFMT) | S_IFREG;
                 }
