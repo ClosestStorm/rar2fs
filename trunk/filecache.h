@@ -42,6 +42,7 @@ struct dir_elem {
         char *file_p;
         char *file2_p;
         char *password_p;
+        char *link_target_p;
         struct stat stat;
         uint32_t dir_hash;
         off_t offset;                /* >0: offset in rar file (raw read) */
