@@ -328,8 +328,7 @@ AC_MSG_CHECKING(for commit hash in git repo)
 GITHEAD=.git/$(cat .git/HEAD 2>/dev/null | cut -d" " -f2)
 GITREV=$(cut -c1-7 $GITHEAD 2>/dev/null)
 if test x"$GITREV" != x; then
-    AC_SUBST([GITHEAD])
-    AC_SUBST([CONFIG_STATUS_DEPENDENCIES], ['$(GITHEAD)'])
+    AC_SUBST([CONFIG_STATUS_DEPENDENCIES], [$GITHEAD])
     CFLAGS="$CFLAGS -DGITREV_=0x$GITREV"
     echo $GITREV
 else
