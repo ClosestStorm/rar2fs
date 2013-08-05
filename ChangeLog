@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2013-08-05  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Fixed an error in configure.ac when resolving
+          git HEAD that resulted in build failures.
+
 2013-08-04  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Added a new feature that allows presentation of file
