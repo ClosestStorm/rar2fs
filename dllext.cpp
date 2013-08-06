@@ -249,20 +249,26 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
              N = N->next;
            }
            FileCount++;
+           N->Flags = Arc.FileHead.Flags;
+           N->LinkTargetFlags = 0;
 
 #if RARVER_MAJOR < 5
-           strncpyz(N->FileName,Arc.FileHead.FileName,ASIZE(N->FileName));
            if (*Arc.FileHead.FileNameW)
+           {
              wcsncpy(N->FileNameW,Arc.FileHead.FileNameW,ASIZE(N->FileNameW));
+             *N->FileName = (char)0;
+             N->Flags |= LHD_UNICODE; // Make sure UNICODE is set
+           }
            else
            {
-             CharToWide(Arc.FileHead.FileName,N->FileNameW);
+             strncpyz(N->FileName,Arc.FileHead.FileName,ASIZE(N->FileName));
+             *N->FileNameW = (wchar)0;
            }
 #else
            wcsncpy(N->FileNameW,Arc.FileHead.FileName,ASIZE(N->FileNameW));
-           WideToChar(N->FileNameW,N->FileName,ASIZE(N->FileName));
+           *N->FileName = '\0';
+           N->Flags |= LHD_UNICODE; // Make sure UNICODE is set
 #endif
-           N->Flags = Arc.FileHead.Flags;
 #if RARVER_MAJOR > 4
            // Map some 5.0 properties to old-style flags if applicable
            if (Arc.Format >= RARFMT50)
@@ -329,7 +335,11 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
 #if RARVER_MAJOR > 4
              else
              {
-               // XXX TBD
+               if (Arc.FileHead.RedirType == FSREDIR_UNIXSYMLINK)
+               {
+                 wcscpy(N->LinkTargetW,Arc.FileHead.RedirName);
+                 N->LinkTargetFlags |= LHD_UNICODE; // Make sure UNICODE is set
+               }
              } 
 #endif
            }
@@ -702,8 +712,31 @@ static size_t ListFileHeader(wchar *wcs,Archive &Arc)
       break;
   }
   wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListType),Type);
+
   if (hd.RedirType!=FSREDIR_NONE)
-    wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListTarget),hd.RedirName);
+  {
+    if (Format==RARFMT15)
+    {
+      char LinkTargetA[NM];
+      if (Arc.FileHead.Encrypted)
+      {
+        // Link data are encrypted. We would need to ask for password
+        // and initialize decryption routine to display the link target.
+        strncpyz(LinkTargetA,"*<-?->",ASIZE(LinkTargetA));
+      }
+      else
+      {
+        int DataSize=(int)Min(hd.PackSize,ASIZE(LinkTargetA)-1);
+        Arc.Read(LinkTargetA,DataSize);
+        LinkTargetA[DataSize > 0 ? DataSize : 0] = 0;
+      }
+      wchar LinkTarget[NM];
+      CharToWide(LinkTargetA,LinkTarget,ASIZE(LinkTarget));
+      wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListTarget),LinkTarget);
+    }
+    else
+      wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListTarget),hd.RedirName);
+  }
 
   if (!hd.Dir)
   {

@@ -150,7 +150,12 @@ struct RARArchiveListEx
 {
   char         FileName[1024];
   wchar_t      FileNameW[1024];
-  char         LinkTarget[1024];
+  union
+  {
+    char       LinkTarget[1024];
+    wchar_t    LinkTargetW[1024];
+  };
+  unsigned int LinkTargetFlags; 
   unsigned int Flags;
   unsigned int PackSize;
   unsigned int PackSizeHigh;

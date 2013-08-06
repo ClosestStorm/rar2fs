@@ -1,10 +1,19 @@
 rar2fs ChangeLog file.
 
+2013-08-06  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Fixed a small bug that resulted in a stale
+          mount point even if a mount option was not
+          actually accepted.
+
+        * Added support for UNIX style symbolic links in
+          RAR5 archives (EXPERIMENTAL). 
+
 2013-08-05  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
-        * Added support for symbolic links in RAR4 (and earlier)
-          archives. RAR5 support still needs some further
-          investigation.
+        * Added support for UNIX style symbolic links in
+          RAR4 (and earlier) archives. RAR5 support still
+          needs some further investigation.
 
 2013-08-05  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
