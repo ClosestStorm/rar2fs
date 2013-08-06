@@ -1604,12 +1604,29 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
 {
         if (!force_dir) {
                 mode_t mode = GET_RAR_MODE(alist_p);
+                entry_p->stat.st_size = GET_RAR_SZ(alist_p);
                 if (!S_ISDIR(mode) && !S_ISLNK(mode)) {
                         /* Force file to be treated as a 'regular file' */
                         mode = (mode & ~S_IFMT) | S_IFREG;
                 }
-                if (S_ISLNK(mode))
-                        entry_p->link_target_p = strdup(alist_p->LinkTarget);
+                if (S_ISLNK(mode)) {
+                        if (alist_p->LinkTargetFlags & LHD_UNICODE) {
+                                char *tmp = malloc(sizeof(alist_p->LinkTarget));
+                                if (tmp) {
+                                        size_t len = wide_to_char(tmp, 
+                                                alist_p->LinkTargetW, 
+                                                sizeof(alist_p->LinkTarget));
+                                        if ((int)len != -1) {
+                                                entry_p->link_target_p = strdup(tmp);
+                                                entry_p->stat.st_size = len;
+                                        }
+                                        free(tmp);
+                                }
+                        } else {
+                                entry_p->link_target_p = 
+                                        strdup(alist_p->LinkTarget);
+                        }
+                }
                 entry_p->stat.st_mode = mode;
 #ifndef HAVE_SETXATTR
                 entry_p->stat.st_nlink =
@@ -1618,7 +1635,6 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
                 entry_p->stat.st_nlink =
                         S_ISDIR(mode) ? 2 : 1;
 #endif
-                entry_p->stat.st_size = GET_RAR_SZ(alist_p);
         } else {
                 entry_p->stat.st_mode = (S_IFDIR | (0777 & ~umask_));
                 entry_p->stat.st_nlink = 2;
@@ -4258,6 +4274,8 @@ static int work(struct fuse_args *args)
                               se = fuse_get_session(f);
                               fuse_set_signal_handlers(se);
                               fuse_daemonize(fg);
+                     } else {
+                              fuse_unmount(mp, ch);
                      }
               }
         }
@@ -4481,7 +4499,7 @@ int main(int argc, char *argv[])
         int res = 0;
 
 #ifdef HAVE_SETLOCALE
-        setlocale(LC_ALL, "");
+        setlocale(LC_CTYPE, "");
 #endif
 
 #ifdef HAVE_UMASK
