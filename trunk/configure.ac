@@ -284,6 +284,8 @@ AC_CHECK_LIB(unrar, RARGetDllVersion, [UNRAR_LIBS="-lunrar"],
 LDFLAGS="$save_LDFLAGS"
 AC_SUBST(UNRAR_LIBS)
 
+AM_ICONV
+
 # Check if we need to set -DRAR_SMP
 if test x"$UNRAR_LIBS" != x; then
     save_CPPFLAGS="$CPPFLAGS"

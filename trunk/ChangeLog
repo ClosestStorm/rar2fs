@@ -2,6 +2,11 @@ rar2fs ChangeLog file.
 
 2013-08-07  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
+        * Prepared the build environment for detecting the
+          availability of iconv. Once in place it should 
+          most likely replace the current UTF-8 conversion
+          routine.
+
         * Externally filesystem entries are now being
           translated to UTF-8 irrespective of what current
           process locale is set to. Internally Unicode is 
