@@ -40,9 +40,7 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <syslog.h>
-#ifdef HAVE_WCHAR_H
-# include <wchar.h>
-#endif
+#include <wchar.h>
 #ifdef HAVE_LOCALE_H
 # include <locale.h>
 #endif
@@ -68,6 +66,7 @@
 #include "optdb.h"
 #include "sighandler.h"
 #include "dirlist.h"
+#include "utf8.h"
 
 #define E_TO_MEM 0
 #define E_TO_TMP 1
@@ -217,13 +216,24 @@ wide_to_char(char *dst, const wchar_t *src, size_t size)
 {
 #ifdef HAVE_WCSTOMBS
         if (*src) {
-                size_t n = wcstombs(NULL, src, 0);
+                size_t n;
+#if 0 
+                n = wcstombs(NULL, src, 0);
                 if (n != (size_t)-1) {
                         if (size >= (n + 1))
                                 return wcstombs(dst, src, size);
                 }
-                /* Translation failed! Possibly a call to snprintf()
-                 * using "%ls" could be added here as fall-back. */
+#endif
+                /* Translation failed! Try fall-back to strict UTF-8. */
+                n = wchar_to_utf8(src, wcslen(src), NULL, size - 1, 0);
+                if (n) {
+                        if (size >= (n + 1)) {
+                                (void)wchar_to_utf8(src, wcslen(src), 
+                                                        dst, size - 1, 0); 
+                                dst[n] = 0;
+                                return n;
+                        }
+                }
         }
 #endif
         return -1;
@@ -1702,11 +1712,11 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
  ****************************************************************************/
 #define NEED_PASSWORD() \
         ((d.Flags & MHD_PASSWORD) || (next->Flags & LHD_PASSWORD))
-#define BS_TO_UNIX(p) \
+#define DOS_TO_UNIX_PATH(p) \
         do {\
                 char *s = (p); \
                 while(*s++) \
-                        if (*s == 92) *s = '/'; \
+                        if (*s == '\\') *s = '/'; \
         } while(0)
 #define CHRCMP(s, c) (!(s[0] == (c) && s[1] == '\0'))
 
@@ -1789,7 +1799,7 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 if (next2->Flags & LHD_UNICODE)
                         (void)wide_to_char(next2->FileName, next2->FileNameW,
                                                 sizeof(next2->FileName));
-                BS_TO_UNIX(next2->FileName);
+                DOS_TO_UNIX_PATH(next2->FileName);
 
                 printd(3, "File inside archive is %s\n", next2->FileName);
 
@@ -1960,7 +1970,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                 if (next->Flags & LHD_UNICODE)
                         (void)wide_to_char(next->FileName, next->FileNameW,
                                                 sizeof(next->FileName));
-                BS_TO_UNIX(next->FileName);
+                DOS_TO_UNIX_PATH(next->FileName);
 
                 /* Skip compressed image files */
                 if (!OPT_SET(OPT_KEY_SHOW_COMP_IMG) &&
@@ -2181,7 +2191,7 @@ cache_hit:
 }
 
 #undef NEED_PASSWORD
-#undef BS_TO_UNIX
+#undef DOS_TO_UNIX_PATH
 #undef CHRCMP
 
 /*!
@@ -3022,16 +3032,21 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                 int cmd = 0;
                 while (file_cmd[cmd]) {
                         if (!strcmp(&path[strlen(path) - 5], "#info")) {
-                                        char *tmp = strdup(path);
-                                        tmp[strlen(path)-5] = 0;
-                                        entry_p = path_lookup(tmp, NULL);
-                                        free(tmp);
-                                        break;
+                                char *tmp = strdup(path);
+                                tmp[strlen(path)-5] = 0;
+                                entry_p = path_lookup(tmp, NULL);
+                                free(tmp);
+                                if (entry_p == NULL || 
+                                    entry_p == LOCAL_FS_ENTRY) {
+                                        pthread_mutex_unlock(&file_access_mutex);
+                                        return -EIO;
+                                }
+                                break;
                         }
                         ++cmd;
                 }
 #endif
-                if (entry_p == NULL || entry_p == LOCAL_FS_ENTRY) {
+                if (entry_p == NULL) {
                         pthread_mutex_unlock(&file_access_mutex);
                         return -ENOENT;
                 }
