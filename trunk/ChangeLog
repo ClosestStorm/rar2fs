@@ -2,6 +2,8 @@ rar2fs ChangeLog file.
 
 2013-08-07  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
+        * Updated old build support files
+
         * Prepared the build environment for detecting the
           availability of iconv. Once in place it should 
           most likely replace the current UTF-8 conversion

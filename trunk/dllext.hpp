@@ -150,6 +150,7 @@ struct RARArchiveListEx
 {
   char         FileName[1024];
   wchar_t      FileNameW[1024];
+  __extension__
   union
   {
     char       LinkTarget[1024];
