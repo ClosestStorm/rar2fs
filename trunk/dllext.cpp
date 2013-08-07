@@ -447,8 +447,7 @@ static size_t ListFileHeader(wchar *,Archive &);
 void PASCAL RARGetFileInfo(HANDLE hArcData, const char *FileName, struct RARWcb *wcb)
 {
 #if RARVER_MAJOR > 4
-  wchar FileNameW[NM];
-  CharToWide(FileName, FileNameW, ASIZE(FileNameW));
+  char FileNameUtf[NM];
 
   try {
      DataSet *Data=(DataSet *)hArcData;
@@ -466,7 +465,8 @@ void PASCAL RARGetFileInfo(HANDLE hArcData, const char *FileName, struct RARWcb 
        switch(HeaderType)
        {
          case HEAD_FILE:
-           if (!wcscmp(FileNameW, Data->Arc.FileHead.FileName))
+           WideToUtf(Data->Arc.FileHead.FileName,FileNameUtf,ASIZE(FileNameUtf));
+           if (!strcmp(FileNameUtf, FileName))
            {
              wcb->bytes = ListFileHeader(wcb->data, Data->Arc);
              return;
