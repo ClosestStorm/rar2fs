@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2013-08-08  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Fixed a bug when identifying host OS for
+          RAR5 archives.
+
+        * Minor code clean-up and bug fixes in the 
+          DLL extensions for RAR5 archives.
+          
 2013-08-07  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Updated old build support files

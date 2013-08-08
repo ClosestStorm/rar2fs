@@ -249,6 +249,7 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
              N = N->next;
            }
            FileCount++;
+
            N->Flags = Arc.FileHead.Flags;
            N->LinkTargetFlags = 0;
 
@@ -256,7 +257,7 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
            if (*Arc.FileHead.FileNameW)
            {
              wcsncpy(N->FileNameW,Arc.FileHead.FileNameW,ASIZE(N->FileNameW));
-             *N->FileName = (char)0;
+             *N->FileName = '\0';
              N->Flags |= LHD_UNICODE; // Make sure UNICODE is set
            }
            else
@@ -265,9 +266,28 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
              *N->FileNameW = (wchar)0;
            }
 #else
-           wcsncpy(N->FileNameW,Arc.FileHead.FileName,ASIZE(N->FileNameW));
-           *N->FileName = '\0';
-           N->Flags |= LHD_UNICODE; // Make sure UNICODE is set
+           if (Arc.FileHead.Flags & LHD_UNICODE)
+           {
+             wcsncpy(N->FileNameW,Arc.FileHead.FileName,ASIZE(N->FileNameW));
+             *N->FileName = '\0';
+           }
+           else
+           {
+               if (Arc.Format < RARFMT50)
+               {
+                 // Final translation can be done here. Since there are no UNICODE
+                 // characters it is basically ASCII and the user do not need to
+                 // worry about character coding etc.
+                 WideToChar(Arc.FileHead.FileName,N->FileName,ASIZE(N->FileName)); 
+                 *N->FileNameW = (wchar)0;
+               }
+               else
+               {
+                 wcsncpy(N->FileNameW,Arc.FileHead.FileName,ASIZE(N->FileNameW));
+                 *N->FileName = '\0';
+                 N->Flags |= LHD_UNICODE; // Make sure UNICODE is set
+               }
+           }
 #endif
 #if RARVER_MAJOR > 4
            // Map some 5.0 properties to old-style flags if applicable
@@ -286,55 +306,43 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
            }
 #endif
            N->PackSize = Arc.FileHead.PackSize;
-#if RARVER_MAJOR < 5
-           N->PackSizeHigh = Arc.FileHead.HighPackSize;
-#else
-           N->PackSizeHigh = Arc.FileHead.PackSize>>32;
-#endif
            N->UnpSize = Arc.FileHead.UnpSize;
 #if RARVER_MAJOR < 5
+           N->PackSizeHigh = Arc.FileHead.HighPackSize;
            N->UnpSizeHigh = Arc.FileHead.HighUnpSize;
-#else
-           N->UnpSizeHigh = Arc.FileHead.UnpSize>>32;
-#endif
            N->HostOS = Arc.FileHead.HostOS;
-#if RARVER_MAJOR < 5
            N->FileCRC = Arc.FileHead.FileCRC;
            N->FileTime = Arc.FileHead.FileTime;
+           N->UnpVer = Arc.FileHead.UnpVer;
+           N->Method = Arc.FileHead.Method;
 #else
+           N->PackSizeHigh = Arc.FileHead.PackSize>>32;
+           N->UnpSizeHigh = Arc.FileHead.UnpSize>>32;
+           N->HostOS = Arc.FileHead.HSType == HSYS_WINDOWS ? HOST_WIN32 : HOST_UNIX;
            N->FileCRC = Arc.FileHead.FileHash.CRC32;
            N->FileTime = Arc.FileHead.mtime.GetDos();
-#endif
-
-#if RARVER_MAJOR < 5
-           N->UnpVer = Arc.FileHead.UnpVer;
-#else
            if (Arc.Format>=RARFMT50)
              N->UnpVer=Arc.FileHead.UnpVer==0 ? 50 : 200; // If it is not 0, just set it to something big.
            else
              N->UnpVer=Arc.FileHead.UnpVer;
-#endif
-
-#if RARVER_MAJOR < 5
-           N->Method = Arc.FileHead.Method;
-#else
            N->Method = Arc.FileHead.Method + 0x30;
 #endif
            N->FileAttr = Arc.FileHead.FileAttr;
            N->HeadSize = Arc.FileHead.HeadSize;
            N->Offset = Arc.CurBlockPos;
 
-           if (Arc.FileHead.HostOS==HOST_UNIX && (Arc.FileHead.FileAttr & 0xF000)==0xA000)
+           if (N->HostOS==HOST_UNIX && (N->FileAttr & 0xF000)==0xA000)
            {
 	     if (N->UnpVer < 50)
              {
-               int DataSize=Min(Arc.FileHead.PackSize,sizeof(N->LinkTarget)-1);
+               int DataSize=Min(N->PackSize,sizeof(N->LinkTarget)-1);
                Arc.Read(N->LinkTarget,DataSize);
                N->LinkTarget[DataSize]=0;
              }
 #if RARVER_MAJOR > 4
              else
              {
+               // Sanity check only that 'RedirType' match 'FileAttr'
                if (Arc.FileHead.RedirType == FSREDIR_UNIXSYMLINK)
                {
                  wcscpy(N->LinkTargetW,Arc.FileHead.RedirName);

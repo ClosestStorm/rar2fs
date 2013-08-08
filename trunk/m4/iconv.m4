@@ -10,6 +10,14 @@ AC_DEFUN([AM_ICONV_LINKFLAGS_BODY],
 [
   dnl Prerequisites of AC_LIB_LINKFLAGS_BODY.
   AC_REQUIRE([AC_LIB_PREPARE_PREFIX])
+dnl Skip AC_LIB_RPATH for now! Probably not needed and also causes a lot of
+dnl problems with the missing config.rpath file!?
+dnl [gettext.info]
+dnl [...]
+dnl |  4. The files `config.rpath' and `mkinstalldirs' are copied into the
+dnl |     directory containing configuration support files.  It is needed by
+dnl |     the `AM_GNU_GETTEXT' autoconf macro.
+dnl [...]
   dnl AC_REQUIRE([AC_LIB_RPATH])
 
   dnl Search for libiconv and define LIBICONV, LTLIBICONV and INCICONV
