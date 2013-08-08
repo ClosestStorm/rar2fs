@@ -42,6 +42,10 @@ using namespace std;
 #define HEAD_ENDARC ENDARC_HEAD
 #endif
 
+// Override the St() function/macro since it is a no-op in RARDLL mode
+#undef St
+#define St(x) L""x""
+
 #if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
 static int RarErrorToDll(RAR_EXIT ErrCode);
 #else
@@ -586,18 +590,8 @@ void PrintfPrepareFmt(const wchar *Org,wchar *Cvt,size_t MaxSize)
 }
 
 
-static const wchar *St2(MSGID StringId)
-{
-  static wchar StrTable[8][512];
-  static unsigned int StrNum=0;
-  if (++StrNum >= sizeof(StrTable)/sizeof(StrTable[0]))
-    StrNum=0;
-  wchar *Str=StrTable[StrNum];
-  *Str=0;
-  CharToWide(StringId,Str,ASIZE(StrTable[0]));
-  return Str;
-}
-
+#undef St
+#define St(StringId) L""StringId""
 
 static int msprintf(wchar *wcs, const wchar *fmt,...)
 {
@@ -699,27 +693,27 @@ static size_t ListFileHeader(wchar *wcs,Archive &Arc)
 
   wchar DateStr[50];
   hd.mtime.GetText(DateStr,ASIZE(DateStr),true,true);
-  wcs += msprintf(wcs, L"\n%12s: %s",St2(MListName),Name);
+  wcs += msprintf(wcs, L"\n%12s: %s",St(MListName),Name);
   bool FileBlock=hd.HeaderType==HEAD_FILE;
 
-  const wchar *Type=St2(FileBlock ? (hd.Dir ? MListDir:MListFile):MListService);
+  const wchar *Type=FileBlock ? (hd.Dir?St(MListDir):St(MListFile)):St(MListService);
 
   switch(hd.RedirType)
   {
     case FSREDIR_UNIXSYMLINK:
-      Type=St2(MListUSymlink); break;
+      Type=St(MListUSymlink); break;
     case FSREDIR_WINSYMLINK:
-      Type=St2(MListWSymlink); break;
+      Type=St(MListWSymlink); break;
     case FSREDIR_JUNCTION:
-      Type=St2(MListJunction); break;
+      Type=St(MListJunction); break;
     case FSREDIR_HARDLINK:
-      Type=St2(MListHardlink); break;
+      Type=St(MListHardlink); break;
     case FSREDIR_FILECOPY:
-      Type=St2(MListCopy);     break;
+      Type=St(MListCopy);     break;
     case FSREDIR_NONE:
       break;
   }
-  wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListType),Type);
+  wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListType),Type);
 
   if (hd.RedirType!=FSREDIR_NONE)
   {
@@ -740,31 +734,31 @@ static size_t ListFileHeader(wchar *wcs,Archive &Arc)
       }
       wchar LinkTarget[NM];
       CharToWide(LinkTargetA,LinkTarget,ASIZE(LinkTarget));
-      wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListTarget),LinkTarget);
+      wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListTarget),LinkTarget);
     }
     else
-      wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListTarget),hd.RedirName);
+      wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListTarget),hd.RedirName);
   }
 
   if (!hd.Dir)
   {
-    wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListSize),UnpSizeText);
-    wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListPacked),PackSizeText);
-    wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListRatio),RatioStr);
+    wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListSize),UnpSizeText);
+    wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListPacked),PackSizeText);
+    wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListRatio),RatioStr);
   }
   if (hd.mtime.IsSet())
-    wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListMtime),DateStr);
+    wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListMtime),DateStr);
   if (hd.ctime.IsSet())
   {
     hd.ctime.GetText(DateStr,ASIZE(DateStr),true,true);
-    wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListCtime),DateStr);
+    wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListCtime),DateStr);
   }
   if (hd.atime.IsSet())
   {
     hd.atime.GetText(DateStr,ASIZE(DateStr),true,true);
-    wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListAtime),DateStr);
+    wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListAtime),DateStr);
   }
-  wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListAttr),AttrStr);
+  wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListAttr),AttrStr);
   if (hd.FileHash.Type==HASH_CRC32)
     wcs += msprintf(wcs, L"\n%12ls: %8.8X",
       hd.UseHashKey ? L"CRC32 MAC":hd.SplitAfter ? L"Pack-CRC32":L"CRC32",
@@ -790,27 +784,27 @@ static size_t ListFileHeader(wchar *wcs,Archive &Arc)
       HostOS=RarOS[hd.HostOS];
   }
   if (*HostOS!=0)
-    wcs += msprintf(wcs, L"\n%12ls: %ls",St2(MListHostOS),HostOS);
+    wcs += msprintf(wcs, L"\n%12ls: %ls",St(MListHostOS),HostOS);
 
-  wcs += msprintf(wcs, L"\n%12ls: RAR %ls(v%d) -m%d -md=%d%s",St2(MListCompInfo),
+  wcs += msprintf(wcs, L"\n%12ls: RAR %ls(v%d) -m%d -md=%d%s",St(MListCompInfo),
           Format==RARFMT15 ? L"3.0":L"5.0",hd.UnpVer,hd.Method,
           hd.WinSize>=0x100000 ? hd.WinSize/0x100000:hd.WinSize/0x400,
           hd.WinSize>=0x100000 ? L"M":L"K");
 
   if (hd.Solid || hd.Encrypted)
   {
-    wcs += msprintf(wcs, L"\n%12ls: ",St2(MListFlags));
+    wcs += msprintf(wcs, L"\n%12ls: ",St(MListFlags));
     if (hd.Solid)
-      wcs += msprintf(wcs, L"%ls ",St2(MListSolid));
+      wcs += msprintf(wcs, L"%ls ",St(MListSolid));
     if (hd.Encrypted)
-      wcs += msprintf(wcs, L"%ls ",St2(MListEnc));
+      wcs += msprintf(wcs, L"%ls ",St(MListEnc));
   }
 
   if (hd.Version)
   {
     uint Version=ParseVersionFileName(Name,false);
     if (Version!=0)
-      wcs += msprintf(wcs, L"\n%12ls: %u",St2(MListFileVer),Version);
+      wcs += msprintf(wcs, L"\n%12ls: %u",St(MListFileVer),Version);
   }
 
   if (hd.UnixOwnerSet)
