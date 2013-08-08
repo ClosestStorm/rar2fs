@@ -284,8 +284,6 @@ AC_CHECK_LIB(unrar, RARGetDllVersion, [UNRAR_LIBS="-lunrar"],
 LDFLAGS="$save_LDFLAGS"
 AC_SUBST(UNRAR_LIBS)
 
-AM_ICONV
-
 # Check if we need to set -DRAR_SMP
 if test x"$UNRAR_LIBS" != x; then
     save_CPPFLAGS="$CPPFLAGS"
@@ -316,6 +314,8 @@ if test x"$UNRAR_LIBS" != x; then
     LDFLAGS="$save_LDFLAGS"
     LIBS="$save_LIBS"
 fi
+
+AM_ICONV
 
 AC_MSG_CHECKING(for source revision in SVN)
 SVNREV=$(svn info 2>/dev/null | $GREP Revision: | cut -d' ' -f2 2>/dev/null)

@@ -1369,7 +1369,7 @@ static int get_vformat(const char *s, int t, int *l, int *p)
 #define IS_RXX(s) (is_rxx_vol(s))
 #define IS_UNIX_MODE_(l) \
         ((l)->UnpVer >= 50 \
-                ? (l)->HostOS == HOST5_UNIX \
+                ? (l)->HostOS == HOST_UNIX \
                 : (l)->HostOS == HOST_UNIX || (l)->HostOS == HOST_BEOS)
 #define IS_RAR_DIR(l) \
         ((l)->UnpVer >= 20 \
