@@ -1,5 +1,17 @@
 rar2fs ChangeLog file.
 
+2013-08-10  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Fixed a time (DST) calculation bug
+
+        * Replaced the Unicode to/from UTF-8 translation 
+          function(s)
+
+        * Prepared the code for using iconv.
+          Currently not enabled. Not sure it will ever be.
+
+        * Deleted file(s): utf8.h, utf8.c 
+
 2013-08-08  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Fixed a bug when identifying host OS for

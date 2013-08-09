@@ -6,7 +6,6 @@ bin_PROGRAMS = rar2fs mkr2i
 dist_man_MANS = rar2fs.1
 
 rar2fs_SOURCES = 		dllext.cpp \
-				utf8.c \
 				optdb.c \
 				filecache.c \
 				iobuffer.c \
@@ -25,7 +24,6 @@ rar2fs_SOURCES = 		dllext.cpp \
 				index.h \
 				platform.h \
 				version.h \
-				utf8.h \
 				fileext.hpp \
 				dllext.hpp
 
