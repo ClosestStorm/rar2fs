@@ -56,6 +56,9 @@
 #ifdef HAVE_SYS_XATTR_H
 # include <sys/xattr.h>
 #endif
+#ifdef HAVE_ICONV
+#include <iconv.h>
+#endif
 #include <assert.h>
 #include "version.h"
 #include "debug.h"
@@ -66,7 +69,6 @@
 #include "optdb.h"
 #include "sighandler.h"
 #include "dirlist.h"
-#include "utf8.h"
 
 #define E_TO_MEM 0
 #define E_TO_TMP 1
@@ -143,7 +145,7 @@ struct io_handle {
                 int retval = select(nfsd, &rd, NULL, NULL, NULL); \
                 if (retval == -1) {\
                         if (errno != EINTR) \
-                                perror("select()");\
+                                perror("select");\
                 } else if (retval) {\
                         /* FD_ISSET(0, &rfds) will be true. */\
                         char buf[2];\
@@ -153,7 +155,7 @@ struct io_handle {
                                retval,\
                                (int)buf[0]);\
                 } else {\
-                        perror("select()");\
+                        perror("select");\
                 }\
         } while (0)
 
@@ -177,6 +179,9 @@ struct io_handle {
 #define IS_CBR(s) (!OPT_SET(OPT_KEY_NO_EXPAND_CBR) && \
                         !strcasecmp((s)+(strlen(s)-4), ".cbr"))
 
+#ifdef HAVE_ICONV
+static iconv_t icd;
+#endif
 long page_size = 0;
 static int mount_type;
 struct dir_entry_list arch_list_root;        /* internal list root */
@@ -207,6 +212,48 @@ static const char *file_cmd[] = {
 };
 #endif
 
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
+size_t wide_to_utf8(const wchar_t *src, char *dst, size_t dst_size)
+{
+        --dst_size;
+        size_t in_size = dst_size;
+        ssize_t out_size = dst_size;
+        while (*src !=0 && --out_size >= 0) {
+                unsigned int c = *(src++);
+                if (c < 0x80) {
+                        *(dst++) = c;
+                        continue;
+                }
+                if (c < 0x800 && --out_size >= 0) {
+                        *(dst++) =(0xc0 | (c >> 6));
+                        *(dst++) =(0x80 | (c & 0x3f));
+                        continue;
+                }
+                /* Check for surrogate pair */
+                if (c >= 0xd800 && c <= 0xdbff &&
+                                *src >= 0xdc00 && *src <= 0xdfff) {
+                        c = ((c - 0xd800) << 10) + (*src - 0xdc00) + 0x10000;
+                        src++;
+                }
+                if (c<0x10000 && (out_size -= 2) >= 0) {
+                        *(dst++) = (0xe0 | (c >> 12));
+                        *(dst++) = (0x80 | ((c >> 6) & 0x3f));
+                        *(dst++) = (0x80 | (c & 0x3f));
+                } else if (c < 0x200000 && (out_size -= 3) >= 0) {
+                        *(dst++) = (0xf0 | (c >> 18));
+                        *(dst++) = (0x80 | ((c >> 12) & 0x3f));
+                        *(dst++) = (0x80 | ((c >> 6) & 0x3f));
+                        *(dst++) = (0x80 | (c & 0x3f));
+                }
+        }
+        *dst = 0;
+        return in_size - out_size;
+}
+
 /*!
  *****************************************************************************
  *
@@ -214,28 +261,49 @@ static const char *file_cmd[] = {
 static inline size_t
 wide_to_char(char *dst, const wchar_t *src, size_t size)
 {
-#ifdef HAVE_WCSTOMBS
+        dst[0] = '\0';
+
+#ifdef HAVE_ICONV 
+        if (icd == (iconv_t)-1)
+                goto fallback;
+
+        size_t in_bytes = (wcslen(src) + 1) * sizeof(wchar_t);
+        size_t out_bytes = size;
+        char *in_buf = (char *)src;
+        char *out_buf = dst;
+        if (iconv(icd, (ICONV_CONST char **)&in_buf, &in_bytes, 
+                                        &out_buf, &out_bytes) == (size_t)-1) {
+                if (errno == E2BIG) {
+                        /* Make sure the buffer is terminated properly but
+                         * otherwise keep the truncated result. */
+                        dst[size] = '\0';
+                        return size;
+                } else {
+                        *out_buf = '\0';
+                        perror("iconv");
+                }
+        } else {
+                return size - out_bytes;
+        }
+
+        return -1;
+
+fallback:
+#endif
         if (*src) {
-                size_t n;
+#ifdef HAVE_WCSTOMBS
 #if 0 
-                n = wcstombs(NULL, src, 0);
+                size_t n = wcstombs(NULL, src, 0);
                 if (n != (size_t)-1) {
                         if (size >= (n + 1))
                                 return wcstombs(dst, src, size);
                 }
 #endif
-                /* Translation failed! Try fall-back to strict UTF-8. */
-                n = wchar_to_utf8(src, wcslen(src), NULL, size - 1, 0);
-                if (n) {
-                        if (size >= (n + 1)) {
-                                (void)wchar_to_utf8(src, wcslen(src), 
-                                                        dst, size - 1, 0); 
-                                dst[n] = 0;
-                                return n;
-                        }
-                }
-        }
 #endif
+                /* Translation failed! Use fallback to strict UTF-8. */
+                return wide_to_utf8(src, dst, size);
+        }
+
         return -1;
 }
 
@@ -1701,6 +1769,7 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
         t.tm_mday = dos_time->day;
         t.tm_mon = dos_time->month - 1;
         t.tm_year = (1980 + dos_time->year) - 1900;
+        t.tm_isdst=-1;
         entry_p->stat.st_atime = mktime(&t);
         entry_p->stat.st_mtime = entry_p->stat.st_atime;
         entry_p->stat.st_ctime = entry_p->stat.st_atime;
@@ -2379,7 +2448,7 @@ static void readdir_scan(const char *dir, const char *root,
                                 if (vno == 1 || (vno == 2 && f == 2))   /* "first" file */
                                         password = get_password(arch, tmpbuf);
                                 if (listrar(dir, next, arch, password))
-                                        *next = dir_entry_add(*next, namelist[i]->d_name, NULL, DIR_E_RAR);
+                                        *next = dir_entry_add(*next, namelist[i]->d_name, NULL, DIR_E_NRM);
                         }
 
 next_entry:
@@ -2738,7 +2807,7 @@ static void *reader_task(void *arg)
                         continue;
                 }
                 if (retval == -1) {
-                        perror("select()");
+                        perror("select");
                         continue;
                 }
                 /* FD_ISSET(0, &rfds) will be true. */
@@ -4522,6 +4591,17 @@ int main(int argc, char *argv[])
         umask(umask_);
 #endif
 
+#ifdef HAVE_ICONV
+#if 0
+        icd = iconv_open("UTF-8", "wchar_t");
+        if (icd == (iconv_t)-1) {
+                perror("iconv_open");
+        }
+#else
+        icd = (iconv_t)-1;
+#endif
+#endif
+
         /*openlog("rarfs2", LOG_NOWAIT|LOG_PID, 0);*/
         optdb_init();
 
@@ -4589,5 +4669,9 @@ int main(int argc, char *argv[])
         if (mount_type == MOUNT_ARCHIVE)
                 dir_list_free(arch_list);
 
+#ifdef HAVE_ICONV
+        if (icd != (iconv_t)-1 && iconv_close(icd) != 0)
+                perror("iconv_close");
+#endif
         return res;
 }
