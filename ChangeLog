@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2013-09-04  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Fixed a broken version check for the official release
+          (non beta) of UnRAR source 5.0.x.
+
 2013-08-10  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Fixed a time (DST) calculation bug
