@@ -122,6 +122,10 @@ else
    AC_CHECK_FUNCS(munmap)
 fi
 
+########################################################
+# Check if backtrace functions needs a lib
+AC_SEARCH_LIBS([backtrace], [execinfo])
+
 withval=
 AC_ARG_WITH([fuse],
    [AS_HELP_STRING([--with-fuse=PATH],
