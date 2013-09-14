@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2013-09-14  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Added proper check if backtrace functions are 
+          provided as a separate library. Lack of this check
+          resulted in build failures on FreeBSD.
+
 2013-09-04  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Fixed a broken version check for the official release
