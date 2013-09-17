@@ -4231,12 +4231,14 @@ static int check_libunrar(int verbose)
  ****************************************************************************/
 static int check_libfuse(int verbose)
 {
+#ifdef HAVE_FUSE_VERSION
         if (fuse_version() < FUSE_VERSION) {
                 if (verbose)
                         printf("libfuse.so.%d.%d or compatible library not found\n",
                                FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
                 return -1;
         }
+#endif
         return 0;
 }
 
