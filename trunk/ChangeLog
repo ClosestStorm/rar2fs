@@ -1,5 +1,11 @@
 rar2fs ChangeLog file.
 
+2013-09-17  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Added check for existance of function fuse_version()
+
+        * Added check for -Wextra support by compiler
+
 2013-09-14  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Added proper check if backtrace functions are 

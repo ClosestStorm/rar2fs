@@ -1,5 +1,5 @@
 ACLOCAL_AMFLAGS = -I m4
-AM_CFLAGS = -Wall -Wextra 
+AM_CFLAGS = -Wall 
 AM_CXXFLAGS = $(UNRAR_CXXFLAGS) -Wall -Wno-reorder
 AM_CPPFLAGS = $(UNRAR_CPPFLAGS) $(FUSE_CPPFLAGS)
 bin_PROGRAMS = rar2fs mkr2i

@@ -238,6 +238,11 @@ AC_CHECK_LIB(fuse4x,fuse_new, [FUSE_LIBS="-lfuse4x"],
         ],)
     ],)
 ],)
+save_LIBS="$LIBS"
+LIBS="$FUSE_LIBS"
+# fuse_version() became available for the first time in fuse 2.7
+AC_CHECK_FUNCS(fuse_version)
+LIBS="$save_LIBS"
 LDFLAGS="$save_LDFLAGS"
 AC_SUBST(FUSE_LIBS)
 
@@ -383,6 +388,26 @@ AC_TRY_COMPILE([],[],
     ],
     [AC_MSG_RESULT([no])
         CFLAGS="$save_CFLAGS"
+    ]
+)
+ac_c_werror_flag=
+AC_LANG_POP
+
+# Check how compiler handles -Wextra
+# Note that AC_LANG_WERROR is not used here since it is more or less useless
+# until its effect can be undone. Instead $ac_c_werror_flag is manipulated
+# directly. Dirty but effective!
+AC_LANG_PUSH(C)
+ac_c_werror_flag=yes
+save_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -Wextra"
+AC_MSG_CHECKING([if compiler supports -Wextra])
+AC_TRY_COMPILE([#include<stdio.h>],[
+    ],
+    [AC_MSG_RESULT([yes])
+    ],
+    [AC_MSG_RESULT([no])
+        CFLAGS=$save_CFLAGS
     ]
 )
 ac_c_werror_flag=
