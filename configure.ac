@@ -407,7 +407,7 @@ AC_TRY_COMPILE([#include<stdio.h>],[
     [AC_MSG_RESULT([yes])
     ],
     [AC_MSG_RESULT([no])
-        CFLAGS=$save_CFLAGS
+        CFLAGS="$save_CFLAGS -W"
     ]
 )
 ac_c_werror_flag=

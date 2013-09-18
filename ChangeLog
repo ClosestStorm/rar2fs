@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2013-09-18  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Replacing -Wextra with the deprecated -W for old
+          versions of gcc
+
 2013-09-17  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Added check for existance of function fuse_version()
