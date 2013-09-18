@@ -321,7 +321,7 @@ static dir_elem_t *path_lookup_miss(const char *path, struct stat *stbuf)
         ABS_ROOT(root, path);
 
         /* Check if the missing file can be found on the local fs */
-        if(!lstat(root, stbuf?stbuf:&st)) {
+        if(!lstat(root, stbuf ? stbuf : &st)) {
                 printd(3, "STAT retrieved for %s\n", root);
                 return LOCAL_FS_ENTRY;
         }
@@ -4289,6 +4289,79 @@ static void *work_task(void *data)
  *****************************************************************************
  *
  ****************************************************************************/
+static void scan_fuse_new_args(struct fuse_args *args)
+{
+        const char *match_w_arg = "subtype=rar2fs";
+        int i;
+
+        /* The loop is probably overkill, but lets be safe instead of
+           hardcoding a fixed index of 2. */
+        for (i = 0; i < args->argc; i++) {
+                char *needle;
+
+                /* First check for match with the internally added option */
+                if ((needle = strstr(args->argv[i], match_w_arg))) {
+                        if (needle != args->argv[i]) {
+                                --needle;
+                                if (*needle != ',') 
+                                        needle = NULL;
+                        }
+                        if (needle) {
+                                strcpy(needle, needle + strlen(match_w_arg) + 1);
+                                break;
+                        }
+                }
+       } 
+}
+
+/* stdio backups */
+static int stdout_ = 0;
+static int stderr_ = 0;
+
+/*!
+ *****************************************************************************
+ * This function is not thread safe!
+ ****************************************************************************/
+static void block_stdio()
+{
+        /* Checking one is enough here */
+        if (!stdout_) {
+                int new = open("/dev/null", O_WRONLY);
+                if (new) {
+                        fflush(stdout);
+                        fflush(stderr);
+                        stdout_ = dup(fileno(stdout));
+                        stderr_ = dup(fileno(stderr));
+                        dup2(new, fileno(stderr));
+                        dup2(new, fileno(stdout));
+                        close(new);
+                }
+        }
+}
+
+/*!
+ *****************************************************************************
+ * This function is not thread safe!
+ ****************************************************************************/
+static void release_stdio()
+{
+        /* Checking one is enough here */
+        if (stdout_) {
+                fflush(stdout);
+                fflush(stderr);
+                dup2(stdout_, fileno(stdout));
+                dup2(stderr_, fileno(stderr));
+                close(stderr_);
+                close(stdout_);
+                stdout_ = 0;
+                stderr_ = 0;
+        }
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int work(struct fuse_args *args)
 {
         struct work_task_data wdt;
@@ -4342,8 +4415,8 @@ static int work(struct fuse_args *args)
         }
 
         struct fuse *f = NULL;
-        struct fuse_chan* ch;
-        struct fuse_session* se;
+        struct fuse_chan *ch = NULL;
+        struct fuse_session *se = NULL;
         pthread_t t;
         char *mp;
         int mt = 0;
@@ -4354,19 +4427,30 @@ static int work(struct fuse_args *args)
               printd(1, "mounting file system on %s\n", mp);
               ch = fuse_mount(mp, args);
               if (ch) {
+                      /* Avoid any output from the initial attempt */
+                      block_stdio();
                       f = fuse_new(ch, args, &rar2_operations, 
                                         sizeof(rar2_operations), NULL);
-                      if (f) {
+                      release_stdio();
+                      if (f == NULL) {
+                              /* Check if the operation might succeed the 
+                               * second time after having massaged the 
+                               * arguments. */
+                              (void)scan_fuse_new_args(args);
+                              f = fuse_new(ch, args, &rar2_operations, 
+                                        sizeof(rar2_operations), NULL);
+                      }
+                      if (f == NULL) {
+                              fuse_unmount(mp, ch);
+                     } else {
                               se = fuse_get_session(f);
                               fuse_set_signal_handlers(se);
                               fuse_daemonize(fg);
-                     } else {
-                              fuse_unmount(mp, ch);
                      }
               }
         }
 
-        if (!f)
+        if (f == NULL)
                 return -1;
 
         wdt.fuse = f;

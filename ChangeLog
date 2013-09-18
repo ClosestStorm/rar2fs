@@ -2,6 +2,13 @@ rar2fs ChangeLog file.
 
 2013-09-18  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
+        * Added a second mount attempt in case fuse is throwing
+          an error due to missing support for option -osubtype. 
+          The second time the mount is attempted without the
+          option added internally.
+        
+2013-09-18  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
         * Corrected a version check error resulting in a 
           crash when trying to run a rar2fs version compiled
           using UnRAR source 5.0.11 or later.
