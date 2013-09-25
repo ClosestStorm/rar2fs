@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2013-09-25  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Released 1.18.0
+
+        * Fixed a problem seen on eg. Debian 3.1 for which
+          fuse_main() crashed when called with a NULL
+          pointer instead of a valid fuse_operations struct.
+
 2013-09-18  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Added a second mount attempt in case fuse is throwing

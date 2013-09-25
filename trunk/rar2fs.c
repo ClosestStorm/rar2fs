@@ -4601,6 +4601,9 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key,
                 struct fuse_args *outargs)
 {
         const char *const argv[2] = {outargs->argv[0], arg};
+        /* Some early fuse versions require that fuse_main() is called
+         * with a valid pointer to a fuse_operations struct? */
+        static struct fuse_operations dummy_ops;
 
         (void)data;             /* touch */
 
@@ -4642,7 +4645,7 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key,
                         "\n", outargs->argv[0]);
                 fuse_opt_add_arg(outargs, "-ho");
                 fuse_main(outargs->argc, outargs->argv,
-                                (struct fuse_operations*)NULL, NULL);
+                                &dummy_ops, NULL);
                 print_help();
                 exit(0);
 
@@ -4650,7 +4653,7 @@ static int rar2fs_opt_proc(void *data, const char *arg, int key,
                 print_version();
                 fuse_opt_add_arg(outargs, "--version");
                 fuse_main(outargs->argc, outargs->argv,
-                                (struct fuse_operations*)NULL, NULL);
+                                &dummy_ops, NULL);
                 exit(0);
 
         default:
