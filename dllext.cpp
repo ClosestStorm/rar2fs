@@ -561,7 +561,7 @@ static int RarErrorToDll(int ErrCode)
 // Note that this function cannot be declared static in some early versions
 // of UnRAR source 5.x.x since it is already declared extern by 
 // unrar/strfn.hpp!
-#if RARVER_MINOR > 0 || RARVER_BETA >= 8
+#if RARVER_MINOR > 0 || (RARVER_BETA == 0 || RARVER_BETA > 7)
 void static PrintfPrepareFmt(const wchar *Org,wchar *Cvt,size_t MaxSize)
 #else
 void PrintfPrepareFmt(const wchar *Org,wchar *Cvt,size_t MaxSize)
