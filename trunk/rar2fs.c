@@ -2019,10 +2019,11 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
         if (Password)
                 RARSetPassword(hdl, (char *)Password);
 
+        int n_files;
         off_t FileDataEnd;
         RARArchiveListEx L;
         RARArchiveListEx *next = &L;
-        if (!RARListArchiveEx(hdl, next, &FileDataEnd)) {
+        if (!(n_files = RARListArchiveEx(hdl, next, &FileDataEnd))) {
                 pthread_mutex_unlock(&file_access_mutex);
                 return 1;
         }
@@ -2036,6 +2037,13 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
         int is_root_path = (!strcmp(rar_root, path) || !CHRCMP(path, '/'));
 
         while (next) {
+                /* Do not present files that can not be extracted */
+                if ((next->Flags & LHD_PASSWORD) && !Password) {
+                        next = next->next;
+                        --n_files;
+                        continue;
+                }
+ 
                 if (next->Flags & LHD_UNICODE)
                         (void)wide_to_char(next->FileName, next->FileNameW,
                                                 sizeof(next->FileName));
@@ -2046,6 +2054,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                 next->Method != FHD_STORING &&
                                 IS_IMG(next->FileName)) {
                         next = next->next;
+                        --n_files;
                         continue;
                 }
 
@@ -2078,7 +2087,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                                                 entry_p->rar_p = strdup(arch);
                                                 entry_p->file_p = strdup(rar_name);
                                                 assert(!entry_p->password_p && "Unexpected handle");
-                                                entry_p->password_p = (NEED_PASSWORD()
+                                                entry_p->password_p = (Password && NEED_PASSWORD()
                                                         ? strdup(Password)
                                                         : entry_p->password_p);
                                                 entry_p->flags.force_dir = 1;
@@ -2152,7 +2161,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                 entry_p->rar_p = strdup(arch);
                 entry_p->file_p = strdup(next->FileName);
                 assert(!entry_p->password_p && "Unexpected handle");
-                entry_p->password_p = (NEED_PASSWORD()
+                entry_p->password_p = (Password && NEED_PASSWORD()
                         ? strdup(Password)
                         : entry_p->password_p);
 
@@ -2256,7 +2265,8 @@ cache_hit:
         free(tmp1);
         pthread_mutex_unlock(&file_access_mutex);
 
-        return 0;
+        /* If no files could be processed, throw an error here */
+        return !(n_files > 0);
 }
 
 #undef NEED_PASSWORD

@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2013-10-10  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * [rar2fs #17]
+
+          Corrected a problem with password protected archives that
+          resulted in a crash when files were encrypted but file names
+          were not.
+
 2013-09-25  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Released 1.18.0
