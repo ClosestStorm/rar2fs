@@ -728,7 +728,7 @@ static size_t ListFileHeader(wchar *wcs,Archive &Arc)
       }
       else
       {
-        int DataSize=(int)Min(hd.PackSize,ASIZE(LinkTargetA)-1);
+        int DataSize=(int)Min((size_t)hd.PackSize,ASIZE(LinkTargetA)-1);
         Arc.Read(LinkTargetA,DataSize);
         LinkTargetA[DataSize > 0 ? DataSize : 0] = 0;
       }
