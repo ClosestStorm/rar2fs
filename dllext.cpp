@@ -214,7 +214,7 @@ int PASCAL RARFreeArchive(HANDLE hArcData)
 }
 
 
-int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDataEnd)
+int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDataEnd, int *ResultCode)
 {
   DataSet *Data = (DataSet *)hArcData;
   Archive& Arc = Data->Arc;
@@ -223,6 +223,7 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
 
   try
   {
+    *ResultCode = 0;
     uint FileCount = 0;
     while (1)
     {
@@ -230,8 +231,11 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
       int PFCode = 0;
       memset(&h, 0, sizeof(h));
       RHCode = RARReadHeaderEx(hArcData,&h);
-      if (RHCode) 
+      if (RHCode)
+      {
+        *ResultCode = RHCode;
         break;
+      }
 
       if (FileCount)
       {
@@ -242,7 +246,6 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
       memcpy(&N->hdr, &h, sizeof(h));
       N->HeadSize = Arc.FileHead.HeadSize;
       N->Offset = Arc.CurBlockPos;
-
       N->hdr.Flags = Arc.FileHead.Flags;
 #if RARVER_MAJOR > 4
       // Map some RAR5 properties to old-style flags if applicable
@@ -289,7 +292,10 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
       // Skip to next header
       PFCode = RARProcessFile(hArcData,RAR_SKIP,NULL,NULL);
       if (PFCode)
+      {
+        *ResultCode = PFCode;
         break;
+      }
     }
 
     N->next = NULL;

@@ -175,7 +175,7 @@ extern "C" {
 
 HANDLE       PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *ArchiveData, FileHandle);
 int          PASCAL RARFreeArchive(HANDLE hArcData);
-int          PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* fList, off_t* FileDataEnd);
+int          PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* fList, off_t* FileDataEnd, int *ResultCode);
 void         PASCAL RARFreeListEx(RARArchiveListEx* fList);
 unsigned int PASCAL RARGetMainHeaderSize(HANDLE hArcData);
 unsigned int PASCAL RARGetMarkHeaderSize(HANDLE hArcData);
