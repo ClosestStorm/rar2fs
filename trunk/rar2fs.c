@@ -1848,9 +1848,10 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
         if (!fp || d2.OpenResult || (d2.Flags & MHD_VOLUME))
                 goto file_error;
 
+        int dll_result;
         RARArchiveListEx LL;
         RARArchiveListEx *next2 = &LL;
-        if (!RARListArchiveEx(hdl2, next2, NULL))
+        if (!RARListArchiveEx(hdl2, next2, NULL, &dll_result))
                 goto file_error;
 
         char *tmp1 = strdup(entry_p->name_p);
@@ -2027,11 +2028,15 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
         }
 
         int n_files;
+        int dll_result;
         off_t FileDataEnd;
         RARArchiveListEx L;
         RARArchiveListEx *next = &L;
-        if (!(n_files = RARListArchiveEx(hdl, next, &FileDataEnd))) {
+        if (!(n_files = RARListArchiveEx(hdl, next, &FileDataEnd, &dll_result))) {
+                RARCloseArchive(hdl);
                 pthread_mutex_unlock(&file_access_mutex);
+                if (dll_result == ERAR_EOPEN || dll_result == ERAR_END_ARCHIVE)
+                        return 0;
                 return 1;
         }
 
