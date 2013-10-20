@@ -1,11 +1,11 @@
 rar2fs ChangeLog file.
 
-2013-10-10  Hans Beckerus <hans.beckerus#AT#gmail.com>
+2013-10-18  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
-        * Fixed an error that caused failures to recognized the 
+        * Fixed an error that caused failures to recognize the 
           option '--iob-size'.
 
-2013-10-10  Hans Beckerus <hans.beckerus#AT#gmail.com>
+2013-10-18  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Redesigned handling of encrypted archives completely.
           Now using UnRAR library callback API to set password.
