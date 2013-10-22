@@ -5,6 +5,8 @@ AM_CPPFLAGS = $(UNRAR_CPPFLAGS) $(FUSE_CPPFLAGS)
 bin_PROGRAMS = rar2fs mkr2i
 dist_man_MANS = rar2fs.1
 
+EXTRA_DIST = get-version.sh
+
 rar2fs_SOURCES = 		dllext.cpp \
 				optdb.c \
 				filecache.c \
