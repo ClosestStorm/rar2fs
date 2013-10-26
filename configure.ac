@@ -59,6 +59,48 @@ AC_CHECK_MEMBERS([struct stat.st_gen])
 AC_STRUCT_ST_BLOCKS
 AC_CHECK_MEMBERS([struct stat.st_rdev])
 AC_TYPE_UINT64_T
+
+need_priu64=no
+AC_MSG_CHECKING([for a working PRIu64])
+AC_LANG_PUSH([C])
+AC_RUN_IFELSE(
+	[AC_LANG_PROGRAM([[
+		#include <stdio.h>
+		#ifdef HAVE_INTTYPES_H
+                #define __STDC_FORMAT_MACROS
+		#include <inttypes.h>
+		#endif
+		]],
+		[[
+		char *x;
+		#if !defined(PRIu64)
+			return -1;
+		#else
+		x = PRIu64;
+		if( x[0] == '%' ) {
+			return -1;
+		} else {
+			return 0;
+		}
+		#endif
+		]])],
+	[
+		# program worked correctly
+		AC_MSG_RESULT([yes])
+	],
+	[
+		# program failed
+		AC_MSG_RESULT([no])
+		AC_DEFINE([NEED_PRI_MACRO], [1], [Defined when PRIu64 is missing or broken])
+		need_priu64=yes
+	],
+	[
+		# we are cross compiling
+		AC_MSG_RESULT([unable to check when crosscompiling])
+		AC_DEFINE([NEED_PRI_MACRO], [1], [Defined when PRIu64 is missing or broken])
+		need_priu64=yes
+	])
+AC_LANG_POP([C])
 AC_TYPE_SIGNAL
 AC_CHECK_MEMBERS([struct sigaction.sa_sigaction],,,[[#include <signal.h>]])
 
