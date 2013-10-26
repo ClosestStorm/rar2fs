@@ -439,7 +439,7 @@ static void *extract_to(const char *file, off_t sz, const dir_elem_t *entry_p,
         if (pipe(out_pipe) != 0)      /* make a pipe */
                 return MAP_FAILED;
 
-        printd(3, "Extracting %llu bytes resident in %s\n", sz, entry_p->rar_p);
+        printd(3, "Extracting %" PRIu64 "bytes resident in %s\n", sz, entry_p->rar_p);
         pid_t pid = fork();
         if (pid == 0) {
                 int ret;
@@ -500,7 +500,7 @@ static void *extract_to(const char *file, off_t sz, const dir_elem_t *entry_p,
                 return MAP_FAILED;
         }
 
-        printd(4, "Read %llu bytes from PIPE %d\n", off, out_pipe[0]);
+        printd(4, "Read %" PRIu64 "bytes from PIPE %d\n", off, out_pipe[0]);
         close(out_pipe[0]);
 
         if (tmp) {
@@ -739,8 +739,8 @@ static int lread_raw(char *buf, size_t size, off_t offset,
 
         op->seq++;
 
-        printd(3, "PID %05d calling %s(), seq = %d, offset=%llu\n", getpid(),
-               __func__, op->seq, offset);
+        printd(3, "PID %05d calling %s(), seq = %d, offset=%" PRIu64 "\n",
+               getpid(), __func__, op->seq, offset);
 
         size_t chunk;
         int tot = 0;
@@ -833,8 +833,8 @@ static int lread_raw(char *buf, size_t size, off_t offset,
 seek_check:
                         if (force_seek || offset != op->pos) {
                                 src_off = VOL_REAL_SZ - chunk;
-                                printd(3, "SEEK src_off = %llu, "
-                                                "VOL_REAL_SZ = %llu\n",
+                                printd(3, "SEEK src_off = %" PRIu64 ", "
+                                                "VOL_REAL_SZ = %" PRIu64 "\n",
                                                 src_off, VOL_REAL_SZ);
                                 fseeko(fp, src_off, SEEK_SET);
                                 force_seek = 0;
@@ -846,12 +846,12 @@ seek_check:
                         chunk = size;
                         if (!offset || offset != op->pos) {
                                 src_off = offset + op->entry_p->offset;
-                                printd(3, "SEEK src_off = %llu\n", src_off);
+                                printd(3, "SEEK src_off = %" PRIu64 "\n", src_off);
                                 fseeko(fp, src_off, SEEK_SET);
                         }
                 }
                 n = fread(buf, 1, chunk, fp);
-                printd(3, "Read %d bytes from vol=%d, base=%d\n", n, op->vno,
+                printd(3, "Read %zu bytes from vol=%d, base=%d\n", n, op->vno,
                        op->entry_p->vno_base);
                 if (n != chunk) {
                         size = n;
@@ -926,7 +926,7 @@ static int lread_rar_idx(char *buf, size_t size, off_t offset,
         size = (off + size) > s
                 ? size - ((off + size) - s)
                 : size;
-        printd(3, "Copying %zu bytes from preloaded offset @ %llu\n",
+        printd(3, "Copying %zu bytes from preloaded offset @ %" PRIu64 "\n",
                                                 size, offset);
         if (op->buf->idx.mmap) {
                 memcpy(buf, op->buf->idx.data_p->bytes + off, size);
@@ -951,7 +951,7 @@ static void dump_buf(int seq, FILE *fp, char *buf, off_t offset, size_t size)
         size_t size_saved = size;
 
         memset(out, 0, 128);
-        fprintf(fp, "seq=%d offset: %llu   size: %zu   buf: %p", seq, offset, size, buf);
+        fprintf(fp, "seq=%d offset: %" PRIu64 "   size: %zu   buf: %p", seq, offset, size, buf);
         size = size > 64 ? 64 : size;
         if (fp) {
                 for (i = 0; i < size; i++) {
@@ -1014,7 +1014,8 @@ static int lread_rar(char *buf, size_t size, off_t offset,
         op->seq++;
 
         printd(3,
-               "PID %05d calling %s(), seq = %d, size=%zu, offset=%llu/%llu\n",
+               "PID %05d calling %s(), seq = %d, size=%zu, offset=%" 
+               PRIu64 "/%" PRIu64 "\n",
                getpid(), __func__, op->seq, size, offset, op->pos);
 
         if ((off_t)(offset + size) >= op->entry_p->stat.st_size) {
@@ -1035,12 +1036,12 @@ check_idx:
                 }
                 /* Check for backward read */
                 if (offset < op->pos) {
-                        printd(3, "seq=%d    history access    offset=%llu"
-                                                " size=%zu  op->pos=%llu"
+                        printd(3, "seq=%d    history access    offset=%" PRIu64 
+                                                " size=%zu  op->pos=%" PRIu64
                                                 "  split=%d\n",
-                                                op->seq,offset,size,
+                                                op->seq,offset, size,
                                                 op->pos,
-                                                (offset + size) > op->pos);
+                                                (offset + (off_t)size) > op->pos);
                         if ((uint32_t)(op->pos - offset) <= IOB_HIST_SZ) {
                                 size_t pos = offset & (IOB_SZ-1);
                                 size_t chunk = (off_t)(offset + size) > op->pos
@@ -1052,8 +1053,8 @@ check_idx:
                                 offset += tmp;
                                 n += tmp;
                         } else {
-                                printd(1, "%s: Input/output error   offset=%llu"
-                                                        "  pos=%llu\n",
+                                printd(1, "%s: Input/output error   offset=%" PRIu64 
+                                                        "  pos=%" PRIu64 "\n",
                                                         __func__,
                                                         offset, op->pos);
                                 n = -EIO;
@@ -1065,8 +1066,8 @@ check_idx:
                  */
                 } else if ((((offset - op->pos) / (op->entry_p->stat.st_size * 1.0) * 100) > 95.0 &&
                                 op->seq < 10)) {
-                        printd(3, "seq=%d    long jump hack1    offset=%llu,"
-                                                " size=%zu, buf->offset=%llu\n",
+                        printd(3, "seq=%d    long jump hack1    offset=%" PRIu64 ","
+                                                " size=%zu, buf->offset=%" PRIu64 "\n",
                                                 op->seq, offset, size,
                                                 op->buf->offset);
                         op->seq--;      /* pretend it never happened */
@@ -1137,8 +1138,8 @@ check_idx:
                         if (op->seq < 15 && ((offset + size) - op->buf->offset)
                                         > (IOB_SZ - IOB_HIST_SZ)) {
                                 dir_elem_t *e_p; /* "real" cache entry */ 
-                                printd(3, "seq=%d    long jump hack2    offset=%llu,"
-                                                " size=%zu, buf->offset=%llu\n",
+                                printd(3, "seq=%d    long jump hack2    offset=%" PRIu64 ","
+                                                " size=%zu, buf->offset=%" PRIu64 "\n",
                                                 op->seq, offset, size,
                                                 op->buf->offset);
                                 op->seq--;      /* pretend it never happened */
@@ -1250,7 +1251,7 @@ static int lread(const char *path, char *buffer, size_t size, off_t offset,
 {
         int res;
 
-        ENTER_("%s   size = %zu, offset = %llu", path, size, offset);
+        ENTER_("%s   size = %zu, offset = %" PRIu64, path, size, offset);
 
         (void)path;             /* touch */
 
@@ -1295,7 +1296,7 @@ static int lopen(const char *path, struct fuse_file_info *fi)
 #define DUMP_STAT4_(m) \
         fprintf(stderr, "%10s = %u\n", #m , (unsigned int)stbuf->m)
 #define DUMP_STAT8_(m) \
-        fprintf(stderr, "%10s = %llu\n", #m , (unsigned long long)stbuf->m)
+        fprintf(stderr, "%10s = %" PRIu64 "\n", #m , (unsigned long long)stbuf->m)
 
 static void dump_stat(struct stat *stbuf)
 {
@@ -3087,7 +3088,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
 {
         ENTER_("%s", path);
 
-        printd(3, "(%05d) %-8s%s [0x%llu][called from %05d]\n", getpid(),
+        printd(3, "(%05d) %-8s%s [0x%" PRIu64 "][called from %05d]\n", getpid(),
                         "OPEN", path, fi->fh, fuse_get_context()->pid);
         dir_elem_t *entry_p;
         char *root;
@@ -3234,7 +3235,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                                          */
                                                         op->volHdl[j].pos = VOL_REAL_SZ - 
                                                                         (j ? VOL_NEXT_SZ : VOL_FIRST_SZ);
-                                                        printd(3, "SEEK src_off = %llu\n", op->volHdl[j].pos);
+                                                        printd(3, "SEEK src_off = %" PRIu64 "\n", op->volHdl[j].pos);
                                                         fseeko(fp_, op->volHdl[j].pos, SEEK_SET);
                                                         RARNextVolumeName(tmp, !entry_p->vtype);
                                                         ++j;
@@ -3671,7 +3672,7 @@ static int rar2_read(const char *path, char *buffer, size_t size, off_t offset,
         int direct_io = fi->direct_io;
 #endif
 
-        ENTER_("%s   size=%zu, offset=%llu, fh=%llu", path, size, offset, fi->fh);
+        ENTER_("%s   size=%zu, offset=%" PRIu64 ", fh=%" PRIu64, path, size, offset, fi->fh);
 
         if (io->type == IO_TYPE_NRM) {
                 char *root;
