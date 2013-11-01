@@ -3510,6 +3510,10 @@ static int rar2_readlink(const char *path, char *buf, size_t buflen)
         ENTER_("%s", path);
 
         dir_elem_t *entry_p;
+
+        if (!buflen)
+                return -EINVAL;
+
         entry_p = path_lookup(path, NULL);
         if (entry_p && entry_p != LOCAL_FS_ENTRY) {
                 if (entry_p->link_target_p)
@@ -3520,12 +3524,12 @@ static int rar2_readlink(const char *path, char *buf, size_t buflen)
                 char *tmp;
                 ABS_ROOT(tmp, path);
                 buflen = readlink(tmp, buf, buflen - 1);
+                if ((ssize_t)buflen == -1) /* readlink(2) returns ssize_t */
+                        return -errno;
         }
-        if ((ssize_t)buflen >= 0) {
-                buf[buflen] = 0;
-                return 0;
-        }
-        return -errno;
+
+        buf[buflen] = 0;
+        return 0;
 }
 
 /*!
