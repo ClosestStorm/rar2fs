@@ -96,7 +96,7 @@ AC_RUN_IFELSE(
 	],
 	[
 		# we are cross compiling
-		AC_MSG_RESULT([unable to check when crosscompiling])
+		AC_MSG_RESULT([skipped])
 		AC_DEFINE([NEED_PRI_MACRO], [1], [Defined when PRIu64 is missing or broken])
 		need_priu64=yes
 	])
