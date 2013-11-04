@@ -1351,6 +1351,7 @@ static int collect_files(const char *arch, struct dir_entry_list *list)
                 if (!(d.Flags & MHD_VOLUME)) {
                         files = 1;
                         list = dir_entry_add(list, d.ArcName, NULL, DIR_E_NRM);
+                        RARCloseArchive(hdl);
                         break;
                 }
                 if (!files && !(d.Flags & MHD_FIRSTVOLUME))

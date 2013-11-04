@@ -1,5 +1,15 @@
 rar2fs ChangeLog file.
 
+2013-11-04  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * [rar2fs #19]
+
+          Added a missing close of the handle obtained when mounting an
+          archive instead of a directory. Besides the fact that it should
+          not be left open, it seems to have also affected the behavior of
+          libunrar for RAR5 archives in such a way that the extraction 
+          process stopped working completely.
+
 2013-10-26  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Now using PRIu64 (C99) when printing 64-bit values 
