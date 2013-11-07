@@ -205,10 +205,11 @@ AC_ARG_WITH([unrar],
 if test x"$withval" != x; then
     if test x"$withval" != x"no"; then
         if test x"$withval" != x"yes"; then
-           UNRAR_CPPFLAGS="-I"$withval
+           UNRAR_CPPFLAGS="-I"$with_unrar
         fi
     fi
 else
+    with_unrar="./unrar"
     UNRAR_CPPFLAGS="-I./unrar"
 fi
 
@@ -288,23 +289,22 @@ LIBS="$save_LIBS"
 LDFLAGS="$save_LDFLAGS"
 AC_SUBST(FUSE_LIBS)
 
-# check for a supported FUSE_MAJOR_VERSION.
-AC_MSG_CHECKING([For supported FUSE API version])
+########################################################
+# Check for a supported FUSE_MAJOR_VERSION.
+AC_MSG_CHECKING([for supported FUSE API version])
 if test x"$cross_compiling" = x"no"; then
     AC_RUN_IFELSE([
         AC_LANG_PROGRAM([[
              #include <fuse.h>]],
     [[
         if(FUSE_MAJOR_VERSION == 2 && FUSE_MINOR_VERSION >= 6)
-        {
             return 0;
-        } else
-            return -1;
+        return -1;
     ]])],
         [AC_MSG_RESULT([yes])],
         [AC_MSG_RESULT([no])
         AC_MSG_FAILURE([
-    $PACKAGE requires FUSE 2.6 or newer.  Please check config.log for errors.
+    $PACKAGE requires FUSE 2.6 or newer. Please check config.log for errors.
     If you cannot determine the problem, mail the author of the package
     and include the config.log file])
         ]
@@ -313,6 +313,7 @@ else
     AC_MSG_RESULT([skipped])
 fi
 CPPFLAGS="$save_CPPFLAGS"
+########################################################
 
 save_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $UNRAR_CPPFLAGS"
@@ -335,6 +336,45 @@ AC_CHECK_LIB(unrar, RARGetDllVersion, [UNRAR_LIBS="-lunrar"],
 LDFLAGS="$save_LDFLAGS"
 AC_SUBST(UNRAR_LIBS)
 
+########################################################
+# Check for matching unrar library- vs. source version
+save_CPPFLAGS="$CPPFLAGS"
+save_LDFLAGS="$LDFLAGS"
+save_LIBS="$LIBS"
+LDFLAGS="$LDFLAGS $UNRAR_LDFLAGS"
+CPPFLAGS="$CPPFLAGS $UNRAR_CPPFLAGS"
+LIBS="$UNRAR_LIBS"
+AC_LANG_PUSH([C++])
+AC_MSG_CHECKING([for matching UnRAR library and source version])
+if test x"$cross_compiling" = x"no"; then
+    AC_RUN_IFELSE([
+        AC_LANG_PROGRAM([[
+             #define _UNIX
+             #include <dll.hpp>]],
+    [[
+        if (RARGetDllVersion() != RAR_DLL_VERSION)
+            return -1;
+    ]])],
+        [AC_MSG_RESULT([yes])],
+        [AC_MSG_RESULT([no])
+        AC_MSG_FAILURE([
+    The version of UnRAR source pointed to by --with-unrar=$with_unrar
+    and the current shared library picked up at link time are incompatible.
+    Add an alternative library search path using --with-unrar-lib and/or
+    an alternative source search path using --with-unrar and rerun
+    configure.])
+        ]
+    )
+else
+    AC_MSG_RESULT([skipped])
+fi
+AC_LANG_POP
+CPPFLAGS="$save_CPPFLAGS"
+LDFLAGS="$save_LDFLAGS"
+LIBS="$save_LIBS"
+########################################################
+
+########################################################
 # Check if we need to set -DRAR_SMP
 if test x"$UNRAR_LIBS" != x; then
     save_CPPFLAGS="$CPPFLAGS"
@@ -365,6 +405,7 @@ if test x"$UNRAR_LIBS" != x; then
     LDFLAGS="$save_LDFLAGS"
     LIBS="$save_LIBS"
 fi
+########################################################
 
 AM_ICONV
 
