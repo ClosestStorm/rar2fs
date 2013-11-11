@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2013-11-11  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * [rar2fs #20]
+
+          Corrected some issues in configure.ac since it failed to
+          properly configure the package for static linkage.
+
 2013-11-04  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * [rar2fs #19]
