@@ -261,6 +261,12 @@ AX_PTHREAD
 AC_SUBST(PTHREAD_LIBS)
 AC_SUBST(PTHREAD_CFLAGS)
 
+# FUSE might need these later if eg. -static is set in LDFLAGS. Use a generic 
+# function like main() here since all we need is to verify if the library
+# exists or not and then append it to LIBS.
+AC_CHECK_LIB([rt], [main])
+AC_CHECK_LIB([dl], [main])
+
 save_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $FUSE_CPPFLAGS"
 AC_CHECK_HEADER(fuse.h,,
@@ -269,7 +275,9 @@ AC_CHECK_HEADER(fuse.h,,
         --with-fuse and rerun configure. ])])
 
 save_LDFLAGS="$LDFLAGS"
-LDFLAGS="$LDFLAGS $FUSE_LDFLAGS $PTHREAD_CFLAGS $PTHREAD_LIBS"
+save_LIBS="$LIBS"
+LDFLAGS="$LDFLAGS $FUSE_LDFLAGS $PTHREAD_CFLAGS"
+LIBS="$PTHREAD_LIBS $LIBS"
 AC_CHECK_LIB(fuse4x,fuse_new, [FUSE_LIBS="-lfuse4x"],
     [ AC_CHECK_LIB(fuse_ino64,fuse_new, [FUSE_LIBS="-lfuse_ino64"],
         [ AC_CHECK_LIB(fuse,fuse_new, [FUSE_LIBS="-lfuse"],
@@ -281,8 +289,7 @@ AC_CHECK_LIB(fuse4x,fuse_new, [FUSE_LIBS="-lfuse4x"],
         ],)
     ],)
 ],)
-save_LIBS="$LIBS"
-LIBS="$FUSE_LIBS"
+LIBS="$FUSE_LIBS $LIBS"
 # fuse_version() became available for the first time in fuse 2.7
 AC_CHECK_FUNCS(fuse_version)
 LIBS="$save_LIBS"
@@ -327,13 +334,21 @@ AC_LANG_POP
 CPPFLAGS="$save_CPPFLAGS"
 
 save_LDFLAGS="$LDFLAGS"
+save_LIBS="$LIBS"
+save_CXXFLAGS="$CXXFLAGS"
 LDFLAGS="$LDFLAGS $UNRAR_LDFLAGS"
+LIBS="$PTHREAD_LIBS $LIBS"
+CXXFLAGS="$CXXFLAGS $PTHREAD_CFLAGS"
+AC_LANG_PUSH([C++])
 AC_CHECK_LIB(unrar, RARGetDllVersion, [UNRAR_LIBS="-lunrar"],
      AC_MSG_ERROR([
             Can't find unrar library - add alternative library search path using
             --with-unrar-lib and rerun configure. ])
 )
+AC_LANG_POP
 LDFLAGS="$save_LDFLAGS"
+LIBS="$save_LIBS"
+CXXFLAGS="$save_CXXFLAGS"
 AC_SUBST(UNRAR_LIBS)
 
 ########################################################
@@ -341,9 +356,11 @@ AC_SUBST(UNRAR_LIBS)
 save_CPPFLAGS="$CPPFLAGS"
 save_LDFLAGS="$LDFLAGS"
 save_LIBS="$LIBS"
+save_CXXFLAGS="$CXXFLAGS"
 LDFLAGS="$LDFLAGS $UNRAR_LDFLAGS"
 CPPFLAGS="$CPPFLAGS $UNRAR_CPPFLAGS"
-LIBS="$UNRAR_LIBS"
+LIBS="$UNRAR_LIBS $PTHREAD_LIBS $LIBS"
+CXXFLAGS="$CXXFLAGS $PTHREAD_CFLAGS"
 AC_LANG_PUSH([C++])
 AC_MSG_CHECKING([for matching UnRAR library and source version])
 if test x"$cross_compiling" = x"no"; then
@@ -372,6 +389,7 @@ AC_LANG_POP
 CPPFLAGS="$save_CPPFLAGS"
 LDFLAGS="$save_LDFLAGS"
 LIBS="$save_LIBS"
+CXXFLAGS="$save_CXXFLAGS"
 ########################################################
 
 ########################################################
@@ -382,7 +400,9 @@ if test x"$UNRAR_LIBS" != x; then
     save_LDFLAGS=$LDFLAGS
     LDFLAGS="$LDFLAGS $UNRAR_LDFLAGS"
     save_LIBS=$LIBS
-    LIBS="$LIBS $UNRAR_LIBS"
+    LIBS="$UNRAR_LIBS $LIBS"
+    save_CXXFLAGS="$CXXFLAGS"
+    CXXFLAGS="$CXXFLAGS $PTHREAD_CFLAGS"
     AC_LANG_PUSH([C++])
     AC_MSG_CHECKING([if unrar library needs -DRAR_SMP])
     AC_LINK_IFELSE(
@@ -404,6 +424,7 @@ if test x"$UNRAR_LIBS" != x; then
     CPPFLAGS="$save_CPPFLAGS"
     LDFLAGS="$save_LDFLAGS"
     LIBS="$save_LIBS"
+    CXXFLAGS="$save_CXXFLAGS"
 fi
 ########################################################
 
