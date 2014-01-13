@@ -224,6 +224,7 @@ if test x"$withval" != x; then
        if test x"$withval" != x"yes"; then
            UNRAR_LDFLAGS="-L"$withval
            export LD_LIBRARY_PATH="$LD_LIBRARY_PATH\:/"`cd $withval;pwd`
+           export DYLD_LIBRARY_PATH="$LD_LIBRARY_PATH\:/"`cd $withval;pwd`
        fi
     fi
 fi
