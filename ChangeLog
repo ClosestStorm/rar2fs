@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2014-01-13  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Validation of UnRAR source version did not work
+          as expected.
+
 2014-01-06  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Released 1.19.0

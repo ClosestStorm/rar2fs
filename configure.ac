@@ -223,6 +223,7 @@ if test x"$withval" != x; then
     if test x"$withval" != x"no"; then
        if test x"$withval" != x"yes"; then
            UNRAR_LDFLAGS="-L"$withval
+           export LD_LIBRARY_PATH="$LD_LIBRARY_PATH\:/"`cd $withval;pwd`
        fi
     fi
 fi
@@ -376,10 +377,10 @@ if test x"$cross_compiling" = x"no"; then
         [AC_MSG_RESULT([no])
         AC_MSG_FAILURE([
     The version of UnRAR source pointed to by --with-unrar=$with_unrar
-    and the current shared library picked up at link time are incompatible.
-    Add an alternative library search path using --with-unrar-lib and/or
-    an alternative source search path using --with-unrar and rerun
-    configure.])
+    and the current shared library picked up at run time are incompatible.
+    Make sure the shared library is properly installed on the system or add 
+    an alternative library search path using --with-unrar-lib and/or add
+    an alternative source search path using --with-unrar and rerun configure.])
         ]
     )
 else
