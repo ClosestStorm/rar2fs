@@ -1,5 +1,15 @@
 rar2fs ChangeLog file.
 
+2014-01-14  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Released 1.19.1
+       
+        * [rar2fs #22]
+
+          Corrected an issue with "RAR inside RAR" in combination
+          with libunrar5 and lack of support for fmemopen()
+          (common for e.g. many uClibc based systems).
+
 2014-01-13  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Validation of UnRAR source version did not work
