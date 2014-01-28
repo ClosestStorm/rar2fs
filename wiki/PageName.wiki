@@ -1,0 +1,4 @@
+#summary Latest rar2fs releases
+#labels Featured
+
+[https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zVDN0Q0h3VjRlZTQ rar2fs-1.19.2]
