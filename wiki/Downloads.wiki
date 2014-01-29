@@ -2,6 +2,6 @@
 #labels Featured
 
 || || || *File* || *Comment* ||
-|| <g:plusone size="medium"></g:plusone> || || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zVDN0Q0h3VjRlZTQ rar2fs-1.19.2.tar.gz] || Patch release 1.19.2 ||
+|| <g:plusone size="medium"></g:plusone> || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zVDN0Q0h3VjRlZTQ https://ssl.gstatic.com/codesite/ph/images/dl_arrow.gif || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zVDN0Q0h3VjRlZTQ rar2fs-1.19.2.tar.gz] || Patch release 1.19.2 ||
 
 _[https://code.google.com/p/rar2fs/source/browse/trunk/ChangeLog Change Log]_
