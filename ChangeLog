@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2014-01-29  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * [rar2fs #24]
+
+          Added support for the 'Save identical file as references'
+          feature in RAR5 archives.
+
 2014-01-28  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Released 1.19.2
