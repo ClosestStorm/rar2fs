@@ -2248,6 +2248,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                         e_p = lookup_filecopy(path, next, rar_root, display);
                         if (e_p) {
                                 filecache_copy(e_p, entry_p);
+                                entry_p->flags.direct_io = 1;
                                 /* We are done here! */
                                 goto cache_hit;
                         }
