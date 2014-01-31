@@ -2019,7 +2019,6 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 entry2_p->flags.multipart = 0;
                 entry2_p->flags.raw = 0;        /* no raw support yet */
                 entry2_p->flags.save_eof = 0;
-                entry2_p->flags.direct_io = 1;
                 set_rarstats(entry2_p, next2, 0);
 
 cache_hit:
@@ -2248,11 +2247,6 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                         e_p = lookup_filecopy(path, next, rar_root, display);
                         if (e_p) {
                                 filecache_copy(e_p, entry_p);
-                                /* Make sure cache is by-passed for both target and
-                                 * its reference. */
-                                entry_p->flags.direct_io = 1;
-                                e_p->flags.direct_io = 1;
-                                /* We are done here! */
                                 goto cache_hit;
                         }
                 }

@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2014-01-31  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * [rar2fs #25]
+
+          Added some mutex locks to take care of the race conditions
+          that were discoved in the I/O buffer.
+
 2014-01-29  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * [rar2fs #24]
