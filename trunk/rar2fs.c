@@ -2590,7 +2590,7 @@ static void syncrar(const char *path)
         struct dir_entry_list *arch_next = arch_list_root.next;
         while (arch_next) {
                 (void)listrar(path, NULL, arch_next->entry.name);
-                if (c == c_end)
+                if (c_end && ++c == c_end)
                         break;
                 arch_next = arch_next->next;
         }
@@ -2839,7 +2839,7 @@ static int rar2_readdir2(const char *path, void *buffer,
         struct dir_entry_list *arch_next = arch_list_root.next;
         while (arch_next) {
                 (void)listrar(path, &next, arch_next->entry.name);
-                if (c == c_end)
+                if (c_end && ++c == c_end)
                         break;
                 arch_next = arch_next->next;
         }
