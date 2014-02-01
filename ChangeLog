@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2014-02-01  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * [rar2fs #27]
+
+          Fixed a problem with seek length not being handled properly
+          when mounting a single archive split into volumes.
+
 2014-01-31  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * [rar2fs #25]
