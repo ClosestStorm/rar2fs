@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2013 Hans Beckerus (hans.beckerus#AT#gmail.com)
+    Copyright (C) 2009-2014 Hans Beckerus (hans.beckerus#AT#gmail.com)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -4586,7 +4586,7 @@ static void print_version()
         src_rev[0] = '\0';
 #endif
 #endif
-        printf("rar2fs v%u.%u.%u%s (DLL version %d)    Copyright (C) 2009-2013 Hans Beckerus\n",
+        printf("rar2fs v%u.%u.%u%s (DLL version %d)    Copyright (C) 2009-2014 Hans Beckerus\n",
                RAR2FS_MAJOR_VER,
                RAR2FS_MINOR_VER, RAR2FS_PATCH_LVL,
                src_rev,
