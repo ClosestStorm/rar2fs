@@ -95,7 +95,6 @@ size_t readFrom(char *dest, struct io_buf *src, size_t size, size_t off)
         pthread_mutex_lock(&io_mutex);
         unsigned int lri = src->ri; /* read once */
         size_t used = src->used;
-        pthread_mutex_unlock(&io_mutex);
         if (off) {
                 /* consume offset */
                 off = off < used ? off : used;
@@ -114,7 +113,6 @@ size_t readFrom(char *dest, struct io_buf *src, size_t size, size_t off)
                 dest += chunk;
                 chunk = size;
         }
-        pthread_mutex_lock(&io_mutex);
         src->ri = lri;
         src->used = used;
         pthread_mutex_unlock(&io_mutex);

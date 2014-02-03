@@ -3325,6 +3325,16 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                                         op->volHdl = NULL;
                                 }
 
+                                /* 
+                                 * Disable flushing the kernel cache of the file contents on 
+                                 * every open(). This should only be enabled on files, where 
+                                 * the file data is never changed externally (not through the
+                                 * mounted FUSE filesystem).
+                                 * Since the file contents will never change this should save 
+                                 * us from some user space calls!
+                                 */
+                                fi->keep_cache = 1;
+
                                 /*
                                  * Make sure cache entry is filled in completely
                                  * before cloning it
@@ -3390,17 +3400,6 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                         }
 
                         pthread_mutex_init(&op->mutex, NULL);
-
-                        /*
-                         * Disable flushing the cache of the file contents on every open().
-                         * This is important to make sure FUSE does not force read from an
-                         * old offset. That could break the logic for compressed/encrypted
-                         * archives since the I/O context will become out-of-sync.
-                         * This should only be enabled on files, where the file data is never
-                         * changed externally (not through the mounted FUSE filesystem).
-                         * But first see 'direct_io' below.
-                         */
-                        fi->keep_cache = 1;
 
                         /*
                          * The below will take precedence over keep_cache.
