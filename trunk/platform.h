@@ -95,7 +95,11 @@
 #endif
 
 #ifdef __GNUC__
+#ifdef HAVE_SYNC_SYNCHRONIZE
+#define MB() __sync_synchronize()
+#else 
 #define MB() do{ __asm__ __volatile__ ("" ::: "memory"); } while(0)
+#endif
 #else
 #warning Check code for MB() on current platform
 #define MB()

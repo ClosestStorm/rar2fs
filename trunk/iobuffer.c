@@ -49,13 +49,13 @@ size_t readTo(struct io_buf *dest, FILE *fp, int hist)
 {
         unsigned tot = 0;
         pthread_mutex_lock(&io_mutex);
-        unsigned int lri = dest->ri;  /* read once */
         unsigned int lwi = dest->wi;  /* read once */
+        unsigned int lri = dest->ri;  
+        pthread_mutex_unlock(&io_mutex);
         size_t left = SPACE_LEFT(lri, lwi) - 1;   /* -1 to avoid wi = ri */
         if (IOB_HIST_SZ && hist == IOB_SAVE_HIST) {
                 left = left > IOB_HIST_SZ ? left - IOB_HIST_SZ : 0;
                 if (!left) {
-                        pthread_mutex_unlock(&io_mutex);
                         return 0; /* quick exit */
                 }
         }
@@ -77,10 +77,12 @@ size_t readTo(struct io_buf *dest, FILE *fp, int hist)
                 chunk -= n;
                 chunk = !chunk ? left : chunk;
         }
-        dest->offset += tot;
+        pthread_mutex_lock(&io_mutex);
         dest->wi = lwi;
-        dest->used = SPACE_USED(lri, lwi);
+        dest->used = SPACE_USED(dest->ri, lwi); /* dest->ri might have changed */
         pthread_mutex_unlock(&io_mutex);
+        MB();
+        dest->offset += tot;
 
         return tot;
 }
@@ -95,6 +97,7 @@ size_t readFrom(char *dest, struct io_buf *src, size_t size, size_t off)
         pthread_mutex_lock(&io_mutex);
         unsigned int lri = src->ri; /* read once */
         size_t used = src->used;
+        pthread_mutex_unlock(&io_mutex);
         if (off) {
                 /* consume offset */
                 off = off < used ? off : used;
@@ -106,15 +109,15 @@ size_t readFrom(char *dest, struct io_buf *src, size_t size, size_t off)
         chunk = chunk < size ? chunk : size; /* reconsider assumption */
         while (size) {
                 memcpy(dest, src->data_p + lri, chunk);
-                used -= chunk;
                 lri = (lri + chunk) & (IOB_SZ - 1);
                 tot += chunk;
                 size -= chunk;
                 dest += chunk;
                 chunk = size;
         }
+        pthread_mutex_lock(&io_mutex);
         src->ri = lri;
-        src->used = used;
+        src->used -= tot;       /* src->used might have changed */
         pthread_mutex_unlock(&io_mutex);
 
         return tot;
