@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2014-02-04  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * The race condition in the I/O buffer has been identified and
+          the lock utilization has been redesigned accordingly to
+          minimize lock contention.
+
+        * Added check for __sync_synchronize()
+
 2014-02-03  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Changed use of the FUSE 'keep_cache' flag
