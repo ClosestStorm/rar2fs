@@ -1,5 +1,15 @@
 rar2fs ChangeLog file.
 
+2014-02-07  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Disabled automatic switch to direct I/O mode.
+
+        * Tweaked some of the more fine grained "hacks" to improve
+          support for compressed archives.
+
+        * Now supports 'flag_nullpath_ok' and 'flag_nopath'
+          (FUSE >= 2.9) in fuse ops.
+
 2014-02-04  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * The race condition in the I/O buffer has been identified and
