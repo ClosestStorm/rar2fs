@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2014-02-14  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Released 1.19.8
+
 2014-02-07  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Disabled automatic switch to direct I/O mode.
