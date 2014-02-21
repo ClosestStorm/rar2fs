@@ -1768,7 +1768,7 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
 
         union dos_time_t *dos_time = (union dos_time_t *)&alist_p->hdr.FileTime;
 
-        t.tm_sec = dos_time->second;
+        t.tm_sec = dos_time->second * 2;
         t.tm_min = dos_time->minute;
         t.tm_hour = dos_time->hour;
         t.tm_mday = dos_time->day;
