@@ -569,6 +569,10 @@ static FILE *popen_(const dir_elem_t *entry_p, pid_t *cpid, void **mmap_addr,
                                 fp = fmemopen(maddr + entry_p->offset,
                                                         entry_p->msize -
                                                         entry_p->offset, "r");
+                                if (fp == NULL) {
+                                        perror("fmemopen");
+                                        goto error;
+                                }
                         } else {
                                 perror("mmap");
                                 goto error;
