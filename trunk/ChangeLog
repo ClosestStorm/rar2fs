@@ -2,6 +2,10 @@ rar2fs ChangeLog file.
 
 2014-02-21  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
+        * Added a missing check for errors from fmemopen() 
+
+2014-02-21  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
         * [rar2fs #29]
 
           Fixed a minor calculation error in the file time stamp
