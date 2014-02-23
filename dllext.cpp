@@ -72,8 +72,8 @@ struct DataSet
 #endif
 };
 
-
-HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh)
+HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh, 
+    const bool RestoreFileHandle)
 {
   DataSet *Data=NULL;
   try
@@ -114,7 +114,11 @@ HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh)
     ((FileExt*)&Data->Arc)->SetHandle(fh);
     ((FileExt*)&Data->Arc)->SkipHandle();
 #if RARVER_MAJOR > 4
-    int64 SavePos = Data->Arc.Tell();   // IsArchive() might destroy file position!
+    int64 SavePos = 0;
+    if (RestoreFileHandle)
+    {
+      SavePos = Data->Arc.Tell();   // IsArchive() might destroy file position!
+    }
 #endif
     if (!Data->Arc.IsArchive(false))
     {
@@ -124,11 +128,14 @@ HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh)
     }
 #if RARVER_MAJOR > 4
     // Restore file position!
-    if (Data->Arc.Format >= RARFMT50)
-      Data->Arc.Seek(SavePos + Data->Arc.Tell() + 1, SEEK_SET); 
-    else
-      Data->Arc.Seek(SavePos + Data->Arc.Tell(), SEEK_SET);  
-    Data->Arc.RawSeek(Data->Arc.Tell(), SEEK_SET);  
+    if (SavePos)
+    {
+      if (Data->Arc.Format >= RARFMT50)
+        Data->Arc.Seek(SavePos + Data->Arc.Tell() + 1, SEEK_SET); 
+      else
+        Data->Arc.Seek(SavePos + Data->Arc.Tell(), SEEK_SET);  
+      Data->Arc.RawSeek(Data->Arc.Tell(), SEEK_SET);  
+    }
 #endif
 #if RARVER_MAJOR < 5
     r->Flags=Data->Arc.MainHead.Flags;
@@ -258,6 +265,21 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
       N->HeadSize = Arc.FileHead.HeadSize;
       N->Offset = Arc.CurBlockPos;
       N->hdr.Flags = Arc.FileHead.Flags;
+
+      /* For supporting high-precision timestamp.
+       * If not available, this value is set to 0 (1601/01/01 00:00:00.000000000).
+       * For reference, see http://support.microsoft.com/kb/167296/en
+       */
+      memset(&N->RawTime, 0, sizeof(struct RARArchiveListEx::RawTime_));
+#if RARVER_MAJOR > 4 
+      if (Arc.FileHead.mtime.IsSet())
+        N->RawTime.mtime = Arc.FileHead.mtime.GetRaw() - 116444736000000000ULL;
+      if (Arc.FileHead.ctime.IsSet())
+        N->RawTime.ctime = Arc.FileHead.ctime.GetRaw() - 116444736000000000ULL;
+      if (Arc.FileHead.atime.IsSet())
+        N->RawTime.atime = Arc.FileHead.atime.GetRaw() - 116444736000000000ULL;
+#endif
+
 #if RARVER_MAJOR > 4
       // Map some RAR5 properties to old-style flags if applicable
       if (Arc.Format >= RARFMT50)

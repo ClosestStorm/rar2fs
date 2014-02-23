@@ -182,6 +182,16 @@ struct io_handle {
 #define IS_CBR(s) (!OPT_SET(OPT_KEY_NO_EXPAND_CBR) && \
                         !strcasecmp((s)+(strlen(s)-4), ".cbr"))
 
+/*
+ * This is to the handle the workaround for the destroyed file pointer
+ * position in some early libunrar5 versions when calling RARInitArchiveEx().
+ */
+#ifdef HAVE_FMEMOPEN
+#define INIT_FP_ARG_(fp) (fp),0
+#else
+#define INIT_FP_ARG_(fp) (fp),1
+#endif
+
 #ifdef HAVE_ICONV
 static iconv_t icd;
 #endif
@@ -1653,7 +1663,9 @@ static int extract_rar(char *arch, const char *file, FILE *fp, void *arg)
         d.Callback = extract_callback;
         d.UserData = (LPARAM)&cb_arg;
         struct RARHeaderData header;
-        HANDLE hdl = fp ? RARInitArchiveEx(&d, fp) : RAROpenArchiveEx(&d);
+        HANDLE hdl = fp 
+                ? RARInitArchiveEx(&d, INIT_FP_ARG_(fp))
+                : RAROpenArchiveEx(&d);
         if (d.OpenResult)
                 goto extract_error;
 
@@ -1771,6 +1783,7 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
                 unsigned int as_uint_;
         };
 
+        /* Using DOS time format by default for backward compatibility. */
         union dos_time_t *dos_time = (union dos_time_t *)&alist_p->hdr.FileTime;
 
         t.tm_sec = dos_time->second * 2;
@@ -1783,6 +1796,32 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
         entry_p->stat.st_atime = mktime(&t);
         entry_p->stat.st_mtime = entry_p->stat.st_atime;
         entry_p->stat.st_ctime = entry_p->stat.st_atime;
+
+        /* Using internally stored 100 ns precision time when available. */
+#ifdef HAVE_STRUCT_STAT_ST_MTIM
+        if (alist_p->RawTime.mtime) {
+                entry_p->stat.st_mtim.tv_sec  = 
+                        (alist_p->RawTime.mtime / 10000000);
+                entry_p->stat.st_mtim.tv_nsec = 
+                        (alist_p->RawTime.mtime % 10000000) * 100;
+        }
+#endif
+#ifdef HAVE_STRUCT_STAT_ST_CTIM
+        if (alist_p->RawTime.ctime) {
+                entry_p->stat.st_ctim.tv_sec  = 
+                        (alist_p->RawTime.ctime / 10000000);
+                entry_p->stat.st_ctim.tv_nsec = 
+                        (alist_p->RawTime.ctime % 10000000) * 100;
+        }
+#endif
+#ifdef HAVE_STRUCT_STAT_ST_ATIM
+        if (alist_p->RawTime.atime) {
+                entry_p->stat.st_atim.tv_sec  = 
+                        (alist_p->RawTime.atime / 10000000);
+                entry_p->stat.st_atim.tv_nsec = 
+                        (alist_p->RawTime.atime % 10000000) * 100;
+        }
+#endif
 }
 
 /*!
@@ -1919,8 +1958,11 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                 mflags = 2;
         }
 
-        if (fp)
-                hdl2 = RARInitArchiveEx(&d2, fp);
+        if (fp) {
+                hdl2 = blk_dev 
+                        ? RARInitArchiveEx(&d2, fp, 1)
+                        : RARInitArchiveEx(&d2, INIT_FP_ARG_(fp));
+        }
         if (!fp || d2.OpenResult || (d2.Flags & MHD_VOLUME))
                 goto file_error;
 
@@ -3203,7 +3245,7 @@ static int extract_rar_file_info(dir_elem_t *entry_p, struct RARWcb *wcb)
                         d2.Callback = list_callback;
                         d2.UserData = (LPARAM)entry_p->rar_p;
 
-                        hdl2 = RARInitArchiveEx(&d2, fp);
+                        hdl2 = RARInitArchiveEx(&d2, INIT_FP_ARG_(fp));
                         if (d2.OpenResult || (d2.Flags & MHD_VOLUME))
                                 goto file_error;
                         RARGetFileInfo(hdl2, entry_p->file2_p, wcb);
