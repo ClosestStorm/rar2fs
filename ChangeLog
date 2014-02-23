@@ -2,6 +2,14 @@ rar2fs ChangeLog file.
 
 2014-02-21  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
+        * [rar2fs #28]
+
+        Fixed problem with mounting a block special file 
+        that resulted in a crash due to incorrect use of 
+        mmap() and fmemopen().
+
+2014-02-21  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
         * Added a missing check for errors from fmemopen() 
 
 2014-02-21  Hans Beckerus <hans.beckerus#AT#gmail.com>

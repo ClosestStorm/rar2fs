@@ -185,15 +185,16 @@ struct io_handle {
 #ifdef HAVE_ICONV
 static iconv_t icd;
 #endif
-long page_size = 0;
+long page_size_ = 0;
 static int mount_type;
-struct dir_entry_list arch_list_root;        /* internal list root */
-struct dir_entry_list *arch_list = &arch_list_root;
-pthread_attr_t thread_attr;
-unsigned int rar2_ticks;
-int fs_terminated = 0;
-int fs_loop = 0;
-mode_t umask_ = 0022;
+static struct dir_entry_list arch_list_root;        /* internal list root */
+static struct dir_entry_list *arch_list = &arch_list_root;
+static pthread_attr_t thread_attr;
+static unsigned int rar2_ticks;
+static int fs_terminated = 0;
+static int fs_loop = 0;
+static int blk_dev = 0;
+static mode_t umask_ = 0022;
 
 static int extract_rar(char *arch, const char *file, FILE *fp, void *arg);
 
@@ -1245,7 +1246,7 @@ static int lrelease(struct fuse_file_info *fi)
                 if (FH_TOENTRY(fi->fh))
                         filecache_freeclone(FH_TOENTRY(fi->fh));
         }
-        printd(3, "(%05d) %s [%-16p]\n", getpid(), "FREE", fi->fh);
+        printd(3, "(%05d) %s [0x%-16" PRIx64 "]\n", getpid(), "FREE", fi->fh);
         free(FH_TOIO(fi->fh));
         FH_ZERO(fi->fh);
         return 0;
@@ -1857,7 +1858,7 @@ static void resolve_filecopy(RARArchiveListEx *next, RARArchiveListEx *root)
  *
  ****************************************************************************/
 static int listrar_rar(const char *path, struct dir_entry_list **buffer,
-                const char *arch,  HANDLE hdl, const RARArchiveListEx *next,
+                const char *arch, HANDLE hdl, const RARArchiveListEx *next,
                 const dir_elem_t *entry_p, unsigned int mh_flags)
 {
         printd(3, "%llu byte RAR file %s found in archive %s\n",
@@ -1883,23 +1884,32 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                         goto file_error;
                 (void)fstat(fd, &st);
 #if defined ( HAVE_FMEMOPEN ) && defined ( HAVE_MMAP )
-                maddr = mmap(0, P_ALIGN_(st.st_size), PROT_READ, MAP_SHARED, fd, 0);
-                if (maddr != MAP_FAILED)
-                        fp = fmemopen(maddr + (next->Offset + next->HeadSize), GET_RAR_PACK_SZ(&next->hdr), "r");
-#else
-                fp = fopen(entry_p->rar_p, "r");
-                if (fp)
-                        fseeko(fp, next->Offset + next->HeadSize, SEEK_SET);
+                if (!blk_dev) {
+                        maddr = mmap(0, P_ALIGN_(st.st_size), PROT_READ,
+                                                MAP_SHARED, fd, 0);
+                        if (maddr != MAP_FAILED)
+                                fp = fmemopen(maddr + (next->Offset + next->HeadSize),
+                                                GET_RAR_PACK_SZ(&next->hdr), "r");
+                } else {
 #endif
-                msize = st.st_size;
+                        fp = fopen(entry_p->rar_p, "r");
+                        if (fp)
+                                fseeko(fp, next->Offset + next->HeadSize,
+                                                        SEEK_SET);
+#if defined ( HAVE_FMEMOPEN ) && defined ( HAVE_MMAP )
+                }
+#endif
+                msize = st.st_size; /* not valid for block special files */
                 mflags = 1;
         } else {
 #ifdef HAVE_FMEMOPEN
-                maddr = extract_to(next->hdr.FileName, GET_RAR_SZ(&next->hdr), entry_p, E_TO_MEM);
+                maddr = extract_to(next->hdr.FileName, GET_RAR_SZ(&next->hdr),
+                                                        entry_p, E_TO_MEM);
                 if (maddr != MAP_FAILED)
                         fp = fmemopen(maddr, GET_RAR_SZ(&next->hdr), "r");
 #else
-                fp = extract_to(next->hdr.FileName, GET_RAR_SZ(&next->hdr), entry_p, E_TO_TMP);
+                fp = extract_to(next->hdr.FileName, GET_RAR_SZ(&next->hdr),
+                                                        entry_p, E_TO_TMP);
                 if (fp == MAP_FAILED) {
                         fp = NULL;
                         printd(1, "Extract to tmpfile failed\n");
@@ -3719,7 +3729,7 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
         if (!FH_ISSET(fi->fh))
                 return 0;
 
-        printd(3, "(%05d) %s [%-16p]\n", getpid(), "RELEASE", fi->fh);
+        printd(3, "(%05d) %s [0x%-16" PRIx64 "]\n", getpid(), "RELEASE", fi->fh);
 
         if (FH_TOIO(fi->fh)->type == IO_TYPE_RAR ||
                         FH_TOIO(fi->fh)->type == IO_TYPE_RAW) {
@@ -3771,7 +3781,7 @@ static int rar2_release(const char *path, struct fuse_file_info *fi)
                                 pthread_mutex_destroy(&op->mutex);
                         }
                 }
-                printd(3, "(%05d) %s [%-16p]\n", getpid(), "FREE", fi->fh);
+                printd(3, "(%05d) %s [0x%-16" PRIx64 "]\n", getpid(), "FREE", fi->fh);
                 if (op->buf) {
                         /* XXX clean up */
 #ifdef HAVE_MMAP
@@ -4290,6 +4300,11 @@ static int check_paths(const char *prog, char *src_path_in, char *dst_path_in,
         struct stat st;
         (void)stat(a1, &st);
         mount_type = S_ISDIR(st.st_mode) ? MOUNT_FOLDER : MOUNT_ARCHIVE;
+
+        /* Detect a block special file */
+        if (mount_type == MOUNT_ARCHIVE && S_ISBLK(st.st_mode))
+                blk_dev = 1;
+    
         /* Check path type(s), destination path *must* be a folder */
         (void)stat(a2, &st);
         if (!S_ISDIR(st.st_mode) ||
@@ -4834,9 +4849,9 @@ int main(int argc, char *argv[])
 #endif
 #endif
         if (ps != -1)
-                page_size = ps;
+                page_size_ = ps;
         else
-                page_size = 4096;
+                page_size_ = 4096;
 
         struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
         if (fuse_opt_parse(&args, NULL, rar2fs_opts, rar2fs_opt_proc))

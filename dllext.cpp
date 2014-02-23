@@ -123,7 +123,12 @@ HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh)
       return(NULL);
     }
 #if RARVER_MAJOR > 4
-    Data->Arc.RawSeek(SavePos,SEEK_SET);  // Restore file position!
+    // Restore file position!
+    if (Data->Arc.Format >= RARFMT50)
+      Data->Arc.Seek(SavePos + Data->Arc.Tell() + 1, SEEK_SET); 
+    else
+      Data->Arc.Seek(SavePos + Data->Arc.Tell(), SEEK_SET);  
+    Data->Arc.RawSeek(Data->Arc.Tell(), SEEK_SET);  
 #endif
 #if RARVER_MAJOR < 5
     r->Flags=Data->Arc.MainHead.Flags;
