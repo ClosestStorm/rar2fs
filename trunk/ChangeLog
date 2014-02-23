@@ -1,12 +1,22 @@
 rar2fs ChangeLog file.
 
-2014-02-21  Hans Beckerus <hans.beckerus#AT#gmail.com>
+2014-02-23  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Corrected some additional problems with the solution
+          for issue #22.
+
+        * Added support for presenting high-resolution time stamp in 
+          RAR5 archives (thanks to jyhpsycho for the initial patch).
+          Legacy archives still require a new version of UnRAR source 
+          before it can be enabled.
+
+2014-02-23  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * [rar2fs #28]
 
-        Fixed problem with mounting a block special file 
-        that resulted in a crash due to incorrect use of 
-        mmap() and fmemopen().
+          Fixed problem with mounting a block special file that 
+          resulted in a crash due to incorrect use of mmap() and
+          fmemopen().
 
 2014-02-21  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
