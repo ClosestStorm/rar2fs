@@ -73,7 +73,7 @@ struct DataSet
 };
 
 HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh, 
-    const bool RestoreFileHandle)
+    const bool IsArchiveWorkaround)
 {
   DataSet *Data=NULL;
   try
@@ -114,11 +114,7 @@ HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh,
     ((FileExt*)&Data->Arc)->SetHandle(fh);
     ((FileExt*)&Data->Arc)->SkipHandle();
 #if RARVER_MAJOR > 4
-    int64 SavePos = 0;
-    if (RestoreFileHandle)
-    {
-      SavePos = Data->Arc.Tell();   // IsArchive() might destroy file position!
-    }
+    int64 SavePos = Data->Arc.Tell();   // IsArchive() might destroy file position!
 #endif
     if (!Data->Arc.IsArchive(false))
     {
@@ -128,13 +124,17 @@ HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh,
     }
 #if RARVER_MAJOR > 4
     // Restore file position!
-    if (SavePos)
+    if (IsArchiveWorkaround)
     {
       if (Data->Arc.Format >= RARFMT50)
         Data->Arc.Seek(SavePos + Data->Arc.Tell() + 1, SEEK_SET); 
       else
         Data->Arc.Seek(SavePos + Data->Arc.Tell(), SEEK_SET);  
       Data->Arc.RawSeek(Data->Arc.Tell(), SEEK_SET);  
+    }
+    else
+    {
+      Data->Arc.RawSeek(SavePos, SEEK_SET);  
     }
 #endif
 #if RARVER_MAJOR < 5

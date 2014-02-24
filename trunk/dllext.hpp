@@ -163,7 +163,7 @@ struct RARWcb
 extern "C" {
 #endif
 
-HANDLE       PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *ArchiveData, FileHandle, bool RestoreFileHandle);
+HANDLE       PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *ArchiveData, FileHandle, bool IsArchiveWorkaround);
 int          PASCAL RARFreeArchive(HANDLE hArcData);
 int          PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* fList, off_t* FileDataEnd, int *ResultCode);
 void         PASCAL RARFreeListEx(RARArchiveListEx* fList);
