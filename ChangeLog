@@ -1,5 +1,13 @@
 rar2fs ChangeLog file.
 
+2014-02-24  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * [rar2fs #22]
+           
+          Now may fall back to the old workaround from 1.19.2 that 
+          should be working also for (some!?) uClibc versions of 
+          fmemopen().
+
 2014-02-23  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Corrected some additional problems with the solution
