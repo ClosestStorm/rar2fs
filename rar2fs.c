@@ -32,7 +32,6 @@
 #include <sys/select.h>
 #include <sys/wait.h>
 #include <sys/time.h>
-#include <signal.h>
 #include <string.h>
 #include <errno.h>
 #include <libgen.h>
@@ -4653,6 +4652,7 @@ static int work(struct fuse_args *args)
         wdt.mt = mt;
         wdt.work_task_exited = 0;
         wdt.status = 0;
+        syslog(LOG_DEBUG, "mounting %s\n", mp);
         pthread_create(&t, &thread_attr, work_task, (void *)&wdt);
 
         /*
@@ -4672,6 +4672,7 @@ static int work(struct fuse_args *args)
         pthread_join(t, NULL);
 
         /* This is doing more or less the same as fuse_teardown(). */
+        syslog(LOG_DEBUG, "unmounting %s\n", mp);
         fuse_remove_signal_handlers(se);
         fuse_unmount(mp, ch);
         fuse_destroy(f);
@@ -4879,7 +4880,6 @@ int main(int argc, char *argv[])
 #endif
 #endif
 
-        /*openlog("rarfs2", LOG_NOWAIT|LOG_PID, 0);*/
         optdb_init();
 
         long ps = -1;
@@ -4933,8 +4933,19 @@ int main(int argc, char *argv[])
         if (OPT_SET(OPT_KEY_DST))
                 fuse_opt_add_arg(&args, OPT_STR(OPT_KEY_DST, 0));
 
-        /*
-         * All static setup is ready, the rest is taken from the configuration.
+        /* 
+         * Initialize logging.
+         * LOG_PERROR is not in POSIX.1-2001 and if it is not defined make 
+         * sure we set it to something that will not result in a compilation
+         * error.
+         */
+#ifndef LOG_PERROR
+#define LOG_PERROR 0
+#endif
+        openlog("rar2fs", LOG_CONS | LOG_PERROR | LOG_PID, LOG_USER);
+
+	/*
+	 * All static setup is ready, the rest is taken from the configuration.
          * Continue in work() function which will not return until the process
          * is about to terminate.
          */
@@ -4950,5 +4961,8 @@ int main(int argc, char *argv[])
         if (icd != (iconv_t)-1 && iconv_close(icd) != 0)
                 perror("iconv_close");
 #endif
+
+        closelog();
+
         return res;
 }

@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2014-02-25  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Enabled syslog support
+
 2014-02-24  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * [rar2fs #22]
