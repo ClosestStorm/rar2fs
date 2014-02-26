@@ -4619,9 +4619,9 @@ static int work(struct fuse_args *args)
 
         /* This is doing more or less the same as fuse_setup(). */
         if (!fuse_parse_cmdline(args, &mp, &mt, &fg)) {
-              printd(1, "mounting file system on %s\n", mp);
               ch = fuse_mount(mp, args);
               if (ch) {
+                      syslog(LOG_DEBUG, "mounted %s\n", mp);
                       /* Avoid any output from the initial attempt */
                       block_stdio();
                       f = fuse_new(ch, args, &rar2_operations, 
@@ -4637,6 +4637,7 @@ static int work(struct fuse_args *args)
                       }
                       if (f == NULL) {
                               fuse_unmount(mp, ch);
+                              syslog(LOG_DEBUG, "unmounted %s\n", mp);
                      } else {
                               se = fuse_get_session(f);
                               fuse_set_signal_handlers(se);
@@ -4672,9 +4673,9 @@ static int work(struct fuse_args *args)
         pthread_join(t, NULL);
 
         /* This is doing more or less the same as fuse_teardown(). */
-        syslog(LOG_DEBUG, "unmounting %s\n", mp);
         fuse_remove_signal_handlers(se);
         fuse_unmount(mp, ch);
+        syslog(LOG_DEBUG, "unmounted %s\n", mp);
         fuse_destroy(f);
         free(mp);
 
