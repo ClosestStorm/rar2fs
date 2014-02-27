@@ -4653,7 +4653,6 @@ static int work(struct fuse_args *args)
         wdt.mt = mt;
         wdt.work_task_exited = 0;
         wdt.status = 0;
-        syslog(LOG_DEBUG, "mounting %s\n", mp);
         pthread_create(&t, &thread_attr, work_task, (void *)&wdt);
 
         /*
