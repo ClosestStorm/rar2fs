@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2014-03-02  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Mounting block special files on Linux can now benefit from
+          fmemopen() when supported.
+
 2014-02-25  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Enabled syslog support
