@@ -202,8 +202,11 @@ static pthread_attr_t thread_attr;
 static unsigned int rar2_ticks;
 static int fs_terminated = 0;
 static int fs_loop = 0;
-static int blk_dev = 0;
+static int64_t blkdev_size = -1;
 static mode_t umask_ = 0022;
+
+#define IS_BLKDEV() (blkdev_size >= 0)
+#define BLKDEV_SIZE() (blkdev_size > 0 ? blkdev_size : 0)
 
 static int extract_rar(char *arch, const char *file, FILE *fp, void *arg);
 
@@ -1922,14 +1925,16 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                         goto file_error;
                 (void)fstat(fd, &st);
 #if defined ( HAVE_FMEMOPEN ) && defined ( HAVE_MMAP )
-                if (!blk_dev) {
-                        maddr = mmap(0, P_ALIGN_(st.st_size), PROT_READ,
+                if (!IS_BLKDEV() || BLKDEV_SIZE()) {
+                        msize = IS_BLKDEV() ? BLKDEV_SIZE() : st.st_size; 
+                        maddr = mmap(0, P_ALIGN_(msize), PROT_READ,
                                                 MAP_SHARED, fd, 0);
                         if (maddr != MAP_FAILED)
                                 fp = fmemopen(maddr + (next->Offset + next->HeadSize),
                                                 GET_RAR_PACK_SZ(&next->hdr), "r");
                 } else {
 #endif
+                        msize = st.st_size; 
                         fp = fopen(entry_p->rar_p, "r");
                         if (fp)
                                 fseeko(fp, next->Offset + next->HeadSize,
@@ -1937,7 +1942,6 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
 #if defined ( HAVE_FMEMOPEN ) && defined ( HAVE_MMAP )
                 }
 #endif
-                msize = st.st_size; /* not valid for block special files */
                 mflags = 1;
         } else {
 #ifdef HAVE_FMEMOPEN
@@ -1958,9 +1962,13 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
         }
 
         if (fp) {
-                hdl2 = blk_dev 
+#ifndef HAVE_MMAP
+                hdl2 = RARInitArchiveEx(&d2, fp, 1);
+#else
+                hdl2 = IS_BLKDEV() && !BLKDEV_SIZE() 
                         ? RARInitArchiveEx(&d2, fp, 1)
                         : RARInitArchiveEx(&d2, INIT_FP_ARG_(fp));
+#endif
         }
         if (!fp || d2.OpenResult || (d2.Flags & MHD_VOLUME))
                 goto file_error;
@@ -4324,6 +4332,38 @@ static void usage(char *prog)
  *****************************************************************************
  *
  ****************************************************************************/
+static int64_t get_blkdev_size(struct stat *st)
+{
+#ifdef __linux
+        struct stat st2;
+        char buf[PATH_MAX];
+	size_t len;
+	int fd;
+
+	snprintf(buf, sizeof(buf), "/sys/dev/block/%d:%d/loop/backing_file",
+		 major(st->st_rdev), minor(st->st_rdev));
+
+	fd = open(buf, O_RDONLY);
+	if (fd < 0)
+		return 0;
+
+	len = read(fd, buf, PATH_MAX);
+	close(fd);
+	if (len < 2)
+		return 0;
+
+	buf[len - 1] = '\0';
+        (void)stat(buf, &st2);  
+        return st2.st_size;   
+#else
+        return 0;
+#endif
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int check_paths(const char *prog, char *src_path_in, char *dst_path_in,
                 char **src_path_out, char **dst_path_out, int verbose)
 {
@@ -4342,9 +4382,9 @@ static int check_paths(const char *prog, char *src_path_in, char *dst_path_in,
         (void)stat(a1, &st);
         mount_type = S_ISDIR(st.st_mode) ? MOUNT_FOLDER : MOUNT_ARCHIVE;
 
-        /* Detect a block special file */
+        /* Check for block special file */
         if (mount_type == MOUNT_ARCHIVE && S_ISBLK(st.st_mode))
-                blk_dev = 1;
+                blkdev_size = get_blkdev_size(&st);
     
         /* Check path type(s), destination path *must* be a folder */
         (void)stat(a2, &st);
