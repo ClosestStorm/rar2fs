@@ -262,7 +262,7 @@ static wchar_t *get_password(const char *file, wchar_t *buf, size_t len)
                         if (buf) {
                                 wchar_t *eol = wcspbrk(buf, L"\r\n");
                                 if (eol != NULL)
-                                        *eol=0;
+                                        *eol = 0;
                         }
                         fclose(fp);
                         return buf;
@@ -297,7 +297,7 @@ size_t wide_to_utf8(const wchar_t *src, char *dst, size_t dst_size)
                         c = ((c - 0xd800) << 10) + (*src - 0xdc00) + 0x10000;
                         src++;
                 }
-                if (c<0x10000 && (out_size -= 2) >= 0) {
+                if (c < 0x10000 && (out_size -= 2) >= 0) {
                         *(dst++) = (0xe0 | (c >> 12));
                         *(dst++) = (0x80 | ((c >> 6) & 0x3f));
                         *(dst++) = (0x80 | (c & 0x3f));
@@ -379,7 +379,7 @@ static dir_elem_t *path_lookup_miss(const char *path, struct stat *stbuf)
         ABS_ROOT(root, path);
 
         /* Check if the missing file can be found on the local fs */
-        if(!lstat(root, stbuf ? stbuf : &st)) {
+        if (!lstat(root, stbuf ? stbuf : &st)) {
                 printd(3, "STAT retrieved for %s\n", root);
                 return LOCAL_FS_ENTRY;
         }
@@ -408,18 +408,18 @@ static dir_elem_t *path_lookup_miss(const char *path, struct stat *stbuf)
                         e_p->name_p = strdup(path);
                         e_p->file_p = strdup(path);
                         e_p->flags.fake_iso = 1;
-                        if (l > 4)
+                        if (l > 4) {
                                 e_p->file_p = realloc(
                                         e_p->file_p,
                                         strlen(path) + 1 + (l - 4));
+                        }
                         /* back-patch *real* file name */
                         strncpy(e_p->file_p + (strlen(e_p->file_p) - 4),
                                         tmp ? tmp : "", l);
                         *(e_p->file_p+(strlen(path)-4+l)) = 0;
                         memcpy(&e_p->stat, &st, sizeof(struct stat));
-                        if (stbuf) {
+                        if (stbuf)
                                 memcpy(stbuf, &st, sizeof(struct stat));
-                        }
                         free(root1);
                         return e_p;
                 }
@@ -527,8 +527,9 @@ static void *extract_to(const char *file, off_t sz, const dir_elem_t *entry_p,
                 if (!fwrite(buffer, sz, 1, tmp)) {
                         fclose(tmp);
                         tmp = MAP_FAILED;
-                } else
+                } else {
                         fseeko(tmp, 0, SEEK_SET);
+                }
                 free(buffer);
                 return tmp;
         }
@@ -737,12 +738,9 @@ static char *get_vname(int t, const char *str, int vol, int len, int pos)
                         sprintf(f, "%s", (lower ? "ar" : "AR"));
                 } else if (vol <= 101) {
                         sprintf(f, "%02d", (vol - 2));
-                }
-                /* Possible, but unlikely */
-                else {
+                } else { /* Possible, but unlikely */
                         sprintf(f, "%c%02d", lower ? 'r' : 'R' + (vol - 2) / 100,
                                                 (vol - 2) % 100);
-
                         --pos;
                         ++len;
                 }
@@ -877,9 +875,8 @@ seek_check:
                 n = fread(buf, 1, chunk, fp);
                 printd(3, "Read %zu bytes from vol=%d, base=%d\n", n, op->vno,
                        op->entry_p->vno_base);
-                if (n != chunk) {
+                if (n != chunk)
                         size = n;
-                }
 
                 size -= n;
                 offset += n;
