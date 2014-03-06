@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2014-03-06  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * [rar2fs #31]
+
+        Corrected some compilation errors on FreeBSD (and also other
+        platforms that sets HAVE_SETXATTR).
+
 2014-03-02  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Mounting block special files on Linux can now benefit from

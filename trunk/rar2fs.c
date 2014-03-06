@@ -32,6 +32,7 @@
 #include <sys/select.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <signal.h>
 #include <string.h>
 #include <errno.h>
 #include <libgen.h>
@@ -1729,7 +1730,7 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
                 entry_p->stat.st_mode = mode;
 #ifndef HAVE_SETXATTR
                 entry_p->stat.st_nlink =
-                        S_ISDIR(mode) ? 2 : alist_p->Method - (FHD_STORING - 1);
+                        S_ISDIR(mode) ? 2 : alist_p->hdr.Method - (FHD_STORING - 1);
 #else
                 entry_p->stat.st_nlink =
                         S_ISDIR(mode) ? 2 : 1;
@@ -4353,6 +4354,7 @@ static int64_t get_blkdev_size(struct stat *st)
         (void)stat(buf, &st2);  
         return st2.st_size;   
 #else
+        (void)st;  /* touch */
         return 0;
 #endif
 }
