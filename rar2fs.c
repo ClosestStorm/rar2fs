@@ -2824,7 +2824,8 @@ opendir_ok:
 
         FH_SETIO(fi->fh, malloc(sizeof(struct io_handle)));
         if (!FH_ISSET(fi->fh)) {
-                closedir(dp);
+                if (dp)
+                        closedir(dp);
                 return -ENOMEM;
         }
         FH_SETTYPE(fi->fh, IO_TYPE_DIR);
@@ -2967,7 +2968,8 @@ static int rar2_releasedir(const char *path, struct fuse_file_info *fi)
         if (io == NULL)
                 return -EIO;
 
-        closedir(FH_TODP(fi->fh));
+        if (FH_TODP(fi->fh))
+                closedir(FH_TODP(fi->fh));
         free(FH_TOPATH(fi->fh)); 
         free(FH_TOIO(fi->fh));
         FH_ZERO(fi->fh);
