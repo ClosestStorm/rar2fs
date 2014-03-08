@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2014-03-08  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Corrected some issues that caused compilation failures
+          for UnRAR source 4.1.x.
+
 2014-03-07  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Corrected a problem seen on e.g. FreeBSD for which closedir()
