@@ -239,7 +239,9 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
   struct RARHeaderDataEx h;
   RARArchiveListEx* N_ = N;
 
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
   try
+#endif
   {
     *ResultCode = 0;
     uint FileCount = 0;

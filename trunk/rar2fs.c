@@ -239,7 +239,11 @@ static const char *file_cmd[] = {
  *****************************************************************************
  *
  ****************************************************************************/
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
 static wchar_t *get_password(const char *file, wchar_t *buf, size_t len)
+#else
+static char *get_password(const char *file, char *buf, size_t len)
+#endif
 {
         if (file) {
                 size_t l = strlen(file);
@@ -259,12 +263,16 @@ static wchar_t *get_password(const char *file, wchar_t *buf, size_t len)
                         fp = fopen(F, "r");
                 }
                 if (fp) {
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
                         buf = fgetws(buf, len, fp);
                         if (buf) {
                                 wchar_t *eol = wcspbrk(buf, L"\r\n");
                                 if (eol != NULL)
                                         *eol = 0;
                         }
+#else
+                        buf = fgets(buf, len, fp);
+#endif
                         fclose(fp);
                         return buf;
                 }
@@ -1532,9 +1540,17 @@ static int CALLBACK index_callback(UINT msg, LPARAM UserData,
         }
         if (msg == UCM_CHANGEVOLUME)
                 return access((char *)P1, F_OK);
-        if (msg == UCM_NEEDPASSWORDW)
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
+        if (msg == UCM_NEEDPASSWORDW) {
                 if (!get_password(eofd->arch, (wchar_t *)P1, P2))
                         return -1;
+        }
+#else
+        if (msg == UCM_NEEDPASSWORD) {
+                if (!get_password(eofd->arch, (char *)P1, P2))
+                        return -1;
+        }
+#endif
                
         return 1;
 }
@@ -1636,10 +1652,17 @@ static int CALLBACK extract_callback(UINT msg, LPARAM UserData,
         }
         if (msg == UCM_CHANGEVOLUME)
                 return access((char *)P1, F_OK);
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
         if (msg == UCM_NEEDPASSWORDW) {
                 if (!get_password(cb_arg->arch, (wchar_t *)P1, P2))
                         return -1;
         }
+#else
+        if (msg == UCM_NEEDPASSWORD) {
+                if (!get_password(cb_arg->arch, (char *)P1, P2))
+                        return -1;
+        }
+#endif
 
         return 1;
 }
@@ -2126,12 +2149,22 @@ file_error:
  ****************************************************************************/
 static int CALLBACK list_callback(UINT msg,LPARAM UserData,LPARAM P1,LPARAM P2)
 {
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
         if (msg == UCM_CHANGEVOLUME || msg == UCM_CHANGEVOLUMEW)
                 return -1; /* Do not allow volume switching */
         if (msg == UCM_NEEDPASSWORDW) {
                 if (!get_password((char *)UserData, (wchar_t *)P1, P2))
                         return -1;
         }
+#else
+        if (msg == UCM_CHANGEVOLUME)
+                return -1; /* Do not allow volume switching */
+        if (msg == UCM_NEEDPASSWORD) {
+                if (!get_password((char *)UserData, (char *)P1, P2))
+                        return -1;
+        }
+#endif
+
         return 1; 
 }
 
