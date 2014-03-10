@@ -4695,7 +4695,6 @@ static int work(struct fuse_args *args)
         if (!fuse_parse_cmdline(args, &mp, &mt, &fg)) {
               ch = fuse_mount(mp, args);
               if (ch) {
-                      syslog(LOG_DEBUG, "mounted %s\n", mp);
                       /* Avoid any output from the initial attempt */
                       block_stdio();
                       f = fuse_new(ch, args, &rar2_operations, 
@@ -4711,12 +4710,12 @@ static int work(struct fuse_args *args)
                       }
                       if (f == NULL) {
                               fuse_unmount(mp, ch);
-                              syslog(LOG_DEBUG, "unmounted %s\n", mp);
-                     } else {
+                      } else {
+                              syslog(LOG_DEBUG, "mounted %s\n", mp);
                               se = fuse_get_session(f);
                               fuse_set_signal_handlers(se);
                               fuse_daemonize(fg);
-                     }
+                      }
               }
         }
 
