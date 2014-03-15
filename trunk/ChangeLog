@@ -1,5 +1,10 @@
 rar2fs ChangeLog file.
 
+2014-03-16  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Fixed an issue with resolving symbolic links for
+          legacy archives.
+
 2014-03-08  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Corrected some issues that caused compilation failures

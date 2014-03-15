@@ -317,8 +317,17 @@ int PASCAL RARListArchiveEx(HANDLE hArcData, RARArchiveListEx* N, off_t* FileDat
         if (Arc.FileHead.RedirType == FSREDIR_UNIXSYMLINK &&
           (N->hdr.FileAttr & 0xF000)==0xA000)
         {
+          if (N->hdr.UnpVer < 50)
+          {
+            int DataSize=Min(N->hdr.PackSize,sizeof(N->LinkTarget)-1);
+            Arc.Read(N->LinkTarget,DataSize);
+            N->LinkTarget[DataSize]=0;
+          } 
+          else
+          {
             wcscpy(N->LinkTargetW,Arc.FileHead.RedirName);
             N->LinkTargetFlags |= LINK_T_UNICODE; // Make sure UNICODE is set
+          }
         }
         else if (Arc.FileHead.RedirType == FSREDIR_FILECOPY)
         {
