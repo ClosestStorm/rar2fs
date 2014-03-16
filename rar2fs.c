@@ -1035,7 +1035,6 @@ static int lread_rar(char *buf, size_t size, off_t offset,
 {
         int n = 0;
         struct io_context* op = FH_TOCONTEXT(fi->fh);
-
 #ifdef DEBUG_READ
         char *buf_saved = buf;
         off_t offset_saved = offset;
@@ -1772,7 +1771,7 @@ static void set_rarstats(dir_elem_t *entry_p, RARArchiveListEx *alist_p,
          * This is far from perfect but does the job pretty well!
          * If there is some obvious way to calculate the number of blocks
          * used by a file, please tell me! Most Linux systems seems to
-         * apply some sort of multiple of 8 blocks scheme?
+         * apply some sort of multiple of 8 blocks (4K bytes) scheme?
          */
         entry_p->stat.st_blocks =
             (((entry_p->stat.st_size + (8 * 512)) & ~((8 * 512) - 1)) / 512);
@@ -2147,7 +2146,7 @@ file_error:
  *****************************************************************************
  *
  ****************************************************************************/
-static int CALLBACK list_callback(UINT msg,LPARAM UserData,LPARAM P1,LPARAM P2)
+static int CALLBACK list_callback_noswitch(UINT msg,LPARAM UserData,LPARAM P1,LPARAM P2)
 {
 #if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
         if (msg == UCM_CHANGEVOLUME || msg == UCM_CHANGEVOLUMEW)
@@ -2172,6 +2171,27 @@ static int CALLBACK list_callback(UINT msg,LPARAM UserData,LPARAM P1,LPARAM P2)
  *****************************************************************************
  *
  ****************************************************************************/
+static int CALLBACK list_callback(UINT msg,LPARAM UserData,LPARAM P1,LPARAM P2)
+{
+#if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
+        if (msg == UCM_NEEDPASSWORDW) {
+                if (!get_password((char *)UserData, (wchar_t *)P1, P2))
+                        return -1;
+        }
+#else
+        if (msg == UCM_NEEDPASSWORD) {
+                if (!get_password((char *)UserData, (char *)P1, P2))
+                        return -1;
+        }
+#endif
+
+        return 1;
+}
+
+/*!
+ *****************************************************************************
+ *
+ ****************************************************************************/
 static int listrar(const char *path, struct dir_entry_list **buffer,
                 const char *arch)
 {
@@ -2182,7 +2202,7 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
         memset(&d, 0, sizeof(RAROpenArchiveDataEx));
         d.ArcName = (char *)arch;       /* Horrible cast! But hey... it is the API! */
         d.OpenMode = RAR_OM_LIST;
-        d.Callback = list_callback;
+        d.Callback = list_callback_noswitch;
         d.UserData = (LPARAM)arch;
         HANDLE hdl = RAROpenArchiveEx(&d);
 
@@ -2734,7 +2754,7 @@ static int rar2_getattr(const char *path, struct stat *stbuf)
 #if RARVER_MAJOR > 4
         int cmd = 0;
         while (file_cmd[cmd]) {
-                if (!strcmp(&path[strlen(path) - 5], file_cmd[cmd])) {
+                if (!strcmp(&path[strlen(path) - strlen(file_cmd[cmd])], file_cmd[cmd])) {
                         memset(stbuf, 0, sizeof(struct stat));
                         stbuf->st_mode = S_IFREG | 0644;
                         return 0;
@@ -2783,7 +2803,7 @@ static int rar2_getattr2(const char *path, struct stat *stbuf)
 #if RARVER_MAJOR > 4
         int cmd = 0;
         while (file_cmd[cmd]) {
-                if (!strcmp(&path[strlen(path) - 5], file_cmd[cmd])) {
+                if (!strcmp(&path[strlen(path) - strlen(file_cmd[cmd])], file_cmd[cmd])) {
                         memset(stbuf, 0, sizeof(struct stat));
                         stbuf->st_mode = S_IFREG | 0644;
                         return 0;
@@ -3335,7 +3355,7 @@ static int rar2_open(const char *path, struct fuse_file_info *fi)
                 while (file_cmd[cmd]) {
                         if (!strcmp(&path[strlen(path) - 5], "#info")) {
                                 char *tmp = strdup(path);
-                                tmp[strlen(path)-5] = 0;
+                                tmp[strlen(path) - 5] = 0;
                                 entry_p = path_lookup(tmp, NULL);
                                 free(tmp);
                                 if (entry_p == NULL || 

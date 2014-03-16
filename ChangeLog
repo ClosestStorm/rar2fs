@@ -2,8 +2,11 @@ rar2fs ChangeLog file.
 
 2014-03-16  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
+        * Fixed an issue when retrieving file information (#info)
+          that could have resulted in an infinite loop.
+
         * Fixed an issue with resolving symbolic links for
-          legacy archives.
+          legacy archives in combination with libunrar5.
 
 2014-03-08  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
