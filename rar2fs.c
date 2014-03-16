@@ -2754,10 +2754,23 @@ static int rar2_getattr(const char *path, struct stat *stbuf)
 #if RARVER_MAJOR > 4
         int cmd = 0;
         while (file_cmd[cmd]) {
-                if (!strcmp(&path[strlen(path) - strlen(file_cmd[cmd])], file_cmd[cmd])) {
-                        memset(stbuf, 0, sizeof(struct stat));
-                        stbuf->st_mode = S_IFREG | 0644;
-                        return 0;
+                size_t len_path = strlen(path);
+                size_t len_cmd = strlen(file_cmd[cmd]);
+                if (len_path > len_cmd &&
+                                !strcmp(&path[len_path - len_cmd], file_cmd[cmd])) {
+                        char *root;
+                        char *real = strdup(path);
+                        real[len_path - len_cmd] = 0;
+                        ABS_ROOT(root, real);
+                        if (access(root, F_OK)) {
+                                if (filecache_get(real)) {
+                                        free(real);
+                                        memset(stbuf, 0, sizeof(struct stat));
+                                        stbuf->st_mode = S_IFREG | 0644;
+                                        return 0;
+                                }
+                        }
+                        free(real);
                 }
                 ++cmd;
         }
@@ -2803,10 +2816,21 @@ static int rar2_getattr2(const char *path, struct stat *stbuf)
 #if RARVER_MAJOR > 4
         int cmd = 0;
         while (file_cmd[cmd]) {
-                if (!strcmp(&path[strlen(path) - strlen(file_cmd[cmd])], file_cmd[cmd])) {
-                        memset(stbuf, 0, sizeof(struct stat));
-                        stbuf->st_mode = S_IFREG | 0644;
-                        return 0;
+                size_t len_path = strlen(path);
+                size_t len_cmd = strlen(file_cmd[cmd]);
+                if (len_path > len_cmd &&
+                                !strcmp(&path[len_path - len_cmd], file_cmd[cmd])) {
+                        char *root;
+                        char *real = strdup(path);
+                        real[len_path - len_cmd] = 0;
+                        ABS_ROOT(root, real);
+                        if (filecache_get(real)) {
+                                free(real);
+                                memset(stbuf, 0, sizeof(struct stat));
+                                stbuf->st_mode = S_IFREG | 0644;
+                                return 0;
+                        }
+                        free(real);
                 }
                 ++cmd;
         }

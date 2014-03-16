@@ -2,6 +2,11 @@ rar2fs ChangeLog file.
 
 2014-03-16  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
+        * Now returning "No such file or directory" instead of
+          "Input/output error" when trying to read information
+          for a file outside an archive or which does not exist
+          at all (libunrar5 only).
+
         * Fixed an issue when retrieving file information (#info)
           that could have resulted in an infinite loop.
 
