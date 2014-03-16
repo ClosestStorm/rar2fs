@@ -441,19 +441,15 @@ void PASCAL RARGetFileInfo(HANDLE hArcData, const char *FileName, struct RARWcb 
 
   memset(&h, 0, sizeof(h));
   wcb->bytes = 0;
-  while (1) 
+  while (!RARReadHeaderEx(hArcData, &h))
   {
-    if (!RARReadHeaderEx(hArcData, &h))
+    WideToUtf(Arc.FileHead.FileName,FileNameUtf,ASIZE(FileNameUtf));
+    if (!strcmp(FileNameUtf, FileName))
     {
-      WideToUtf(Arc.FileHead.FileName,FileNameUtf,ASIZE(FileNameUtf));
-      if (!strcmp(FileNameUtf, FileName))
-      {
-        wcb->bytes = ListFileHeader(wcb->data, Arc);
-        return;
-      }
-      // Skip to next header
-      (void)RARProcessFile(hArcData,RAR_SKIP,NULL,NULL);
+      wcb->bytes = ListFileHeader(wcb->data, Arc);
+      return;
     }
+    (void)RARProcessFile(hArcData,RAR_SKIP,NULL,NULL);
   }
 #else
   (void)hArcData;
