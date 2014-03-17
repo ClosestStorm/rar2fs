@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2014-03-17  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * [rar2fs #34]
+
+        Fixed a problem with old style archives split into more
+        than 101 files.
+
 2014-03-16  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Now returning "No such file or directory" instead of
