@@ -748,7 +748,7 @@ static char *get_vname(int t, const char *str, int vol, int len, int pos)
                 } else if (vol <= 101) {
                         sprintf(f, "%02d", (vol - 2));
                 } else { /* Possible, but unlikely */
-                        sprintf(f, "%c%02d", lower ? 'r' : 'R' + (vol - 2) / 100,
+                        sprintf(f, "%c%02d", (lower ? 'r' : 'R') + (vol - 2) / 100,
                                                 (vol - 2) % 100);
                         --pos;
                         ++len;
@@ -2759,18 +2759,20 @@ static int rar2_getattr(const char *path, struct stat *stbuf)
                 if (len_path > len_cmd &&
                                 !strcmp(&path[len_path - len_cmd], file_cmd[cmd])) {
                         char *root;
-                        char *real = strdup(path);
+                        char *real = (char *)path;
+                        /* Frome here on the real path is not needed anymore
+                         * and adding it to the cache is simply overkil, thus
+                         * it is safe to modify it! */
                         real[len_path - len_cmd] = 0;
                         ABS_ROOT(root, real);
                         if (access(root, F_OK)) {
                                 if (filecache_get(real)) {
-                                        free(real);
                                         memset(stbuf, 0, sizeof(struct stat));
                                         stbuf->st_mode = S_IFREG | 0644;
                                         return 0;
                                 }
                         }
-                        free(real);
+                        break;
                 }
                 ++cmd;
         }
@@ -2821,16 +2823,18 @@ static int rar2_getattr2(const char *path, struct stat *stbuf)
                 if (len_path > len_cmd &&
                                 !strcmp(&path[len_path - len_cmd], file_cmd[cmd])) {
                         char *root;
-                        char *real = strdup(path);
+                        char *real = (char *)path;
+                        /* Frome here on the real path is not needed anymore
+                         * and adding it to the cache is simply overkil, thus
+                         * it is safe to modify it! */
                         real[len_path - len_cmd] = 0;
                         ABS_ROOT(root, real);
                         if (filecache_get(real)) {
-                                free(real);
                                 memset(stbuf, 0, sizeof(struct stat));
                                 stbuf->st_mode = S_IFREG | 0644;
                                 return 0;
                         }
-                        free(real);
+                        break;
                 }
                 ++cmd;
         }
