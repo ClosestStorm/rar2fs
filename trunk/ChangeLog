@@ -1,5 +1,9 @@
 rar2fs ChangeLog file.
 
+2014-03-18  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Built and tested against UnRAR source 5.10 beta 1 (5.1.1)
+
 2014-03-17  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * [rar2fs #34]
