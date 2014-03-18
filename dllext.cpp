@@ -193,7 +193,11 @@ HANDLE PASCAL RARInitArchiveEx(struct RAROpenArchiveDataEx *r, FileHandle fh,
     else
       r->CmtState=r->CmtSize=0;
 #endif
+#if  RARVER_MAJOR > 5 || ( RARVER_MAJOR == 5 && RARVER_MINOR >= 10 )
+    Data->Extract.ExtractArchiveInit(Data->Arc);
+#else
     Data->Extract.ExtractArchiveInit(&Data->Cmd,Data->Arc);
+#endif
     return((HANDLE)Data);
   }
 #if RARVER_MAJOR > 4 || ( RARVER_MAJOR == 4 && RARVER_MINOR >= 20 )
@@ -423,7 +427,11 @@ void PASCAL RARVolNameToFirstName(char* arch, bool oldstylevolume)
 #else
   wchar ArcName[NM];
   CharToWide(arch, ArcName, ASIZE(ArcName));
+#if  RARVER_MAJOR > 5 || ( RARVER_MAJOR == 5 && RARVER_MINOR >= 10 )
+  VolNameToFirstName(ArcName, ArcName, ASIZE(ArcName), !oldstylevolume);
+#else
   VolNameToFirstName(ArcName, ArcName, !oldstylevolume);
+#endif
   WideToChar(ArcName,arch,strlen(arch)+1);
 #endif
 }
