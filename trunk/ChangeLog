@@ -1,5 +1,12 @@
 rar2fs ChangeLog file.
 
+2014-03-19  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Turned off support for block special device mounts other
+          than for Linux platforms. It does not make much sense trying  
+          to support it any where else due to possible read alignment
+          requirements.
+
 2014-03-18  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Built and tested against UnRAR source 5.10 beta 1 (5.1.1)
