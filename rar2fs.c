@@ -206,7 +206,11 @@ static int fs_loop = 0;
 static int64_t blkdev_size = -1;
 static mode_t umask_ = 0022;
 
+#ifdef __linux
 #define IS_BLKDEV() (blkdev_size >= 0)
+#else
+#define IS_BLKDEV() (0)
+#endif
 #define BLKDEV_SIZE() (blkdev_size > 0 ? blkdev_size : 0)
 
 static int extract_rar(char *arch, const char *file, FILE *fp, void *arg);
