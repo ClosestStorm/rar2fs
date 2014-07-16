@@ -1,5 +1,14 @@
 rar2fs ChangeLog file.
 
+2014-07-16  Hans Beckerus <hans.beckerus#AT#gmail.com>
+
+        * Changed implementation of utimens
+
+        * [rar2fs #35]
+
+        Fixed a problem with RAR5 stats that were incorrectly
+        inherited for file reference links.
+
 2014-03-19  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
         * Released 1.20.0
