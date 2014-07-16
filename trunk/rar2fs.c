@@ -2097,7 +2097,8 @@ static int listrar_rar(const char *path, struct dir_entry_list **buffer,
                         e_p = lookup_filecopy(path, next2, rar_root, 0);
                         if (e_p) {
                                 filecache_copy(e_p, entry2_p);
-                                /* We are done here! */
+                                /* Preserve stats of original file */
+                                set_rarstats(entry2_p, next2, 0);
                                 goto cache_hit;
                         }
                 }
@@ -2366,10 +2367,12 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
                 }
 
                 if (next->LinkTargetFlags & LINK_T_FILECOPY) {
-                        dir_elem_t *e_p; 
+                        dir_elem_t *e_p;
                         e_p = lookup_filecopy(path, next, rar_root, display);
                         if (e_p) {
                                 filecache_copy(e_p, entry_p);
+                                /* Preserve stats of original file */
+                                set_rarstats(entry_p, next, 0);
                                 goto cache_hit;
                         }
                 }
@@ -4181,6 +4184,7 @@ static int rar2_rmdir(const char *path)
         return -EPERM;
 }
 
+#ifdef HAVE_UTIMENSAT
 /*!
  *****************************************************************************
  *
@@ -4191,22 +4195,15 @@ static int rar2_utimens(const char *path, const struct timespec ts[2])
 
         if (!access_chk(path, 0)) {
                 int res;
-                struct timeval tv[2];
-                char *root;
-                ABS_ROOT(root, path);
-
-                tv[0].tv_sec = ts[0].tv_sec;
-                tv[0].tv_usec = ts[0].tv_nsec / 1000;
-                tv[1].tv_sec = ts[1].tv_sec;
-                tv[1].tv_usec = ts[1].tv_nsec / 1000;
-
-                res = utimes(root, tv);
+                /* don't use utime/utimes since they follow symlinks */
+                res = utimensat(0, path, ts, AT_SYMLINK_NOFOLLOW);
                 if (res == -1)
                         return -errno;
                 return 0;
         }
         return -EPERM;
 }
+#endif
 
 #ifdef HAVE_SETXATTR
 
@@ -4564,7 +4561,9 @@ static int check_libfuse(int verbose)
 static struct fuse_operations rar2_operations = {
         .init = rar2_init,
         .statfs = rar2_statfs,
+#ifdef HAVE_UTIMENSAT
         .utimens = rar2_utimens,
+#endif
         .destroy = rar2_destroy,
         .open = rar2_open,
         .release = rar2_release,
