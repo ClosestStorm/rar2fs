@@ -910,7 +910,7 @@ static int lread_info(char *buf, size_t size, off_t offset,
                 struct fuse_file_info *fi)
 {
         /* Only allow reading from start of file in 'cat'-like fashion */
-        if(!offset) {
+        if (!offset) {
             struct RARWcb *wcb = FH_TOBUF(fi->fh);
             int c = wide_to_char(buf, wcb->data, size);
             if (c > 0)
@@ -930,7 +930,7 @@ static void sync_thread_read(int *pfd1, int *pfd2)
                 errno = 0;
                 WAKE_THREAD(pfd1, 1);
                 WAIT_THREAD(pfd2);
-        } while (errno == EINTR);
+       } while (errno == EINTR);
 }
 
 static void sync_thread_noread(int *pfd1, int *pfd2)
