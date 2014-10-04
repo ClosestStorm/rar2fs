@@ -1368,6 +1368,7 @@ static void dump_stat(struct stat *stbuf)
 static int collect_files(const char *arch, struct dir_entry_list *list)
 {
         RAROpenArchiveDataEx d;
+        HANDLE hdl = NULL;
         int files = 0;
 
         memset(&d, 0, sizeof(RAROpenArchiveDataEx));
@@ -1381,7 +1382,6 @@ static int collect_files(const char *arch, struct dir_entry_list *list)
                 if (!(d.Flags & MHD_VOLUME)) {
                         files = 1;
                         list = dir_entry_add(list, d.ArcName, NULL, DIR_E_NRM);
-                        RARCloseArchive(hdl);
                         break;
                 }
                 if (!files && !(d.Flags & MHD_FIRSTVOLUME))
@@ -1392,6 +1392,8 @@ static int collect_files(const char *arch, struct dir_entry_list *list)
                 RARCloseArchive(hdl);
                 RARNextVolumeName(d.ArcName, !(d.Flags & MHD_NEWNUMBERING));
         }
+        if (hdl)
+                RARCloseArchive(hdl);
         free(d.ArcName);
         return files;
 }
@@ -2214,6 +2216,8 @@ static int listrar(const char *path, struct dir_entry_list **buffer,
         /* Check for fault */
         if (d.OpenResult) {
                 pthread_mutex_unlock(&file_access_mutex);
+                if (hdl)
+                        RARCloseArchive(hdl);
                 return d.OpenResult;
         }
 
@@ -3294,8 +3298,11 @@ static int extract_rar_file_info(dir_elem_t *entry_p, struct RARWcb *wcb)
         HANDLE hdl = RAROpenArchiveEx(&d);
 
         /* Check for fault */
-        if (d.OpenResult)
+        if (d.OpenResult) {
+                if (hdl)
+                        RARCloseArchive(hdl);
                 return 0;
+        }
 
         FILE *fp = NULL;
         char *maddr = MAP_FAILED;
