@@ -3,7 +3,7 @@
 
 || || *Filename* || *Summary* ||
 || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zR1F0b0tmRktiaXc https://ssl.gstatic.com/codesite/ph/images/dl_arrow.gif] || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zR1F0b0tmRktiaXc rar2fs-1.20.0.tar.gz] <hr> [https://github.com/hasse69/rar2fs/releases/download/v1.20.0/rar2fs-1.20.0.tar.gz rar2fs-1.20.0.tar.gz (GitHub)] || Stable release 1.20.0 ||
-|| [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zYTE5OE1MaWRyX1E https://ssl.gstatic.com/codesite/ph/images/dl_arrow.gif] || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zYTE5OE1MaWRyX1E rar2fs-1.19.8.tar.gz] || Patch release 1.19.8 ||
+|| [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zYTE5OE1MaWRyX1E https://ssl.gstatic.com/codesite/ph/images/dl_arrow.gif] || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zYTE5OE1MaWRyX1E rar2fs-1.19.8.tar.gz] <hr> [https://github.com/hasse69/rar2fs/releases/download/v1.19.8/rar2fs-1.19.8.tar.gz rar2fs-1.19.8 (GitHub)] || Patch release 1.19.8 ||
 || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zd2k4Q3duUUUtczA https://ssl.gstatic.com/codesite/ph/images/dl_arrow.gif] || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zd2k4Q3duUUUtczA rar2fs-1.19.5.tar.gz] || Patch release 1.19.5 ||
 || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zVDN0Q0h3VjRlZTQ https://ssl.gstatic.com/codesite/ph/images/dl_arrow.gif] || [https://docs.google.com/uc?export=download&id=0B-2uEqYiZg3zVDN0Q0h3VjRlZTQ rar2fs-1.19.2.tar.gz] || Patch release 1.19.2 ||
 
