@@ -2,7 +2,7 @@ rar2fs ChangeLog file.
 
 2015-01-15  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
-        * Fixed a crash when using the --exclude option in file mode.
+        * Fixed a crash when using the --exclude option.
 
 2014-09-19  Hans Beckerus <hans.beckerus#AT#gmail.com>
 
