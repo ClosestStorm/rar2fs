@@ -1,0 +1,2 @@
+For a comprehensive list of latest updates check the following link<br>
+<a href='https://code.google.com/p/rar2fs/source/browse/trunk/ChangeLog'>https://code.google.com/p/rar2fs/source/browse/trunk/ChangeLog</a>
